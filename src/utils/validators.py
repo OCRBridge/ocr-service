@@ -64,7 +64,7 @@ def validate_file_size(file_size: int) -> None:
         )
 
 
-async def validate_upload_file(file: IO[bytes]) -> tuple[str, int]:
+def validate_upload_file(file: IO[bytes]) -> tuple[str, int]:
     """
     Validate uploaded file format and size.
 
@@ -79,16 +79,16 @@ async def validate_upload_file(file: IO[bytes]) -> tuple[str, int]:
         FileTooLargeError: If file too large
     """
     # Read magic bytes
-    header = await file.read(12)
+    header = file.read(12)
     mime_type = validate_file_format(header)
 
     # Reset file pointer
-    await file.seek(0)
+    file.seek(0)
 
     # Get file size
-    await file.seek(0, 2)  # Seek to end
-    file_size = await file.tell()
-    await file.seek(0)  # Reset to beginning
+    file.seek(0, 2)  # Seek to end
+    file_size = file.tell()
+    file.seek(0)  # Reset to beginning
 
     # Validate size
     validate_file_size(file_size)

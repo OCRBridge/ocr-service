@@ -1,6 +1,5 @@
 """Unit tests for HOCR XML parsing and validation."""
 
-import pytest
 
 
 def test_hocr_parsing_valid_xml():

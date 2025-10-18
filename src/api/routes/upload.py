@@ -1,7 +1,16 @@
 """Upload endpoint for document submission."""
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from redis import asyncio as aioredis
 
 from src.api.dependencies import get_redis
@@ -44,8 +53,7 @@ async def process_ocr_task(job_id: str, redis: aioredis.Redis):
 
         # Process document
         hocr_content = await ocr_processor.process_document(
-            job.upload.temp_file_path,
-            job.upload.file_format
+            job.upload.temp_file_path, job.upload.file_format
         )
 
         # Save result
@@ -95,6 +103,7 @@ async def process_ocr_task(job_id: str, redis: aioredis.Redis):
 )
 @limiter.limit(f"{100}/minute")
 async def upload_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     redis: aioredis.Redis = Depends(get_redis),

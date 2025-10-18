@@ -1,7 +1,7 @@
 """Unit tests for Redis job state CRUD operations."""
 
+
 import pytest
-from datetime import datetime, timedelta
 
 
 @pytest.mark.asyncio

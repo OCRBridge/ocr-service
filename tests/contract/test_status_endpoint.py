@@ -1,6 +1,5 @@
 """Contract tests for GET /jobs/{id}/status endpoint validating OpenAPI schema."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 

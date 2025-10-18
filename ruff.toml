@@ -19,10 +19,13 @@ select = [
 
 ignore = [
     "E501",  # Line too long (handled by formatter)
+    "B008",  # Do not perform function calls in argument defaults - FastAPI dependency injection pattern
+    "B904",  # Within except clause, use raise from - optional exception chaining
 ]
 
 [lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports in __init__.py are OK
+"tests/**/*.py" = ["F841"]  # Unused variables in tests (TDD placeholders)
 
 [format]
 quote-style = "double"

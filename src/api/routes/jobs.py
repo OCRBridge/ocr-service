@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from redis import asyncio as aioredis
 
@@ -11,7 +11,6 @@ from src.api.dependencies import get_redis
 from src.api.middleware.rate_limit import limiter
 from src.models.job import JobStatus
 from src.models.responses import ErrorResponse, StatusResponse
-from src.services.file_handler import FileHandler
 from src.services.job_manager import JobManager
 
 router = APIRouter()
@@ -27,6 +26,7 @@ logger = structlog.get_logger()
 )
 @limiter.limit(f"{100}/minute")
 async def get_job_status(
+    request: Request,
     job_id: str,
     redis: aioredis.Redis = Depends(get_redis),
 ):
@@ -70,6 +70,7 @@ async def get_job_status(
 )
 @limiter.limit(f"{100}/minute")
 async def get_job_result(
+    request: Request,
     job_id: str,
     redis: aioredis.Redis = Depends(get_redis),
 ):
@@ -79,7 +80,6 @@ async def get_job_result(
     Returns HOCR XML file with bounding boxes and text hierarchy.
     """
     job_manager = JobManager(redis)
-    file_handler = FileHandler()
 
     # Get job
     job = await job_manager.get_job(job_id)

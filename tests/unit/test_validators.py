@@ -1,6 +1,5 @@
 """Unit tests for file format validation (magic bytes) and size checks."""
 
-import pytest
 
 
 def test_file_format_validation_jpeg():

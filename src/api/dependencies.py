@@ -1,8 +1,7 @@
 """FastAPI dependency providers for shared resources."""
 
-from typing import AsyncGenerator
 
-from fastapi import Depends, Request
+from fastapi import Request
 from redis import asyncio as aioredis
 
 from src.config import Settings, settings

@@ -18,7 +18,9 @@ structlog.configure(
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer() if settings.log_format == "json" else structlog.dev.ConsoleRenderer(),
+        structlog.processors.JSONRenderer()
+        if settings.log_format == "json"
+        else structlog.dev.ConsoleRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(settings.log_level)),
     context_class=dict,
@@ -77,7 +79,7 @@ app.mount("/metrics", metrics_app)
 
 
 # Import and register routes
-from src.api.routes import health, jobs, upload
+from src.api.routes import health, jobs, upload  # noqa: E402
 
 app.include_router(upload.router, tags=["upload"])
 app.include_router(jobs.router, tags=["jobs"])

@@ -1,6 +1,5 @@
 """Unit tests for job ID generation uniqueness and entropy."""
 
-import pytest
 
 
 def test_job_id_generation_is_unique():

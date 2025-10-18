@@ -1,6 +1,5 @@
 """Contract tests for error responses (400/404/413/415/429) validating schemas."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 

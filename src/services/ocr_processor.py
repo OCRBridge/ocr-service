@@ -9,7 +9,6 @@ from pdf2image import convert_from_path
 from src.config import settings
 from src.models.job import ErrorCode
 from src.models.upload import FileFormat
-from src.utils.hocr import parse_hocr
 
 logger = structlog.get_logger()
 
@@ -55,14 +54,10 @@ class OCRProcessor:
 
         except pytesseract.TesseractError as e:
             logger.error("tesseract_error", error=str(e), file=str(file_path))
-            raise OCRProcessorError(
-                f"OCR engine error: {str(e)}", ErrorCode.OCR_ENGINE_ERROR
-            )
+            raise OCRProcessorError(f"OCR engine error: {str(e)}", ErrorCode.OCR_ENGINE_ERROR)
         except Exception as e:
             logger.error("ocr_processing_failed", error=str(e), file=str(file_path))
-            raise OCRProcessorError(
-                f"OCR processing failed: {str(e)}", ErrorCode.INTERNAL_ERROR
-            )
+            raise OCRProcessorError(f"OCR processing failed: {str(e)}", ErrorCode.INTERNAL_ERROR)
 
     async def _process_image(self, image_path: Path) -> str:
         """
@@ -81,10 +76,7 @@ class OCRProcessor:
 
         # Run Tesseract with HOCR output
         hocr_output = pytesseract.image_to_pdf_or_hocr(
-            str(image_path),
-            lang=self.lang,
-            config=config,
-            extension="hocr"
+            str(image_path), lang=self.lang, config=config, extension="hocr"
         )
 
         # Decode bytes to string
@@ -111,9 +103,7 @@ class OCRProcessor:
             images = convert_from_path(str(pdf_path), dpi=self.pdf_dpi, thread_count=2)
         except Exception as e:
             logger.error("pdf_conversion_failed", error=str(e))
-            raise OCRProcessorError(
-                f"PDF conversion failed: {str(e)}", ErrorCode.CORRUPTED_FILE
-            )
+            raise OCRProcessorError(f"PDF conversion failed: {str(e)}", ErrorCode.CORRUPTED_FILE)
 
         logger.info("pdf_converted", file=str(pdf_path), pages=len(images))
 
@@ -126,10 +116,7 @@ class OCRProcessor:
 
             # Run Tesseract on page image
             hocr_output = pytesseract.image_to_pdf_or_hocr(
-                image,
-                lang=self.lang,
-                config=config,
-                extension="hocr"
+                image, lang=self.lang, config=config, extension="hocr"
             )
 
             page_hocr_list.append(hocr_output.decode("utf-8"))
@@ -164,7 +151,7 @@ class OCRProcessor:
             start = page_hocr.find("<body>")
             end = page_hocr.find("</body>")
             if start != -1 and end != -1:
-                combined_body += page_hocr[start + 6:end]
+                combined_body += page_hocr[start + 6 : end]
 
         # Wrap in complete HOCR structure
         hocr_template = f"""<?xml version="1.0" encoding="UTF-8"?>

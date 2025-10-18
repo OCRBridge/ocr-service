@@ -3,8 +3,8 @@
 import asyncio
 import os
 import tempfile
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
 from fastapi.testclient import TestClient

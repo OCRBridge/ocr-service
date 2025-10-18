@@ -46,7 +46,7 @@ class FileHandler:
             FileTooLargeError: If file too large
         """
         # Validate file
-        mime_type, file_size = await validate_upload_file(file.file)
+        mime_type, file_size = validate_upload_file(file.file)
 
         # Generate unique filename
         file_id = uuid.uuid4()
@@ -130,7 +130,7 @@ class FileHandler:
         Returns:
             HOCR content string
         """
-        async with aiofiles.open(file_path, "r") as f:
+        async with aiofiles.open(file_path) as f:
             return await f.read()
 
     def _get_extension(self, mime_type: str) -> str:
