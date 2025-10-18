@@ -147,15 +147,86 @@ async def process_ocr_task(
 async def upload_document(
     request: Request,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    lang: Optional[str] = Form(None),
-    psm: Optional[int] = Form(None),
-    oem: Optional[int] = Form(None),
-    dpi: Optional[int] = Form(None),
+    file: UploadFile = File(..., description="Document file to process (JPEG, PNG, PDF, TIFF)"),
+    lang: Optional[str] = Form(
+        None,
+        description=(
+            "Language code(s) for OCR recognition. Use 3-letter ISO 639-2/3 codes. "
+            "Multiple languages can be specified using '+' separator (max 5). "
+            "Common codes: eng (English), fra (French), deu (German), spa (Spanish), "
+            "ita (Italian), por (Portuguese), rus (Russian), ara (Arabic), "
+            "chi_sim (Simplified Chinese), jpn (Japanese). "
+            "Examples: 'eng', 'eng+fra', 'eng+fra+deu'. "
+            "Default: eng"
+        ),
+        pattern=r"^[a-z]{3}(\+[a-z]{3})*$",
+        examples=["eng", "eng+fra", "fra"],
+    ),
+    psm: Optional[int] = Form(
+        None,
+        description=(
+            "Page Segmentation Mode (0-13) - controls how Tesseract segments the page. "
+            "Common modes: 3=Fully automatic (default, best for most documents), "
+            "6=Single uniform block (best for tables/invoices/forms), "
+            "7=Single text line (best for single-line fields), "
+            "11=Sparse text (best for receipts with scattered text). "
+            "All modes: 0=OSD only, 1=Auto with OSD, 2=Auto (no OSD/OCR), "
+            "3=Fully auto, 4=Single column, 5=Single vertical block, 6=Single block, "
+            "7=Single line, 8=Single word, 9=Single word (circle), 10=Single char, "
+            "11=Sparse text, 12=Sparse text with OSD, 13=Raw line. "
+            "Default: 3"
+        ),
+        ge=0,
+        le=13,
+        examples=[3, 6, 11],
+    ),
+    oem: Optional[int] = Form(
+        None,
+        description=(
+            "OCR Engine Mode (0-3) - controls which Tesseract engine to use. "
+            "0=Legacy engine (faster, lower accuracy), "
+            "1=LSTM neural network (recommended - best accuracy), "
+            "2=Legacy+LSTM combined (slower), "
+            "3=Default (auto-select based on available traineddata). "
+            "Recommendation: Use 1 (LSTM) for modern Tesseract 5.x. "
+            "Default: 3"
+        ),
+        ge=0,
+        le=3,
+        examples=[1, 3],
+    ),
+    dpi: Optional[int] = Form(
+        None,
+        description=(
+            "Image resolution (dots per inch) for OCR processing. "
+            "Overrides missing or incorrect DPI metadata in image files. "
+            "Typical values: 150 (low-res scans), 300 (standard scans - most common), "
+            "600 (high-quality scans for small text). "
+            "Use when: image lacks DPI metadata, incorrect metadata, "
+            "or to standardize processing. "
+            "Range: 70-2400. "
+            "Default: Auto-detect from image metadata or 70"
+        ),
+        ge=70,
+        le=2400,
+        examples=[300, 150, 600],
+    ),
     redis: aioredis.Redis = Depends(get_redis),
 ):
     """
-    Upload a document for OCR processing.
+    Upload a document for OCR processing with optional Tesseract configuration.
+
+    **Default Behavior (no parameters):**
+    - Language: English (eng)
+    - PSM: 3 (Fully automatic page segmentation)
+    - OEM: 3 (Default based on available traineddata)
+    - DPI: Auto-detect from image metadata or 70
+
+    **Common Use Cases:**
+    - French document: lang=fra
+    - Invoice/form: lang=eng, psm=6, oem=1, dpi=300
+    - Receipt: lang=eng, psm=11, oem=1, dpi=300
+    - Multi-language: lang=eng+fra+deu
 
     Returns job ID for status polling and result retrieval.
     Processing happens asynchronously in the background.

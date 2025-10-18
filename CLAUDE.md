@@ -36,7 +36,7 @@ specs/                 # Design documentation
 ### Development
 ```bash
 # Install dependencies
-uv pip install -e ".[dev]"
+uv sync --group dev
 
 # Run development server
 uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000

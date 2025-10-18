@@ -66,7 +66,7 @@ uv venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install project dependencies
-uv pip install -e ".[dev]"
+uv sync --group dev
 ```
 
 ### 3. Verify Prerequisites
@@ -402,7 +402,7 @@ ab -n 1000 -c 10 http://localhost:8000/jobs/test-job-id/status
 
 ```bash
 # Install memory_profiler
-uv pip install memory-profiler
+uv tool install memory-profiler
 
 # Profile OCR processing
 python -m memory_profiler src/services/ocr_processor.py
