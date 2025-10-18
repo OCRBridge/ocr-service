@@ -1,6 +1,7 @@
 """FastAPI application entry point with lifecycle management."""
 
 import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
@@ -80,10 +81,8 @@ async def lifespan(app: FastAPI):
 
     # Cancel cleanup task
     cleanup_task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
     await redis_client.close()
     logger.info("application_shutdown_complete")

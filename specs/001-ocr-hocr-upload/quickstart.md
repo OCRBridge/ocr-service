@@ -146,16 +146,16 @@ Following the **Test-First** principle from the constitution, tests are written 
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage report
-pytest --cov=src --cov-report=html --cov-report=term
+uv run pytest --cov=src --cov-report=html --cov-report=term
 
 # Run specific test module
-pytest tests/unit/test_models.py -v
+uv run pytest tests/unit/test_models.py -v
 
 # Run tests with sample fixtures
-pytest tests/integration/test_upload_samples.py -v
+uv run pytest tests/integration/test_upload_samples.py -v
 ```
 
 **Expected Initial State**: Most tests will fail because implementation doesn't exist yet.
@@ -173,28 +173,28 @@ Example workflow for implementing the upload endpoint:
 
 ```bash
 # 1. Run upload test (fails)
-pytest tests/contract/test_upload_endpoint.py::test_upload_jpeg -v
+uv run pytest tests/contract/test_upload_endpoint.py::test_upload_jpeg -v
 
 # 2. Implement src/api/routes/upload.py to make it pass
 
 # 3. Verify test passes
-pytest tests/contract/test_upload_endpoint.py::test_upload_jpeg -v
+uv run pytest tests/contract/test_upload_endpoint.py::test_upload_jpeg -v
 
 # 4. Run full suite to ensure no regressions
-pytest
+uv run pytest
 ```
 
 ### Step 3: Format Code with Ruff
 
 ```bash
 # Format all Python files
-ruff format src/ tests/
+uv run ruff format src/ tests/
 
 # Check for linting issues
-ruff check src/ tests/
+uv run ruff check src/ tests/
 
 # Auto-fix linting issues
-ruff check --fix src/ tests/
+uv run ruff check --fix src/ tests/
 ```
 
 ### Step 4: Verify Constitution Compliance
@@ -203,16 +203,16 @@ Before committing, ensure all gates pass:
 
 ```bash
 # Coverage check (minimum 80% overall, 90% for utilities)
-pytest --cov=src --cov-report=term --cov-fail-under=80
+uv run pytest --cov=src --cov-report=term --cov-fail-under=80
 
 # Type checking (via Pydantic validation in tests)
-pytest tests/unit/test_models.py
+uv run pytest tests/unit/test_models.py
 
 # Performance smoke test
-pytest tests/performance/ -v
+uv run pytest tests/performance/ -v
 
 # Contract validation
-pytest tests/contract/ -v
+uv run pytest tests/contract/ -v
 ```
 
 ## Running the API
@@ -221,26 +221,26 @@ pytest tests/contract/ -v
 
 ```bash
 # Standard run (manual restart on code changes)
-uvicorn src.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
 
 # Development mode (auto-reload on code changes)
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
 # With specific number of workers (production-like)
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ### Docker Compose (Full Stack)
 
 ```bash
 # Start all services (API + Redis)
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f api
+docker compose logs -f api
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
 ## API Usage Examples
@@ -567,7 +567,7 @@ restful-ocr/
 ├── uv.lock                     # Locked dependencies
 ├── .env                        # Environment configuration
 ├── .python-version             # Python 3.11
-├── docker-compose.yml          # Full stack setup
+├── docker compose.yml          # Full stack setup
 ├── Dockerfile                  # API container
 └── README.md                   # Project overview
 ```

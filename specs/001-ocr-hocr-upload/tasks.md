@@ -24,7 +24,7 @@
 - [X] T004 [P] Create .env.example with configuration template from quickstart.md
 - [X] T005 [P] Configure ruff.toml for code formatting and linting
 - [X] T006 [P] Create .gitignore for Python, virtual env, temp files, Redis dumps
-- [X] T007 [P] Create docker-compose.yml with API service and Redis from plan.md
+- [X] T007 [P] Create docker compose.yml with API service and Redis from plan.md
 - [X] T008 [P] Create Dockerfile for API service based on Python 3.11 Alpine
 - [X] T009 Create README.md with project overview and setup instructions
 - [X] T010 Create temp directories /tmp/uploads and /tmp/results with 700 permissions
@@ -199,17 +199,17 @@
 
 **Purpose**: Security, performance, observability improvements that affect multiple user stories
 
-- [ ] T100 [P] Implement rate limiting tests in tests/integration/test_rate_limiting.py verifying 100/min enforcement per FR-015
-- [ ] T101 [P] Implement memory usage profiling test <512MB per request in tests/performance/test_memory_usage.py
-- [ ] T102 [P] Create comprehensive edge case tests for blank pages, corrupted files, oversized files in tests/integration/test_edge_cases.py
-- [ ] T103 Run full test suite with coverage report: `pytest --cov=src --cov-report=html --cov-report=term`
-- [ ] T104 Verify coverage gates: 80% overall, 90% for src/utils/ per constitution
-- [ ] T105 Run ruff formatting and linting: `ruff format src/ tests/ && ruff check src/ tests/`
-- [ ] T106 Validate OpenAPI contract compliance by running contract tests: `pytest tests/contract/ -v`
-- [ ] T107 Run quickstart.md validation: verify all commands execute successfully
-- [ ] T108 Update CLAUDE.md with active technologies and commands per plan.md
-- [ ] T109 Create deployment documentation in README.md with Docker and production setup
-- [ ] T110 Security review: verify job ID entropy, rate limiting, input validation, no data leakage in logs
+- [X] T100 [P] Implement rate limiting tests in tests/integration/test_rate_limiting.py verifying 100/min enforcement per FR-015
+- [X] T101 [P] Implement memory usage profiling test <512MB per request in tests/performance/test_memory_usage.py
+- [X] T102 [P] Create comprehensive edge case tests for blank pages, corrupted files, oversized files in tests/integration/test_edge_cases.py
+- [X] T103 Run full test suite with coverage report: `pytest --cov=src --cov-report=html --cov-report=term`
+- [X] T104 Verify coverage gates: 80% overall, 90% for src/utils/ per constitution
+- [X] T105 Run ruff formatting and linting: `ruff format src/ tests/ && ruff check src/ tests/`
+- [X] T106 Validate OpenAPI contract compliance by running contract tests: `pytest tests/contract/ -v`
+- [X] T107 Run quickstart.md validation: verify all commands execute successfully
+- [X] T108 Update CLAUDE.md with active technologies and commands per plan.md
+- [X] T109 Create deployment documentation in README.md with Docker and production setup
+- [X] T110 Security review: verify job ID entropy, rate limiting, input validation, no data leakage in logs
 
 ---
 
