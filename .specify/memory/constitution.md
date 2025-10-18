@@ -1,15 +1,15 @@
 <!--
 Sync Impact Report
-Version change: (none prior) → 1.0.0
-Modified principles: N/A (initial adoption)
-Added sections: Core Principles; Security & Performance Requirements; Development Workflow & Quality Gates; Governance
+Version change: 1.0.0 → 1.1.0
+Modified principles: None (existing principles unchanged)
+Added sections: Principle 8 - Documentation & Library Reference
 Removed sections: None
 Templates requiring updates:
-	.specify/templates/plan-template.md ✅ updated
-	.specify/templates/tasks-template.md ✅ updated
-	.specify/templates/spec-template.md ✅ no change needed (already aligned)
-	.specify/templates/agent-file-template.md ⚠ pending (will auto-populate later when plans exist)
-	.specify/templates/checklist-template.md ⚠ optional enhancements (add categories for Security, Observability later)
+	.specify/templates/plan-template.md ✅ no update needed (Constitution Check section is dynamic)
+	.specify/templates/tasks-template.md ✅ no update needed (follows constitution principles)
+	.specify/templates/spec-template.md ✅ no update needed (already aligned)
+	.specify/templates/agent-file-template.md ✅ no update needed (auto-populated later)
+	.specify/templates/checklist-template.md ✅ no update needed (templates already support custom categories)
 Follow-up TODOs: None
 -->
 
@@ -77,6 +77,16 @@ it. Avoid premature abstraction: create shared modules only after 3 concrete usa
 
 Rationale: Reduces cognitive load, accelerates onboarding, and limits defect vectors.
 
+### 8. Documentation & Library Reference
+When code generation, setup steps, configuration tasks, or library/API documentation are required,
+Context7 MUST be used as the primary reference source. This applies to: dependency selection and
+integration, API usage patterns, configuration syntax, and library-specific best practices. Direct
+implementation without consulting Context7 for library-specific guidance is discouraged to prevent
+outdated patterns and API misuse.
+
+Rationale: Ensures up-to-date library documentation is consulted, reduces integration errors, and
+aligns implementations with current best practices and API contracts.
+
 ## Security & Performance Requirements
 1. Input Validation: Reject unsupported formats early with 415 or 400 and descriptive JSON error.
 2. Rate Limiting: MUST be configurable (default soft limit) to prevent abuse.
@@ -92,7 +102,7 @@ Pipeline:
 3. Implementation: Code passes style, type checks (if types added later) and tests locally.
 4. Observability Hooks: Ensure new stages emit logs, metrics, traces before merge.
 5. Review: Reviewer MUST verify principles checklist (contract, determinism, tests, performance,
-observability, security) in PR description.
+observability, security, documentation) in PR description.
 6. CI Gates (must all pass): lint, unit tests, integration tests, performance smoke (budget), security
 scan, coverage thresholds.
 7. Release: Tag semantic version; update changelog with any breaking changes & migrations.
@@ -110,7 +120,7 @@ CI. MAJOR: removal or incompatible redefinition of a principle or governance rul
 principle, new required gate, or material expansion. PATCH: clarifications without changing
 enforceable meaning.
 
-Compliance Review: Each PR template MUST include a checklist referencing Core Principles 1–7. CI may
+Compliance Review: Each PR template MUST include a checklist referencing Core Principles 1–8. CI may
 automate checks (coverage, performance, lint). Quarterly review audits metrics vs declared budgets.
 
 Versioning Policy: Semantic Versioning (MAJOR.MINOR.PATCH) applied to governance. All version bumps
@@ -119,4 +129,4 @@ recorded in Sync Impact Report comment.
 Enforcement: Merges blocked if mandatory gates fail or checklist is incomplete. Emergency fixes may
 temporarily waive performance gate with maintainer approval and MUST create a follow‑up task.
 
-**Version**: 1.0.0 | **Ratified**: 2025-10-18 | **Last Amended**: 2025-10-18
+**Version**: 1.1.0 | **Ratified**: 2025-10-18 | **Last Amended**: 2025-10-18
