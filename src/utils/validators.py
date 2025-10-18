@@ -204,3 +204,90 @@ def build_tesseract_config(
     config_string = " ".join(config_parts)
 
     return TesseractConfig(lang=resolved_lang, config_string=config_string)
+
+
+# EasyOCR parameter validation utilities
+
+EASYOCR_SUPPORTED_LANGUAGES = {
+    # Latin scripts
+    "en",  # English
+    "fr",  # French
+    "de",  # German
+    "es",  # Spanish
+    "pt",  # Portuguese
+    "it",  # Italian
+    "nl",  # Dutch
+    "pl",  # Polish
+    "ru",  # Russian
+    "tr",  # Turkish
+    "sv",  # Swedish
+    "cs",  # Czech
+    "da",  # Danish
+    "no",  # Norwegian
+    "fi",  # Finnish
+    "ro",  # Romanian
+    "hu",  # Hungarian
+    "sk",  # Slovak
+    "hr",  # Croatian
+    "sr",  # Serbian (Cyrillic)
+    "bg",  # Bulgarian
+    "uk",  # Ukrainian
+    "be",  # Belarusian
+    "lt",  # Lithuanian
+    "lv",  # Latvian
+    "et",  # Estonian
+    "sl",  # Slovenian
+    "sq",  # Albanian
+    "is",  # Icelandic
+    "ga",  # Irish
+    "cy",  # Welsh
+    "af",  # Afrikaans
+    "ms",  # Malay
+    "id",  # Indonesian
+    "tl",  # Tagalog
+    "vi",  # Vietnamese
+    "sw",  # Swahili
+    # Asian scripts
+    "ch_sim",  # Chinese (Simplified)
+    "ch_tra",  # Chinese (Traditional)
+    "ja",  # Japanese
+    "ko",  # Korean
+    "th",  # Thai
+    "hi",  # Hindi
+    "bn",  # Bengali
+    "ta",  # Tamil
+    "te",  # Telugu
+    "kn",  # Kannada
+    "ml",  # Malayalam
+    "mr",  # Marathi
+    "ne",  # Nepali
+    "si",  # Sinhala
+    "ur",  # Urdu
+    "fa",  # Persian (Farsi)
+    "ar",  # Arabic
+    "he",  # Hebrew
+    "my",  # Burmese
+    "km",  # Khmer
+    "lo",  # Lao
+    "ka",  # Georgian
+    "hy",  # Armenian
+    "mn",  # Mongolian
+    # Additional languages
+    "az",  # Azerbaijani
+    "kk",  # Kazakh
+    "uz",  # Uzbek
+    "ky",  # Kyrgyz
+    "tg",  # Tajik
+    "pa",  # Punjabi
+    "gu",  # Gujarati
+    "or",  # Oriya
+    "as",  # Assamese
+    "oc",  # Occitan
+    "eu",  # Basque
+    "ca",  # Catalan
+    "gl",  # Galician
+    "mt",  # Maltese
+    "la",  # Latin
+    "eo",  # Esperanto
+    "mi",  # Maori
+}

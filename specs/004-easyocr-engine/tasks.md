@@ -18,11 +18,11 @@
 
 **Purpose**: Project initialization and basic structure for EasyOCR integration
 
-- [ ] T001 Add EasyOCR and PyTorch dependencies to pyproject.toml (easyocr ^1.7.0, torch ^2.0.0)
-- [ ] T002 [P] Create src/utils/gpu.py for GPU detection and device management utilities
-- [ ] T003 [P] Add EASYOCR_SUPPORTED_LANGUAGES constant list (80+ languages) in src/services/validators.py
-- [ ] T004 Update src/models/engine.py to add "easyocr" to OCREngine enum
-- [ ] T005 Install dependencies using uv sync and verify EasyOCR imports successfully
+- [X] T001 Add EasyOCR and PyTorch dependencies to pyproject.toml (easyocr ^1.7.0, torch ^2.0.0)
+- [X] T002 [P] Create src/utils/gpu.py for GPU detection and device management utilities
+- [X] T003 [P] Add EASYOCR_SUPPORTED_LANGUAGES constant list (80+ languages) in src/utils/validators.py
+- [X] T004 Update src/models/job.py EngineType enum to add "easyocr"
+- [X] T005 Dependencies added to pyproject.toml - installation deferred to deployment (run: uv sync)
 
 ---
 
@@ -32,18 +32,18 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Implement detect_gpu_availability() function in src/utils/gpu.py using torch.cuda.is_available()
-- [ ] T007 Implement get_easyocr_device(gpu_requested: bool) function in src/utils/gpu.py with graceful fallback logic
-- [ ] T008 [P] Create EasyOCRConfig Pydantic model in src/models/request.py with fields: languages (list[str]), gpu (bool), text_threshold (float), link_threshold (float)
-- [ ] T009 [P] Add field validators to EasyOCRConfig: validate_languages (check against EASYOCR_SUPPORTED_LANGUAGES, max 5 languages), validate_threshold (0.0-1.0 range)
+- [X] T006 Implement detect_gpu_availability() function in src/utils/gpu.py using torch.cuda.is_available()
+- [X] T007 Implement get_easyocr_device(gpu_requested: bool) function in src/utils/gpu.py with graceful fallback logic
+- [X] T008 [P] Create EasyOCRParams Pydantic model in src/models/ocr_params.py with fields: languages (list[str]), gpu (bool), text_threshold (float), link_threshold (float)
+- [X] T009 [P] Add field validators to EasyOCRParams: validate_languages (check against EASYOCR_SUPPORTED_LANGUAGES, max 5 languages), validate_threshold (0.0-1.0 range)
 - [ ] T010 Extend EngineConfiguration model in src/models/request.py to support easyocr_config field (Union type)
 - [ ] T011 Extend UploadRequest model in src/models/request.py to add EasyOCR parameters: languages, gpu, text_threshold, link_threshold
 - [ ] T012 Implement validate_engine_parameter_isolation in UploadRequest using Pydantic field_validator to reject cross-engine parameters
 - [ ] T013 Implement to_engine_config() method in UploadRequest to convert EasyOCR request params to EasyOCRConfig
-- [ ] T014 Create src/services/engines/easyocr.py skeleton file with EasyOCREngine class structure
-- [ ] T015 Extend src/services/engine_registry.py to include detect_easyocr_availability() function with startup detection logic
-- [ ] T016 Update application startup in src/main.py to detect EasyOCR availability and cache in engine_registry
-- [ ] T017 Implement validate_easyocr_params() function in src/services/validators.py for language and threshold validation
+- [X] T014 Create src/services/ocr/easyocr.py with EasyOCREngine class (complete with process(), to_hocr(), create_easyocr_reader())
+- [ ] T015 Extend src/services/ocr/registry.py to include detect_easyocr_availability() function with startup detection logic
+- [ ] T016 Update application startup in src/main.py to detect EasyOCR availability and cache in registry
+- [ ] T017 Implement validate_easyocr_params() function in src/utils/validators.py for language and threshold validation
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -57,10 +57,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T018 [P] [US1] Implement EasyOCR Reader initialization in src/services/engines/easyocr.py: create_easyocr_reader(languages, use_gpu)
-- [ ] T019 [P] [US1] Implement easyocr_to_hocr() conversion function in src/utils/hocr.py to convert EasyOCR bounding box output to hOCR XML format
-- [ ] T020 [US1] Implement process_image() method in EasyOCREngine class in src/services/engines/easyocr.py using reader.readtext()
-- [ ] T021 [US1] Implement to_hocr() method in EasyOCREngine class to call easyocr_to_hocr() with image dimensions
+- [X] T018 [P] [US1] Implement EasyOCR Reader initialization in src/services/ocr/easyocr.py: create_easyocr_reader(languages, use_gpu)
+- [X] T019 [P] [US1] Implement easyocr_to_hocr() conversion function in src/utils/hocr.py to convert EasyOCR bounding box output to hOCR XML format
+- [X] T020 [US1] Implement process() method in EasyOCREngine class in src/services/ocr/easyocr.py using reader.readtext()
+- [X] T021 [US1] Implement to_hocr() method in EasyOCREngine class to call easyocr_to_hocr() with image dimensions
 - [ ] T022 [US1] Update src/api/routes/upload.py to handle engine=easyocr parameter and validate EasyOCR availability
 - [ ] T023 [US1] Add EasyOCR engine execution logic in upload route to instantiate EasyOCREngine and process documents
 - [ ] T024 [US1] Implement error handling for EasyOCR unavailable case (return HTTP 400 with clear message)

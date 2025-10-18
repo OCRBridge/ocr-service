@@ -95,7 +95,7 @@ Python 3.11+: Follow PEP 8 conventions, enforced via ruff
 
 ## Recent Changes
 - 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
-- 003-multi-engine-ocr: Added Python 3.11+
+- 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
 - 003-multi-engine-ocr: Added Python 3.11+
 
 <!-- MANUAL ADDITIONS START -->

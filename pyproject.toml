@@ -18,6 +18,8 @@ dependencies = [
     "aiofiles>=23.2.0",
     "python-multipart>=0.0.6",
     "ocrmac>=0.1.0; sys_platform == 'darwin'",
+    "easyocr>=1.7.0",
+    "torch>=2.0.0",
 ]
 
 [dependency-groups]

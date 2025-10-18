@@ -102,3 +102,69 @@ def extract_bbox(element_title: str) -> tuple[int, int, int, int] | None:
     if match:
         return tuple(map(int, match.groups()))
     return None
+
+
+def easyocr_to_hocr(easyocr_results: list, image_width: int, image_height: int) -> str:
+    """
+    Convert EasyOCR results to HOCR XML format.
+
+    EasyOCR output format: [([[x1,y1], [x2,y2], [x3,y3], [x4,y4]], text, confidence), ...]
+    HOCR format: XML with bbox coordinates and confidence (x_wconf)
+
+    Args:
+        easyocr_results: List of (bbox, text, confidence) tuples from EasyOCR
+        image_width: Image width in pixels
+        image_height: Image height in pixels
+
+    Returns:
+        HOCR XML string with recognized text and bounding boxes
+    """
+    # Build HOCR XML structure
+    hocr_lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"',
+        '    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">',
+        '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">',
+        '<head>',
+        '  <meta http-equiv="content-type" content="text/html; charset=utf-8" />',
+        '  <meta name="ocr-system" content="easyocr" />',
+        '  <meta name="ocr-capabilities" content="ocr_page ocr_carea ocr_par ocr_line ocrx_word" />',
+        '</head>',
+        '<body>',
+        f'  <div class="ocr_page" id="page_1" title="bbox 0 0 {image_width} {image_height}">',
+    ]
+
+    # Add each text detection as an ocrx_word element
+    for idx, result in enumerate(easyocr_results):
+        # EasyOCR bbox format: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+        bbox, text, confidence = result
+
+        # Extract coordinates (convert to min/max format)
+        x_coords = [point[0] for point in bbox]
+        y_coords = [point[1] for point in bbox]
+        x_min, x_max = int(min(x_coords)), int(max(x_coords))
+        y_min, y_max = int(min(y_coords)), int(max(y_coords))
+
+        # Convert confidence (0.0-1.0) to percentage (0-100)
+        conf_percent = int(confidence * 100)
+
+        # Escape text for XML
+        escaped_text = (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&apos;")
+        )
+
+        # Create HOCR word element
+        hocr_lines.append(
+            f'    <span class="ocrx_word" id="word_1_{idx + 1}" '
+            f'title="bbox {x_min} {y_min} {x_max} {y_max}; x_wconf {conf_percent}">'
+            f"{escaped_text}</span>"
+        )
+
+    # Close HOCR structure
+    hocr_lines.extend(["  </div>", "</body>", "</html>"])
+
+    return "\n".join(hocr_lines)

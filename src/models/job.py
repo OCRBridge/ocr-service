@@ -18,6 +18,7 @@ class EngineType(str, Enum):
 
     TESSERACT = "tesseract"
     OCRMAC = "ocrmac"
+    EASYOCR = "easyocr"
 
 
 class JobStatus(str, Enum):
