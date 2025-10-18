@@ -1,0 +1,551 @@
+openapi: 3.0.3
+info:
+  title: RESTful OCR API - EasyOCR Extension
+  description: |
+    OpenAPI specification for EasyOCR engine support extension.
+    This extends the existing /upload endpoint with EasyOCR engine option and parameters.
+
+    **Key Changes**:
+    - Add "easyocr" as valid engine parameter value
+    - Add EasyOCR-specific parameters: languages, gpu, text_threshold, link_threshold
+    - Maintain backward compatibility (default engine="tesseract")
+    - Enforce parameter isolation (reject cross-engine parameters)
+
+  version: 1.1.0
+  contact:
+    name: RESTful OCR API Support
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.restful-ocr.example.com
+    description: Production server
+
+paths:
+  /upload:
+    post:
+      summary: Upload document for OCR processing
+      description: |
+        Upload an image or document for OCR text extraction using the specified engine.
+
+        **Supported Engines**:
+        - `tesseract` (default): Traditional OCR, fast, wide language support
+        - `ocrmac`: macOS-native OCR using Vision framework
+        - `easyocr`: Deep learning-based OCR, superior multilingual support (80+ languages)
+
+        **Engine Parameter Isolation**:
+        - Tesseract-only: `lang`, `psm`, `oem`, `dpi`
+        - Ocrmac-only: `recognition_level`
+        - EasyOCR-only: `languages`, `gpu`, `text_threshold`, `link_threshold`
+
+        Specifying parameters incompatible with selected engine returns HTTP 400 error.
+
+      operationId: uploadDocument
+      tags:
+        - OCR
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image or PDF file to process
+
+                engine:
+                  type: string
+                  enum: [tesseract, ocrmac, easyocr]
+                  default: tesseract
+                  description: |
+                    OCR engine to use for processing.
+                    - `tesseract`: Default, backward compatible
+                    - `ocrmac`: macOS-only, requires macOS 10.15+
+                    - `easyocr`: Cross-platform, deep learning, 80+ languages
+
+                # Tesseract-specific parameters (mutually exclusive with EasyOCR/ocrmac params)
+                lang:
+                  type: array
+                  items:
+                    type: string
+                  description: |
+                    **Tesseract only**: 3-letter language codes (e.g., "eng", "spa", "fra")
+                    Not valid for EasyOCR (use `languages` instead) or ocrmac.
+                  example: ["eng", "spa"]
+
+                psm:
+                  type: integer
+                  minimum: 0
+                  maximum: 13
+                  description: |
+                    **Tesseract only**: Page segmentation mode (0-13)
+                    Not valid for EasyOCR or ocrmac.
+                  example: 6
+
+                oem:
+                  type: integer
+                  minimum: 0
+                  maximum: 3
+                  description: |
+                    **Tesseract only**: OCR Engine Mode (0-3)
+                    Not valid for EasyOCR or ocrmac.
+                  example: 3
+
+                dpi:
+                  type: integer
+                  minimum: 72
+                  maximum: 600
+                  description: |
+                    **Tesseract only**: DPI for image preprocessing
+                    Not valid for EasyOCR or ocrmac.
+                  example: 300
+
+                # Ocrmac-specific parameters
+                recognition_level:
+                  type: string
+                  enum: [fast, balanced, accurate]
+                  description: |
+                    **Ocrmac only**: Recognition accuracy level
+                    Not valid for Tesseract or EasyOCR.
+                  example: balanced
+
+                # EasyOCR-specific parameters (NEW)
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 5
+                  description: |
+                    **EasyOCR only**: Language codes for recognition (EasyOCR naming convention)
+                    - Must use EasyOCR language codes (e.g., "en", "ch_sim", "ja", "ko")
+                    - Maximum 5 languages per request
+                    - Default: ["en"] if not specified
+                    - Not valid for Tesseract (use `lang`) or ocrmac
+
+                    **Examples of EasyOCR language codes**:
+                    - English: "en"
+                    - Chinese Simplified: "ch_sim"
+                    - Chinese Traditional: "ch_tra"
+                    - Japanese: "ja"
+                    - Korean: "ko"
+                    - Thai: "th"
+                    - See full list: https://github.com/JaidedAI/EasyOCR#supported-languages
+                  example: ["ch_sim", "en"]
+
+                gpu:
+                  type: boolean
+                  default: false
+                  description: |
+                    **EasyOCR only**: Enable GPU acceleration for processing
+                    - `true`: Use CUDA GPU if available (significantly faster)
+                    - `false`: Use CPU-only processing (slower but compatible)
+                    - If GPU requested but unavailable, gracefully falls back to CPU with warning
+                    - Not valid for Tesseract or ocrmac
+                  example: true
+
+                text_threshold:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 1.0
+                  default: 0.7
+                  description: |
+                    **EasyOCR only**: Confidence threshold for text detection (0.0-1.0)
+                    - Lower values: Detect more text (higher recall, lower precision)
+                    - Higher values: Detect only high-confidence text (lower recall, higher precision)
+                    - Default: 0.7 (balanced)
+                    - Not valid for Tesseract or ocrmac
+                  example: 0.8
+
+                link_threshold:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 1.0
+                  default: 0.7
+                  description: |
+                    **EasyOCR only**: Threshold for linking text regions (0.0-1.0)
+                    - Controls how text boxes are grouped together
+                    - Default: 0.7 (balanced)
+                    - Not valid for Tesseract or ocrmac
+                  example: 0.7
+
+            examples:
+              easyocr_multilingual_gpu:
+                summary: EasyOCR with Chinese and English, GPU enabled
+                value:
+                  file: <binary>
+                  engine: easyocr
+                  languages: ["ch_sim", "en"]
+                  gpu: true
+                  text_threshold: 0.8
+
+              easyocr_japanese_cpu:
+                summary: EasyOCR with Japanese, CPU-only
+                value:
+                  file: <binary>
+                  engine: easyocr
+                  languages: ["ja"]
+                  gpu: false
+
+              easyocr_default:
+                summary: EasyOCR with default settings (English, CPU)
+                value:
+                  file: <binary>
+                  engine: easyocr
+
+              tesseract_backward_compatible:
+                summary: Tesseract (backward compatible, no engine specified)
+                value:
+                  file: <binary>
+                  lang: ["eng"]
+
+              invalid_cross_engine_params:
+                summary: Invalid - Tesseract param with EasyOCR engine (returns 400)
+                value:
+                  file: <binary>
+                  engine: easyocr
+                  psm: 6  # ERROR: psm not valid for EasyOCR
+
+      responses:
+        '202':
+          description: Document accepted for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - job_id
+                  - status
+                  - engine
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                    description: Unique job identifier
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+
+                  status:
+                    type: string
+                    enum: [pending, queued]
+                    description: |
+                      Job status:
+                      - `pending`: Job accepted, processing will start immediately
+                      - `queued`: Job queued (GPU requested but all slots occupied)
+
+                  engine:
+                    type: string
+                    enum: [tesseract, ocrmac, easyocr]
+                    description: Engine that will process the job
+
+                  engine_config:
+                    type: object
+                    description: Engine-specific configuration for debugging
+                    properties:
+                      languages:
+                        type: array
+                        items:
+                          type: string
+                        description: Languages configured (EasyOCR only)
+                      gpu:
+                        type: boolean
+                        description: GPU mode (EasyOCR only)
+                      text_threshold:
+                        type: number
+                        description: Text detection threshold (EasyOCR only)
+                      link_threshold:
+                        type: number
+                        description: Link threshold (EasyOCR only)
+
+                  queue_position:
+                    type: integer
+                    description: Position in GPU queue (only if status=queued)
+                    example: 2
+
+              examples:
+                accepted_immediate:
+                  summary: Job accepted for immediate processing
+                  value:
+                    job_id: "550e8400-e29b-41d4-a716-446655440000"
+                    status: "pending"
+                    engine: "easyocr"
+                    engine_config:
+                      languages: ["ch_sim", "en"]
+                      gpu: true
+                      text_threshold: 0.8
+                      link_threshold: 0.7
+
+                accepted_queued:
+                  summary: Job queued (GPU slots full)
+                  value:
+                    job_id: "550e8400-e29b-41d4-a716-446655440001"
+                    status: "queued"
+                    engine: "easyocr"
+                    engine_config:
+                      languages: ["ja"]
+                      gpu: true
+                      text_threshold: 0.7
+                      link_threshold: 0.7
+                    queue_position: 1
+
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                  - detail
+                properties:
+                  error:
+                    type: string
+                    description: Error category
+                  detail:
+                    type: string
+                    description: Detailed error message
+
+              examples:
+                engine_unavailable:
+                  summary: EasyOCR not available
+                  value:
+                    error: "engine_unavailable"
+                    detail: "EasyOCR engine is not available in this environment. Available engines: tesseract, ocrmac"
+
+                invalid_language:
+                  summary: Invalid EasyOCR language code
+                  value:
+                    error: "validation_error"
+                    detail: "Unsupported EasyOCR languages: ['eng']. Use 'en' for English. Valid EasyOCR language codes: en, ch_sim, ja, ko, ..."
+
+                too_many_languages:
+                  summary: Too many languages
+                  value:
+                    error: "validation_error"
+                    detail: "Maximum 5 languages allowed for EasyOCR"
+
+                invalid_threshold:
+                  summary: Threshold out of range
+                  value:
+                    error: "validation_error"
+                    detail: "text_threshold must be between 0.0 and 1.0"
+
+                cross_engine_params:
+                  summary: Invalid parameter for selected engine
+                  value:
+                    error: "validation_error"
+                    detail: "Parameter 'psm' is not valid for EasyOCR engine. Tesseract-only parameters cannot be used with EasyOCR."
+
+                tesseract_lang_with_easyocr:
+                  summary: Tesseract language format with EasyOCR
+                  value:
+                    error: "validation_error"
+                    detail: "Parameter 'lang' is not valid for EasyOCR engine. Use 'languages' parameter with EasyOCR language codes (e.g., 'en' instead of 'eng')."
+
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  detail:
+                    type: string
+              example:
+                error: "file_too_large"
+                detail: "Maximum file size is 10MB"
+
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  detail:
+                    type: string
+              example:
+                error: "unsupported_media_type"
+                detail: "Supported formats: image/png, image/jpeg, image/tiff, application/pdf"
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  detail:
+                    type: string
+              examples:
+                model_corruption:
+                  summary: EasyOCR model corruption
+                  value:
+                    error: "model_error"
+                    detail: "EasyOCR model file validation failed. Please re-download models. Run: pip uninstall easyocr && pip install easyocr"
+
+  /jobs/{job_id}:
+    get:
+      summary: Get job status and results
+      description: |
+        Retrieve OCR job status, configuration, and results (when completed).
+        Response includes engine-specific metadata for debugging.
+
+      operationId: getJobStatus
+      tags:
+        - OCR
+
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Job identifier returned from /upload
+
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - job_id
+                  - status
+                  - engine
+                  - created_at
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+
+                  status:
+                    type: string
+                    enum: [pending, queued, processing, completed, failed]
+
+                  engine:
+                    type: string
+                    enum: [tesseract, ocrmac, easyocr]
+
+                  created_at:
+                    type: string
+                    format: date-time
+
+                  updated_at:
+                    type: string
+                    format: date-time
+
+                  result:
+                    type: string
+                    description: hOCR format result (only when status=completed)
+
+                  error:
+                    type: string
+                    description: Error message (only when status=failed)
+
+                  # EasyOCR-specific metadata
+                  metadata:
+                    type: object
+                    description: Engine-specific processing metadata
+                    properties:
+                      gpu_used:
+                        type: boolean
+                        description: Whether GPU was used (EasyOCR only)
+                      model_load_time_ms:
+                        type: integer
+                        description: Model loading time in milliseconds (EasyOCR only)
+                      processing_time_ms:
+                        type: integer
+                        description: Processing time in milliseconds
+                      queue_wait_time_ms:
+                        type: integer
+                        description: Time spent in GPU queue (EasyOCR only)
+                      languages_used:
+                        type: array
+                        items:
+                          type: string
+                        description: Languages used for processing (EasyOCR only)
+
+              examples:
+                completed_easyocr:
+                  summary: Completed EasyOCR job with GPU
+                  value:
+                    job_id: "550e8400-e29b-41d4-a716-446655440000"
+                    status: "completed"
+                    engine: "easyocr"
+                    created_at: "2025-10-19T10:30:00Z"
+                    updated_at: "2025-10-19T10:30:15Z"
+                    result: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
+                    metadata:
+                      gpu_used: true
+                      model_load_time_ms: 2500
+                      processing_time_ms: 12000
+                      queue_wait_time_ms: 3000
+                      languages_used: ["ch_sim", "en"]
+
+                failed_timeout:
+                  summary: Failed job - timeout
+                  value:
+                    job_id: "550e8400-e29b-41d4-a716-446655440001"
+                    status: "failed"
+                    engine: "easyocr"
+                    created_at: "2025-10-19T10:35:00Z"
+                    updated_at: "2025-10-19T10:36:05Z"
+                    error: "EasyOCR processing exceeded 60s timeout on page 1"
+                    metadata:
+                      gpu_used: false
+                      processing_time_ms: 60000
+
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  detail:
+                    type: string
+              example:
+                error: "not_found"
+                detail: "Job not found or expired"
+
+components:
+  schemas:
+    EasyOCRLanguageCode:
+      type: string
+      description: |
+        EasyOCR language code (different from Tesseract 3-letter codes)
+        See full list: https://github.com/JaidedAI/EasyOCR#supported-languages
+      enum:
+        - en      # English
+        - ch_sim  # Chinese Simplified
+        - ch_tra  # Chinese Traditional
+        - ja      # Japanese
+        - ko      # Korean
+        - th      # Thai
+        - vi      # Vietnamese
+        - ar      # Arabic
+        - hi      # Hindi
+        - fr      # French
+        - de      # German
+        - es      # Spanish
+        - pt      # Portuguese
+        - ru      # Russian
+        - it      # Italian
+        # ... (80+ total languages)
