@@ -7,7 +7,8 @@ import structlog
 from redis import asyncio as aioredis
 
 from src.models import TesseractParams
-from src.models.job import ErrorCode, JobStatus, OCRJob
+from src.models.job import EngineType, ErrorCode, JobStatus, OCRJob
+from src.models.ocr_params import OcrmacParams
 from src.models.upload import DocumentUpload, FileFormat
 
 logger = structlog.get_logger()
@@ -40,7 +41,19 @@ class JobManager:
             "temp_file_path": str(job.upload.temp_file_path),
         }
 
-        # Add Tesseract parameters if provided
+        # Serialize engine type
+        job_data["engine"] = job.engine.value
+
+        # Serialize engine-specific parameters
+        if job.engine_params:
+            job_data["engine_params"] = job.engine_params.model_dump()
+            # Store type for deserialization
+            if isinstance(job.engine_params, TesseractParams):
+                job_data["engine_params_type"] = "tesseract"
+            elif isinstance(job.engine_params, OcrmacParams):
+                job_data["engine_params_type"] = "ocrmac"
+
+        # Add Tesseract parameters if provided (legacy field for backward compatibility)
         if job.tesseract_params:
             job_data["tesseract_params"] = job.tesseract_params.model_dump()
 
@@ -78,7 +91,19 @@ class JobManager:
             temp_file_path=job_data["temp_file_path"],
         )
 
-        # Reconstruct Tesseract parameters if present
+        # Reconstruct engine type (default to TESSERACT for backward compatibility)
+        engine = EngineType(job_data.get("engine", "tesseract"))
+
+        # Reconstruct engine-specific parameters
+        engine_params = None
+        if job_data.get("engine_params"):
+            params_type = job_data.get("engine_params_type")
+            if params_type == "tesseract":
+                engine_params = TesseractParams(**job_data["engine_params"])
+            elif params_type == "ocrmac":
+                engine_params = OcrmacParams(**job_data["engine_params"])
+
+        # Reconstruct Tesseract parameters if present (legacy field for backward compatibility)
         tesseract_params = None
         if job_data.get("tesseract_params"):
             tesseract_params = TesseractParams(**job_data["tesseract_params"])
@@ -87,6 +112,8 @@ class JobManager:
             job_id=job_data["job_id"],
             status=JobStatus(job_data["status"]),
             upload=upload,
+            engine=engine,
+            engine_params=engine_params,
             tesseract_params=tesseract_params,
             start_time=datetime.fromisoformat(job_data["start_time"])
             if job_data.get("start_time")
@@ -123,7 +150,19 @@ class JobManager:
             "temp_file_path": str(job.upload.temp_file_path),
         }
 
-        # Add Tesseract parameters if provided
+        # Serialize engine type
+        job_data["engine"] = job.engine.value
+
+        # Serialize engine-specific parameters
+        if job.engine_params:
+            job_data["engine_params"] = job.engine_params.model_dump()
+            # Store type for deserialization
+            if isinstance(job.engine_params, TesseractParams):
+                job_data["engine_params_type"] = "tesseract"
+            elif isinstance(job.engine_params, OcrmacParams):
+                job_data["engine_params_type"] = "ocrmac"
+
+        # Add Tesseract parameters if provided (legacy field for backward compatibility)
         if job.tesseract_params:
             job_data["tesseract_params"] = job.tesseract_params.model_dump()
 

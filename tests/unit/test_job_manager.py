@@ -91,3 +91,89 @@ async def test_job_manager_sets_ttl(redis_client):
     # ttl = await redis_client.ttl(f"job:{job.job_id}:metadata")
     # assert 172700 < ttl <= 172800  # ~48 hours
     pass
+
+
+@pytest.mark.asyncio
+async def test_job_manager_serializes_ocrmac_params(redis_client, sample_jpeg):
+    """Test that ocrmac engine parameters are properly saved and loaded from Redis."""
+    from datetime import datetime
+
+    from src.models.job import EngineType, OCRJob
+    from src.models.ocr_params import OcrmacParams, RecognitionLevel
+    from src.models.upload import DocumentUpload, FileFormat
+    from src.services.job_manager import JobManager
+
+    manager = JobManager(redis_client)
+
+    # Create job with ocrmac engine and parameters
+    upload = DocumentUpload(
+        file_name="test.jpg",
+        file_format=FileFormat.JPEG,
+        file_size=1024,
+        content_type="image/jpeg",
+        upload_timestamp=datetime.utcnow(),
+        temp_file_path="/tmp/uploads/test.jpg",  # Valid temp path
+    )
+
+    ocrmac_params = OcrmacParams(
+        languages=["de-DE", "fr-FR"], recognition_level=RecognitionLevel.ACCURATE
+    )
+
+    job = OCRJob(upload=upload, engine=EngineType.OCRMAC, engine_params=ocrmac_params)
+
+    # Save job
+    await manager.create_job(job)
+
+    # Retrieve job
+    retrieved_job = await manager.get_job(job.job_id)
+
+    # Verify engine and params are preserved
+    assert retrieved_job is not None
+    assert retrieved_job.engine == EngineType.OCRMAC
+    assert retrieved_job.engine_params is not None
+    assert isinstance(retrieved_job.engine_params, OcrmacParams)
+    assert retrieved_job.engine_params.languages == ["de-DE", "fr-FR"]
+    assert retrieved_job.engine_params.recognition_level == RecognitionLevel.ACCURATE
+
+
+@pytest.mark.asyncio
+async def test_job_manager_serializes_tesseract_params(redis_client, sample_jpeg):
+    """Test that Tesseract engine parameters are properly saved and loaded from Redis."""
+    from datetime import datetime
+
+    from src.models import TesseractParams
+    from src.models.job import EngineType, OCRJob
+    from src.models.upload import DocumentUpload, FileFormat
+    from src.services.job_manager import JobManager
+
+    manager = JobManager(redis_client)
+
+    # Create job with Tesseract engine and parameters
+    upload = DocumentUpload(
+        file_name="test.jpg",
+        file_format=FileFormat.JPEG,
+        file_size=1024,
+        content_type="image/jpeg",
+        upload_timestamp=datetime.utcnow(),
+        temp_file_path="/tmp/uploads/test.jpg",  # Valid temp path
+    )
+
+    tesseract_params = TesseractParams(lang="deu+fra", psm=6, oem=1, dpi=300)
+
+    job = OCRJob(upload=upload, engine=EngineType.TESSERACT, engine_params=tesseract_params)
+
+    # Save job
+    await manager.create_job(job)
+
+    # Retrieve job
+    retrieved_job = await manager.get_job(job.job_id)
+
+    # Verify engine and params are preserved
+    assert retrieved_job is not None
+    assert retrieved_job.engine == EngineType.TESSERACT
+    assert retrieved_job.engine_params is not None
+    assert isinstance(retrieved_job.engine_params, TesseractParams)
+    assert retrieved_job.engine_params.lang == "deu+fra"
+    assert retrieved_job.engine_params.psm == 6
+    assert retrieved_job.engine_params.oem == 1
+    assert retrieved_job.engine_params.dpi == 300
