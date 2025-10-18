@@ -1,0 +1,497 @@
+openapi: 3.1.0
+info:
+  title: RESTful OCR API
+  description: |
+    Public RESTful API for OCR document processing with HOCR output.
+
+    ## Features
+    - Upload documents (JPEG, PNG, PDF, TIFF) for OCR processing
+    - Asynchronous job-based processing with polling
+    - HOCR-formatted output with bounding boxes and text hierarchy
+    - Rate limiting: 100 requests/minute per IP
+    - Auto-expiring results (48 hours after completion)
+
+    ## Workflow
+    1. POST /upload → Receive job_id
+    2. GET /jobs/{job_id}/status → Poll until status='completed'
+    3. GET /jobs/{job_id}/result → Download HOCR file
+
+    ## Constitution Compliance
+    - API Contract First (Principle 1): This spec MUST be reviewed before implementation
+    - Deterministic Processing (Principle 2): Same input + config → same output
+    - Performance Budget: p95 latency <800ms for status/retrieval endpoints
+    - Security: Cryptographically secure job IDs, rate limiting, input validation
+  version: 1.0.0
+  contact:
+    name: RESTful OCR Team
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (placeholder)
+
+tags:
+  - name: Documents
+    description: Document upload and processing operations
+  - name: Jobs
+    description: Job status and result retrieval
+  - name: Health
+    description: Service health and metrics
+
+paths:
+  /upload:
+    post:
+      summary: Upload a document for OCR processing
+      description: |
+        Upload a document file (JPEG, PNG, PDF, TIFF) for asynchronous OCR processing.
+        Returns a job_id for tracking processing status.
+
+        **Functional Requirements**: FR-001, FR-002, FR-006, FR-007, FR-011
+        **Rate Limit**: 100 requests/minute per IP (FR-015)
+      operationId: uploadDocument
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file (max 25MB)
+              required:
+                - file
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, application/pdf, image/tiff
+      responses:
+        '202':
+          description: Upload successful, processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+              example:
+                job_id: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+                status: "pending"
+                message: "Upload successful, processing started"
+        '400':
+          description: Bad request (invalid file, missing parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "No file provided in request"
+                error_code: "missing_file"
+                timestamp: "2025-10-18T10:00:00Z"
+        '413':
+          description: File too large (>25MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "File size exceeds maximum of 25MB"
+                error_code: "file_too_large"
+                timestamp: "2025-10-18T10:00:00Z"
+        '415':
+          description: Unsupported file format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Unsupported file format. Supported: JPEG, PNG, PDF, TIFF"
+                error_code: "invalid_format"
+                timestamp: "2025-10-18T10:00:00Z"
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              description: Seconds until rate limit resets
+              schema:
+                type: integer
+                example: 42
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Rate limit exceeded: 100 requests per minute"
+                error_code: "rate_limit_exceeded"
+                timestamp: "2025-10-18T10:00:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/{job_id}/status:
+    get:
+      summary: Get job processing status
+      description: |
+        Poll this endpoint to check the current processing status of a job.
+
+        **Functional Requirements**: FR-013
+        **Performance**: p95 latency <800ms (Constitution Principle 4)
+        **Rate Limit**: 100 requests/minute per IP (FR-015)
+      operationId: getJobStatus
+      tags:
+        - Jobs
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Job ID returned from upload endpoint
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]{43}$'
+            example: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+      responses:
+        '200':
+          description: Job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              examples:
+                pending:
+                  summary: Job is pending
+                  value:
+                    job_id: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+                    status: "pending"
+                    upload_time: "2025-10-18T10:00:00Z"
+                    start_time: null
+                    completion_time: null
+                    expiration_time: null
+                    error_message: null
+                    error_code: null
+                processing:
+                  summary: Job is processing
+                  value:
+                    job_id: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+                    status: "processing"
+                    upload_time: "2025-10-18T10:00:00Z"
+                    start_time: "2025-10-18T10:00:05Z"
+                    completion_time: null
+                    expiration_time: null
+                    error_message: null
+                    error_code: null
+                completed:
+                  summary: Job completed successfully
+                  value:
+                    job_id: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+                    status: "completed"
+                    upload_time: "2025-10-18T10:00:00Z"
+                    start_time: "2025-10-18T10:00:05Z"
+                    completion_time: "2025-10-18T10:00:12Z"
+                    expiration_time: "2025-10-20T10:00:12Z"
+                    error_message: null
+                    error_code: null
+                failed:
+                  summary: Job failed
+                  value:
+                    job_id: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+                    status: "failed"
+                    upload_time: "2025-10-18T10:00:00Z"
+                    start_time: "2025-10-18T10:00:05Z"
+                    completion_time: "2025-10-18T10:00:08Z"
+                    expiration_time: "2025-10-20T10:00:08Z"
+                    error_message: "OCR engine failed: corrupted image"
+                    error_code: "corrupted_file"
+        '404':
+          description: Job not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Job not found or has expired"
+                error_code: "job_not_found"
+                timestamp: "2025-10-18T10:00:00Z"
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jobs/{job_id}/result:
+    get:
+      summary: Download HOCR result
+      description: |
+        Download the HOCR-formatted OCR result for a completed job.
+        Only available when job status is 'completed'.
+        Results expire 48 hours after completion.
+
+        **Functional Requirements**: FR-004, FR-005, FR-010, FR-012
+        **Performance**: p95 latency <800ms (Constitution Principle 4)
+        **Rate Limit**: 100 requests/minute per IP (FR-015)
+      operationId: getJobResult
+      tags:
+        - Jobs
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Job ID for completed job
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_-]{43}$'
+      responses:
+        '200':
+          description: HOCR result file
+          content:
+            text/html:
+              schema:
+                type: string
+                format: binary
+                description: HOCR XML content
+                example: |
+                  <?xml version="1.0" encoding="UTF-8"?>
+                  <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+                  <html xmlns="http://www.w3.org/1999/xhtml">
+                    <head>
+                      <title>OCR Results</title>
+                      <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+                    </head>
+                    <body>
+                      <div class='ocr_page' id='page_1' title='bbox 0 0 2480 3508'>
+                        <div class='ocr_carea' id='carea_1_1' title='bbox 100 100 2380 500'>
+                          <p class='ocr_par' id='par_1_1'>
+                            <span class='ocr_line' id='line_1_1' title='bbox 100 100 800 150'>
+                              <span class='ocrx_word' id='word_1_1' title='bbox 100 100 200 150; x_wconf 95'>Sample</span>
+                              <span class='ocrx_word' id='word_1_2' title='bbox 210 100 300 150; x_wconf 92'>Text</span>
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </body>
+                  </html>
+          headers:
+            Content-Disposition:
+              description: Filename for download
+              schema:
+                type: string
+                example: 'attachment; filename="result_Kj4TY2vN8xQz.hocr"'
+        '404':
+          description: Job not found, not completed, or result expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Job not found
+                  value:
+                    detail: "Job not found or has expired"
+                    error_code: "job_not_found"
+                    timestamp: "2025-10-18T10:00:00Z"
+                not_completed:
+                  summary: Job not yet completed
+                  value:
+                    detail: "Job is still processing. Current status: processing"
+                    error_code: "job_not_completed"
+                    timestamp: "2025-10-18T10:00:00Z"
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      summary: Health check endpoint
+      description: |
+        Check if the service is healthy and accepting requests.
+        Returns basic service status.
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "healthy"
+                version: "1.0.0"
+                uptime_seconds: 3600
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "unhealthy"
+                version: "1.0.0"
+                uptime_seconds: 3600
+                error: "Redis connection failed"
+
+  /metrics:
+    get:
+      summary: Prometheus metrics endpoint
+      description: |
+        Exposes Prometheus-formatted metrics for monitoring.
+
+        **Constitution Compliance**: Principle 5 (Observability)
+
+        Metrics include:
+        - http_requests_total{method, path, status}
+        - http_request_duration_seconds{method, path}
+        - ocr_processing_duration_seconds{status}
+        - ocr_pages_processed_total
+        - rate_limit_exceeded_total{endpoint}
+      operationId: getMetrics
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP http_requests_total Total HTTP requests
+                  # TYPE http_requests_total counter
+                  http_requests_total{method="POST",path="/upload",status="202"} 1234
+                  # HELP http_request_duration_seconds HTTP request latency
+                  # TYPE http_request_duration_seconds histogram
+                  http_request_duration_seconds_bucket{method="GET",path="/jobs/{job_id}/status",le="0.1"} 950
+                  http_request_duration_seconds_bucket{method="GET",path="/jobs/{job_id}/status",le="0.5"} 995
+                  http_request_duration_seconds_bucket{method="GET",path="/jobs/{job_id}/status",le="1.0"} 999
+
+components:
+  schemas:
+    UploadResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - message
+      properties:
+        job_id:
+          type: string
+          description: Unique job identifier for tracking
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          example: "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1"
+        status:
+          type: string
+          enum: [pending]
+          description: Initial job status (always 'pending')
+        message:
+          type: string
+          description: Human-readable confirmation message
+          example: "Upload successful, processing started"
+
+    StatusResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - upload_time
+      properties:
+        job_id:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Current processing status
+        upload_time:
+          type: string
+          format: date-time
+          description: When the document was uploaded (ISO 8601 UTC)
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: When OCR processing started (null if not started)
+        completion_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: When processing completed (null if still running)
+        expiration_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: When results will be deleted (48h after completion)
+        error_message:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Error details if status='failed'
+        error_code:
+          type: string
+          nullable: true
+          enum: [invalid_format, corrupted_file, ocr_engine_error, timeout, memory_limit, internal_error]
+          description: Machine-readable error type
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+        - timestamp
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: "Unsupported file format"
+        error_code:
+          type: string
+          nullable: true
+          description: Machine-readable error code
+          example: "invalid_format"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred (ISO 8601 UTC)
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+        - uptime_seconds
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        version:
+          type: string
+          example: "1.0.0"
+        uptime_seconds:
+          type: integer
+          description: Service uptime in seconds
+          example: 3600
+        error:
+          type: string
+          nullable: true
+          description: Error message if unhealthy
+
+  securitySchemes: {}
+
+security: []
