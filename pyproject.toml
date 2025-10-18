@@ -1,6 +1,6 @@
 [project]
 name = "restful-ocr"
-version = "1.0.0"
+version = "1.1.0"
 description = "RESTful OCR API service for document processing with HOCR output"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -56,7 +56,7 @@ async def cleanup_task_runner():
 async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
     # Startup
-    logger.info("application_starting", version="1.0.0")
+    logger.info("application_starting", version="1.1.0")
 
     # Initialize EngineRegistry (detect OCR engines at startup)
     registry = EngineRegistry()
@@ -103,7 +103,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RESTful OCR API",
     description="OCR document processing service with HOCR output",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
