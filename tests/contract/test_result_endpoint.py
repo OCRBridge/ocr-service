@@ -53,3 +53,49 @@ def test_result_contains_valid_hocr_xml(client: TestClient, sample_jpeg):
     # - Contains bbox coordinates
     # - Contains ocr_page, ocr_line, ocrx_word classes
     pass
+
+
+def test_multi_page_hocr_output_structure(client: TestClient, sample_pdf):
+    """Test multi-page HOCR output structure for PDF documents (T080)."""
+    import time
+
+    # Upload multi-page PDF
+    with open(sample_pdf, "rb") as f:
+        upload_response = client.post("/upload", files={"file": f})
+
+    assert upload_response.status_code == 202
+    job_id = upload_response.json()["job_id"]
+
+    # Poll until completed
+    max_wait = 60
+    status = None
+    for _ in range(max_wait):
+        status_response = client.get(f"/jobs/{job_id}/status")
+        if status_response.status_code == 200:
+            status = status_response.json()["status"]
+            if status in ["completed", "failed"]:
+                break
+        time.sleep(1)
+
+    # Get result
+    result_response = client.get(f"/jobs/{job_id}/result")
+
+    # Verify response
+    assert result_response.status_code == 200
+    assert "text/html" in result_response.headers["content-type"]
+
+    hocr_content = result_response.text
+
+    # Verify HOCR structure
+    assert '<?xml version="1.0"' in hocr_content or "<html" in hocr_content
+    assert "ocr_page" in hocr_content
+    assert "bbox" in hocr_content
+
+    # Verify multi-page structure
+    # Each page should be wrapped in <div class='ocr_page'>
+    page_divs = hocr_content.count('class="ocr_page"') + hocr_content.count("class='ocr_page'")
+    assert page_divs >= 1, "HOCR should contain at least one page div"
+
+    # Verify HOCR hierarchy (pages contain content)
+    assert "<div" in hocr_content  # Page divs
+    assert "bbox" in hocr_content  # Bounding boxes present

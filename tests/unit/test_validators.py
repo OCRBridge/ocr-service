@@ -1,7 +1,6 @@
 """Unit tests for file format validation (magic bytes) and size checks."""
 
 
-
 def test_file_format_validation_jpeg():
     """Test JPEG magic bytes are correctly identified."""
     # This test will initially fail (TDD)

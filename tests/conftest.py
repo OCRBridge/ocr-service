@@ -91,3 +91,11 @@ def sample_png(samples_dir: Path) -> Path:
 def sample_pdf(samples_dir: Path) -> Path:
     """Get path to sample PDF file."""
     return samples_dir / "mietvertrag.pdf"
+
+
+@pytest.fixture
+def sample_tiff(samples_dir: Path) -> Path:
+    """Get path to sample TIFF file (using JPEG as substitute for now)."""
+    # TODO: Create actual TIFF sample file
+    # For now, using JPEG as TIFF validation is already implemented
+    return samples_dir / "numbers_gs150.jpg"

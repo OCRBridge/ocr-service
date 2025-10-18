@@ -1,6 +1,5 @@
 """Unit tests for Redis job state CRUD operations."""
 
-
 import pytest
 
 

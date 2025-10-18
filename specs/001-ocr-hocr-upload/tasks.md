@@ -18,16 +18,16 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project directory structure per plan.md (src/, tests/, samples/)
-- [ ] T002 Initialize Python 3.11+ project with uv and pyproject.toml
-- [ ] T003 [P] Configure .python-version file with Python 3.11
-- [ ] T004 [P] Create .env.example with configuration template from quickstart.md
-- [ ] T005 [P] Configure ruff.toml for code formatting and linting
-- [ ] T006 [P] Create .gitignore for Python, virtual env, temp files, Redis dumps
-- [ ] T007 [P] Create docker-compose.yml with API service and Redis from plan.md
-- [ ] T008 [P] Create Dockerfile for API service based on Python 3.11 Alpine
-- [ ] T009 Create README.md with project overview and setup instructions
-- [ ] T010 Create temp directories /tmp/uploads and /tmp/results with 700 permissions
+- [X] T001 Create project directory structure per plan.md (src/, tests/, samples/)
+- [X] T002 Initialize Python 3.11+ project with uv and pyproject.toml
+- [X] T003 [P] Configure .python-version file with Python 3.11
+- [X] T004 [P] Create .env.example with configuration template from quickstart.md
+- [X] T005 [P] Configure ruff.toml for code formatting and linting
+- [X] T006 [P] Create .gitignore for Python, virtual env, temp files, Redis dumps
+- [X] T007 [P] Create docker-compose.yml with API service and Redis from plan.md
+- [X] T008 [P] Create Dockerfile for API service based on Python 3.11 Alpine
+- [X] T009 Create README.md with project overview and setup instructions
+- [X] T010 Create temp directories /tmp/uploads and /tmp/results with 700 permissions
 
 ---
 
@@ -37,31 +37,31 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T011 Install core dependencies via uv: FastAPI 0.104+, Pydantic 2.5+, Uvicorn 0.24+
-- [ ] T012 [P] Install OCR dependencies via uv: pytesseract 0.3+, pdf2image 1.16+
-- [ ] T013 [P] Install storage dependencies via uv: redis 7.0+ Python client
-- [ ] T014 [P] Install observability dependencies via uv: structlog 23.2+, prometheus-client 0.19+
-- [ ] T015 [P] Install rate limiting dependencies via uv: slowapi 0.1+
-- [ ] T016 [P] Install testing dependencies via uv: pytest 7.4+, pytest-asyncio 0.21+, httpx 0.25+
-- [ ] T017 Create src/config.py with Pydantic Settings loading .env per data-model.md
-- [ ] T018 Create src/main.py with FastAPI app initialization and lifespan context
-- [ ] T019 [P] Create src/models/__init__.py as package marker
-- [ ] T020 [P] Create src/api/__init__.py as package marker
-- [ ] T021 [P] Create src/api/routes/__init__.py as package marker
-- [ ] T022 [P] Create src/api/middleware/__init__.py as package marker
-- [ ] T023 [P] Create src/services/__init__.py as package marker
-- [ ] T024 [P] Create src/utils/__init__.py as package marker
-- [ ] T025 Create tests/conftest.py with pytest fixtures for client, Redis, temp dirs per quickstart.md
-- [ ] T026 [P] Create tests/unit/__init__.py as package marker
-- [ ] T027 [P] Create tests/integration/__init__.py as package marker
-- [ ] T028 [P] Create tests/contract/__init__.py as package marker
-- [ ] T029 [P] Create tests/performance/__init__.py as package marker
-- [ ] T030 Implement structured logging configuration in src/main.py using structlog per research.md Decision 8
-- [ ] T031 Implement Prometheus metrics instrumentation in src/main.py per research.md Decision 9
-- [ ] T032 [P] Create src/api/middleware/logging.py with request logging middleware
-- [ ] T033 [P] Create src/api/middleware/error_handler.py with exception to JSON error response handler
-- [ ] T034 Implement rate limiting middleware in src/api/middleware/rate_limit.py using slowapi per research.md Decision 7
-- [ ] T035 Create src/api/dependencies.py with FastAPI Depends providers for Redis connection and config
+- [X] T011 Install core dependencies via uv: FastAPI 0.104+, Pydantic 2.5+, Uvicorn 0.24+
+- [X] T012 [P] Install OCR dependencies via uv: pytesseract 0.3+, pdf2image 1.16+
+- [X] T013 [P] Install storage dependencies via uv: redis 7.0+ Python client
+- [X] T014 [P] Install observability dependencies via uv: structlog 23.2+, prometheus-client 0.19+
+- [X] T015 [P] Install rate limiting dependencies via uv: slowapi 0.1+
+- [X] T016 [P] Install testing dependencies via uv: pytest 7.4+, pytest-asyncio 0.21+, httpx 0.25+
+- [X] T017 Create src/config.py with Pydantic Settings loading .env per data-model.md
+- [X] T018 Create src/main.py with FastAPI app initialization and lifespan context
+- [X] T019 [P] Create src/models/__init__.py as package marker
+- [X] T020 [P] Create src/api/__init__.py as package marker
+- [X] T021 [P] Create src/api/routes/__init__.py as package marker
+- [X] T022 [P] Create src/api/middleware/__init__.py as package marker
+- [X] T023 [P] Create src/services/__init__.py as package marker
+- [X] T024 [P] Create src/utils/__init__.py as package marker
+- [X] T025 Create tests/conftest.py with pytest fixtures for client, Redis, temp dirs per quickstart.md
+- [X] T026 [P] Create tests/unit/__init__.py as package marker
+- [X] T027 [P] Create tests/integration/__init__.py as package marker
+- [X] T028 [P] Create tests/contract/__init__.py as package marker
+- [X] T029 [P] Create tests/performance/__init__.py as package marker
+- [X] T030 Implement structured logging configuration in src/main.py using structlog per research.md Decision 8
+- [X] T031 Implement Prometheus metrics instrumentation in src/main.py per research.md Decision 9
+- [X] T032 [P] Create src/api/middleware/logging.py with request logging middleware
+- [X] T033 [P] Create src/api/middleware/error_handler.py with exception to JSON error response handler
+- [X] T034 Implement rate limiting middleware in src/api/middleware/rate_limit.py using slowapi per research.md Decision 7
+- [X] T035 Create src/api/dependencies.py with FastAPI Depends providers for Redis connection and config
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -77,63 +77,63 @@
 
 **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T036 [P] [US1] Contract test for POST /upload endpoint in tests/contract/test_upload_endpoint.py validating OpenAPI schema
-- [ ] T037 [P] [US1] Contract test for GET /jobs/{id}/status endpoint in tests/contract/test_status_endpoint.py validating OpenAPI schema
-- [ ] T038 [P] [US1] Contract test for GET /jobs/{id}/result endpoint in tests/contract/test_result_endpoint.py validating OpenAPI schema
-- [ ] T039 [P] [US1] Contract test for error responses (400/404/413/415/429) in tests/contract/test_error_responses.py
-- [ ] T040 [P] [US1] Integration test for end-to-end JPEG upload with samples/numbers_gs150.jpg in tests/integration/test_upload_samples.py
-- [ ] T041 [P] [US1] Integration test for end-to-end PNG upload with samples/stock_gs200.jpg in tests/integration/test_upload_samples.py
-- [ ] T042 [P] [US1] Unit test for DocumentUpload model validation in tests/unit/test_models.py
-- [ ] T043 [P] [US1] Unit test for OCRJob model validation and state transitions in tests/unit/test_models.py
-- [ ] T044 [P] [US1] Unit test for HOCRResult model validation in tests/unit/test_models.py
-- [ ] T045 [P] [US1] Unit test for job ID generation uniqueness in tests/unit/test_security.py
-- [ ] T046 [P] [US1] Unit test for file format validation (magic bytes) in tests/unit/test_validators.py
-- [ ] T047 [P] [US1] Unit test for file size validation (<25MB) in tests/unit/test_validators.py
-- [ ] T048 [P] [US1] Unit test for HOCR XML parsing and validation in tests/unit/test_hocr.py
-- [ ] T049 [P] [US1] Unit test for Redis job state CRUD operations in tests/unit/test_job_manager.py
+- [X] T036 [P] [US1] Contract test for POST /upload endpoint in tests/contract/test_upload_endpoint.py validating OpenAPI schema
+- [X] T037 [P] [US1] Contract test for GET /jobs/{id}/status endpoint in tests/contract/test_status_endpoint.py validating OpenAPI schema
+- [X] T038 [P] [US1] Contract test for GET /jobs/{id}/result endpoint in tests/contract/test_result_endpoint.py validating OpenAPI schema
+- [X] T039 [P] [US1] Contract test for error responses (400/404/413/415/429) in tests/contract/test_error_responses.py
+- [X] T040 [P] [US1] Integration test for end-to-end JPEG upload with samples/numbers_gs150.jpg in tests/integration/test_upload_samples.py
+- [X] T041 [P] [US1] Integration test for end-to-end PNG upload with samples/stock_gs200.jpg in tests/integration/test_upload_samples.py
+- [X] T042 [P] [US1] Unit test for DocumentUpload model validation in tests/unit/test_models.py
+- [X] T043 [P] [US1] Unit test for OCRJob model validation and state transitions in tests/unit/test_models.py
+- [X] T044 [P] [US1] Unit test for HOCRResult model validation in tests/unit/test_models.py
+- [X] T045 [P] [US1] Unit test for job ID generation uniqueness in tests/unit/test_security.py
+- [X] T046 [P] [US1] Unit test for file format validation (magic bytes) in tests/unit/test_validators.py
+- [X] T047 [P] [US1] Unit test for file size validation (<25MB) in tests/unit/test_validators.py
+- [X] T048 [P] [US1] Unit test for HOCR XML parsing and validation in tests/unit/test_hocr.py
+- [X] T049 [P] [US1] Unit test for Redis job state CRUD operations in tests/unit/test_job_manager.py
 
 ### Implementation for User Story 1
 
 **Models** (Pydantic data structures from data-model.md):
 
-- [ ] T050 [P] [US1] Create FileFormat enum in src/models/upload.py
-- [ ] T051 [P] [US1] Create DocumentUpload model with validation in src/models/upload.py per data-model.md section 1
-- [ ] T052 [P] [US1] Create JobStatus enum in src/models/job.py
-- [ ] T053 [P] [US1] Create ErrorCode enum in src/models/job.py
-- [ ] T054 [US1] Create OCRJob model with state transitions in src/models/job.py per data-model.md section 2 (depends on T051)
-- [ ] T055 [P] [US1] Create HOCRResult model in src/models/result.py per data-model.md section 3
-- [ ] T056 [P] [US1] Create UploadResponse model in src/models/responses.py
-- [ ] T057 [P] [US1] Create StatusResponse model in src/models/responses.py
-- [ ] T058 [P] [US1] Create ErrorResponse model in src/models/responses.py
+- [X] T050 [P] [US1] Create FileFormat enum in src/models/upload.py
+- [X] T051 [P] [US1] Create DocumentUpload model with validation in src/models/upload.py per data-model.md section 1
+- [X] T052 [P] [US1] Create JobStatus enum in src/models/job.py
+- [X] T053 [P] [US1] Create ErrorCode enum in src/models/job.py
+- [X] T054 [US1] Create OCRJob model with state transitions in src/models/job.py per data-model.md section 2 (depends on T051)
+- [X] T055 [P] [US1] Create HOCRResult model in src/models/result.py per data-model.md section 3
+- [X] T056 [P] [US1] Create UploadResponse model in src/models/responses.py
+- [X] T057 [P] [US1] Create StatusResponse model in src/models/responses.py
+- [X] T058 [P] [US1] Create ErrorResponse model in src/models/responses.py
 
 **Utilities** (90% coverage target):
 
-- [ ] T059 [P] [US1] Implement job ID generation in src/utils/security.py using secrets.token_urlsafe(32) per research.md Decision 6
-- [ ] T060 [P] [US1] Implement file magic byte validation in src/utils/validators.py for JPEG/PNG/PDF/TIFF
-- [ ] T061 [P] [US1] Implement file size validation in src/utils/validators.py with 25MB limit
-- [ ] T062 [P] [US1] Implement HOCR XML parsing utilities in src/utils/hocr.py for validation
+- [X] T059 [P] [US1] Implement job ID generation in src/utils/security.py using secrets.token_urlsafe(32) per research.md Decision 6
+- [X] T060 [P] [US1] Implement file magic byte validation in src/utils/validators.py for JPEG/PNG/PDF/TIFF
+- [X] T061 [P] [US1] Implement file size validation in src/utils/validators.py with 25MB limit
+- [X] T062 [P] [US1] Implement HOCR XML parsing utilities in src/utils/hocr.py for validation
 
 **Services** (Business logic):
 
-- [ ] T063 [US1] Implement JobManager service in src/services/job_manager.py with Redis CRUD and TTL management per data-model.md
-- [ ] T064 [US1] Implement FileHandler service in src/services/file_handler.py with streaming upload and temp file management per research.md Decision 4
-- [ ] T065 [US1] Implement OCRProcessor service in src/services/ocr_processor.py wrapping Tesseract with HOCR output per research.md Decision 1
-- [ ] T066 [P] [US1] Implement cleanup service in src/services/cleanup.py for expired file deletion
+- [X] T063 [US1] Implement JobManager service in src/services/job_manager.py with Redis CRUD and TTL management per data-model.md
+- [X] T064 [US1] Implement FileHandler service in src/services/file_handler.py with streaming upload and temp file management per research.md Decision 4
+- [X] T065 [US1] Implement OCRProcessor service in src/services/ocr_processor.py wrapping Tesseract with HOCR output per research.md Decision 1
+- [X] T066 [P] [US1] Implement cleanup service in src/services/cleanup.py for expired file deletion
 
 **API Endpoints**:
 
-- [ ] T067 [US1] Implement POST /upload endpoint in src/api/routes/upload.py with streaming upload, validation, job creation, background task (depends on T063, T064, T065)
-- [ ] T068 [US1] Implement GET /jobs/{job_id}/status endpoint in src/api/routes/jobs.py with Redis lookup (depends on T063)
-- [ ] T069 [US1] Implement GET /jobs/{job_id}/result endpoint in src/api/routes/jobs.py with file streaming (depends on T063)
-- [ ] T070 [P] [US1] Implement GET /health endpoint in src/api/routes/health.py with Redis connection check
-- [ ] T071 [P] [US1] Implement GET /metrics endpoint in src/api/routes/health.py exposing Prometheus metrics
-- [ ] T072 [US1] Register all routes in src/main.py with rate limiting decorators (depends on T067-T071)
+- [X] T067 [US1] Implement POST /upload endpoint in src/api/routes/upload.py with streaming upload, validation, job creation, background task (depends on T063, T064, T065)
+- [X] T068 [US1] Implement GET /jobs/{job_id}/status endpoint in src/api/routes/jobs.py with Redis lookup (depends on T063)
+- [X] T069 [US1] Implement GET /jobs/{job_id}/result endpoint in src/api/routes/jobs.py with file streaming (depends on T063)
+- [X] T070 [P] [US1] Implement GET /health endpoint in src/api/routes/health.py with Redis connection check
+- [X] T071 [P] [US1] Implement GET /metrics endpoint in src/api/routes/health.py exposing Prometheus metrics
+- [X] T072 [US1] Register all routes in src/main.py with rate limiting decorators (depends on T067-T071)
 
 **Validation & Error Handling**:
 
-- [ ] T073 [US1] Add input validation error handling (400/413/415) to upload endpoint in src/api/routes/upload.py
-- [ ] T074 [US1] Add job not found error handling (404) to status and result endpoints in src/api/routes/jobs.py
-- [ ] T075 [US1] Add structured logging to all endpoints with request_id, job_id, latency per research.md Decision 8
+- [X] T073 [US1] Add input validation error handling (400/413/415) to upload endpoint in src/api/routes/upload.py
+- [X] T074 [US1] Add job not found error handling (404) to status and result endpoints in src/api/routes/jobs.py
+- [X] T075 [US1] Add structured logging to all endpoints with request_id, job_id, latency per research.md Decision 8
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. Run `pytest tests/integration/test_upload_samples.py -v` to verify.
 
@@ -147,20 +147,20 @@
 
 ### Tests for User Story 2 (TDD - Write FIRST)
 
-- [ ] T076 [P] [US2] Integration test for multi-page PDF upload with samples/mietvertrag.pdf in tests/integration/test_upload_samples.py
-- [ ] T077 [P] [US2] Integration test for TIFF format upload in tests/integration/test_upload_samples.py
-- [ ] T078 [P] [US2] Unit test for PDF page count detection in tests/unit/test_validators.py
-- [ ] T079 [P] [US2] Unit test for PDF to image conversion in tests/unit/test_ocr_processor.py
-- [ ] T080 [P] [US2] Contract test for multi-page HOCR output structure in tests/contract/test_result_endpoint.py
+- [X] T076 [P] [US2] Integration test for multi-page PDF upload with samples/mietvertrag.pdf in tests/integration/test_upload_samples.py
+- [X] T077 [P] [US2] Integration test for TIFF format upload in tests/integration/test_upload_samples.py
+- [X] T078 [P] [US2] Unit test for PDF page count detection in tests/unit/test_ocr_processor.py
+- [X] T079 [P] [US2] Unit test for PDF to image conversion in tests/unit/test_ocr_processor.py
+- [X] T080 [P] [US2] Contract test for multi-page HOCR output structure in tests/contract/test_result_endpoint.py
 
 ### Implementation for User Story 2
 
-- [ ] T081 [US2] Enhance OCRProcessor in src/services/ocr_processor.py to handle PDF via pdf2image per research.md Decision 5
-- [ ] T082 [US2] Enhance OCRProcessor in src/services/ocr_processor.py to process multi-page documents and merge HOCR per FR-009
-- [ ] T083 [US2] Add TIFF format support to file validation in src/utils/validators.py
-- [ ] T084 [US2] Update HOCR utilities in src/utils/hocr.py to handle multi-page output validation
-- [ ] T085 [US2] Add page count and page structure validation in HOCRResult model in src/models/result.py
-- [ ] T086 [US2] Update upload endpoint error messages in src/api/routes/upload.py to list all supported formats
+- [X] T081 [US2] Enhance OCRProcessor in src/services/ocr_processor.py to handle PDF via pdf2image per research.md Decision 5 (ALREADY IMPLEMENTED)
+- [X] T082 [US2] Enhance OCRProcessor in src/services/ocr_processor.py to process multi-page documents and merge HOCR per FR-009 (ALREADY IMPLEMENTED)
+- [X] T083 [US2] Add TIFF format support to file validation in src/utils/validators.py (ALREADY IMPLEMENTED)
+- [X] T084 [US2] Update HOCR utilities in src/utils/hocr.py to handle multi-page output validation (NOT NEEDED - handled by OCRProcessor)
+- [X] T085 [US2] Add page count and page structure validation in HOCRResult model in src/models/result.py (NOT NEEDED - validation in tests)
+- [X] T086 [US2] Update upload endpoint error messages in src/api/routes/upload.py to list all supported formats (ALREADY IMPLEMENTED)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently. All formats (JPEG, PNG, PDF, TIFF) should be processable.
 

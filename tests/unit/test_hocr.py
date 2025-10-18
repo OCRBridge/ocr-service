@@ -1,7 +1,6 @@
 """Unit tests for HOCR XML parsing and validation."""
 
 
-
 def test_hocr_parsing_valid_xml():
     """Test parsing valid HOCR XML succeeds."""
     # This test will initially fail (TDD)

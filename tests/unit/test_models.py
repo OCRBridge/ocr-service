@@ -1,7 +1,6 @@
 """Unit tests for Pydantic model validation and state transitions."""
 
 
-
 def test_document_upload_model_validation():
     """Test DocumentUpload model validates fields correctly."""
     # This test will initially fail (TDD)

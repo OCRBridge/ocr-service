@@ -1,6 +1,5 @@
 """FastAPI dependency providers for shared resources."""
 
-
 from fastapi import Request
 from redis import asyncio as aioredis
 

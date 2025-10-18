@@ -1,7 +1,6 @@
 """Unit tests for job ID generation uniqueness and entropy."""
 
 
-
 def test_job_id_generation_is_unique():
     """Test job IDs are unique across 10,000 generations."""
     # This test will initially fail (TDD)
