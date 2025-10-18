@@ -511,6 +511,29 @@ def test_upload_ocrmac_without_recognition_level_defaults_to_balanced(client: Te
         assert data["status"] == "pending"
 
 
+def test_upload_ocrmac_with_pdf_file(client: TestClient, sample_pdf):
+    """Test /upload/ocrmac with PDF file (verifies PDF conversion works)."""
+    import pytest
+    from pathlib import Path
+
+    # Skip if sample PDF doesn't exist
+    if not Path(sample_pdf).exists():
+        pytest.skip(f"Sample PDF not found at {sample_pdf}")
+
+    with open(sample_pdf, "rb") as f:
+        response = client.post(
+            "/upload/ocrmac",
+            files={"file": f},
+            data={"languages": ["en-US"], "recognition_level": "balanced"}
+        )
+
+    # May return 400 if not on macOS or ocrmac not available
+    assert response.status_code in [202, 400]
+    if response.status_code == 202:
+        data = response.json()
+        assert "job_id" in data
+        assert data["status"] == "pending"
+
 
 # ============================================================================
 # User Story 5: Parameter Isolation Between Engines

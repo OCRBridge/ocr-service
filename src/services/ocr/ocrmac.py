@@ -2,10 +2,13 @@
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from PIL import Image
+from pdf2image import convert_from_path
 
+from src.config import settings
 from src.models.ocr_params import OcrmacParams, RecognitionLevel
+from src.models.upload import FileFormat
 from src.services.ocr.base import OCREngine
 import structlog
 
@@ -44,6 +47,77 @@ class OcrmacEngine(OCREngine):
         if platform.system() != 'Darwin':
             raise RuntimeError("ocrmac is only available on macOS systems")
 
+        # Extract parameters
+        languages = params.languages if params and params.languages else None
+        recognition_level = params.recognition_level if params else RecognitionLevel.BALANCED
+
+        # Map RecognitionLevel enum to ocrmac string values
+        recognition_level_str = recognition_level.value  # "fast", "balanced", or "accurate"
+
+        pdf_dpi = settings.pdf_dpi
+
+        try:
+            # Detect file format from file extension
+            file_format = self._detect_format(file_path)
+
+            # Handle PDF separately
+            if file_format == FileFormat.PDF:
+                return self._process_pdf(file_path, languages, recognition_level_str, pdf_dpi)
+            else:
+                return self._process_image(file_path, languages, recognition_level_str)
+
+        except Exception as e:
+            logger.error("ocrmac_processing_failed", error=str(e), file=str(file_path))
+            raise RuntimeError(f"ocrmac processing failed: {str(e)}")
+
+    def _detect_format(self, file_path: Path) -> FileFormat:
+        """
+        Detect file format from extension.
+
+        Args:
+            file_path: Path to file
+
+        Returns:
+            FileFormat enum value
+
+        Raises:
+            ValueError: If file format is unsupported
+        """
+        suffix = file_path.suffix.lower()
+        format_map = {
+            '.jpg': FileFormat.JPEG,
+            '.jpeg': FileFormat.JPEG,
+            '.png': FileFormat.PNG,
+            '.pdf': FileFormat.PDF,
+            '.tiff': FileFormat.TIFF,
+            '.tif': FileFormat.TIFF,
+        }
+
+        if suffix not in format_map:
+            raise ValueError(f"Unsupported file format: {suffix}")
+
+        return format_map[suffix]
+
+    def _process_image(
+        self, 
+        image_path: Path, 
+        languages: Optional[list[str]], 
+        recognition_level_str: str
+    ) -> str:
+        """
+        Process image file with ocrmac.
+
+        Args:
+            image_path: Path to image file
+            languages: Language codes or None for auto-detection
+            recognition_level_str: Recognition level ("fast", "balanced", or "accurate")
+
+        Returns:
+            HOCR XML string
+
+        Raises:
+            RuntimeError: If ocrmac processing fails
+        """
         # Import ocrmac (will fail if not installed)
         try:
             from ocrmac import ocrmac
@@ -53,67 +127,288 @@ class OcrmacEngine(OCREngine):
                 "ocrmac is not installed. Install with: pip install ocrmac"
             )
 
-        # Extract parameters
-        languages = params.languages if params and params.languages else None
-        recognition_level = params.recognition_level if params else RecognitionLevel.BALANCED
+        logger.info(
+            "processing_image",
+            file=str(image_path),
+            engine="ocrmac",
+            languages=languages,
+            recognition_level=recognition_level_str
+        )
 
-        # Map RecognitionLevel enum to ocrmac string values
-        recognition_level_str = recognition_level.value  # "fast", "balanced", or "accurate"
+        # Create ocrmac OCR instance with parameters
+        ocr_instance = ocrmac.OCR(
+            str(image_path),
+            language_preference=languages,
+            recognition_level=recognition_level_str
+        )
 
-        try:
-            logger.info(
-                "processing_image",
-                file=str(file_path),
-                engine="ocrmac",
-                languages=languages,
-                recognition_level=recognition_level_str
-            )
+        # Perform OCR recognition
+        annotations = ocr_instance.recognize()
 
-            # Create ocrmac OCR instance with parameters
-            ocr_instance = ocrmac.OCR(
-                str(file_path),
-                language_preference=languages,
-                recognition_level=recognition_level_str
-            )
+        # Get image dimensions for bounding box conversion
+        image_width, image_height = self._get_image_dimensions(image_path)
 
-            # Perform OCR recognition
-            annotations = ocr_instance.recognize()
+        # Convert ocrmac output to HOCR format
+        hocr_content = self._convert_to_hocr(
+            annotations, image_width, image_height, languages, recognition_level_str
+        )
 
-            # Get image dimensions for bounding box conversion
-            image_width, image_height = self._get_image_dimensions(file_path)
+        logger.info("image_processed", file=str(image_path), engine="ocrmac")
 
-            # Convert ocrmac output to HOCR format
-            hocr_content = self._convert_to_hocr(
-                annotations, image_width, image_height, languages, recognition_level_str
-            )
+        return hocr_content
 
-            logger.info("image_processed", file=str(file_path), engine="ocrmac")
-
-            return hocr_content
-
-        except Exception as e:
-            logger.error("ocrmac_processing_failed", error=str(e), file=str(file_path))
-            raise RuntimeError(f"ocrmac processing failed: {str(e)}")
-
-    def _get_image_dimensions(self, image_path: Path) -> tuple[int, int]:
+    def _process_pdf(
+        self, 
+        pdf_path: Path, 
+        languages: Optional[list[str]], 
+        recognition_level_str: str, 
+        pdf_dpi: int
+    ) -> str:
         """
-        Get image width and height.
+        Process PDF file by converting to images then OCR with ocrmac.
 
         Args:
-            image_path: Path to image file
+            pdf_path: Path to PDF file
+            languages: Language codes or None for auto-detection
+            recognition_level_str: Recognition level ("fast", "balanced", or "accurate")
+            pdf_dpi: DPI for PDF conversion
+
+        Returns:
+            HOCR XML string with all pages combined
+
+        Raises:
+            RuntimeError: If PDF conversion or ocrmac processing fails
+        """
+        # Import ocrmac (will fail if not installed)
+        try:
+            from ocrmac import ocrmac
+        except ImportError:
+            logger.error("ocrmac_not_installed")
+            raise RuntimeError(
+                "ocrmac is not installed. Install with: pip install ocrmac"
+            )
+
+        logger.info("processing_pdf", file=str(pdf_path), engine="ocrmac")
+
+        # Convert PDF to images
+        try:
+            images = convert_from_path(str(pdf_path), dpi=pdf_dpi, thread_count=2)
+        except Exception as e:
+            logger.error("pdf_conversion_failed", error=str(e))
+            raise RuntimeError(f"PDF conversion failed: {str(e)}")
+
+        logger.info("pdf_converted", file=str(pdf_path), pages=len(images), engine="ocrmac")
+
+        # Process each page
+        page_hocr_list = []
+        for i, image in enumerate(images, start=1):
+            logger.debug("processing_page", page=i, total=len(images), engine="ocrmac")
+
+            # Get image dimensions
+            image_width, image_height = self._get_image_dimensions(image)
+
+            # Save image temporarily for ocrmac processing
+            # ocrmac requires a file path, not a PIL Image object
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                temp_path = Path(tmp_file.name)
+                image.save(temp_path, format='PNG')
+
+            try:
+                # Create ocrmac OCR instance with parameters
+                ocr_instance = ocrmac.OCR(
+                    str(temp_path),
+                    language_preference=languages,
+                    recognition_level=recognition_level_str
+                )
+
+                # Perform OCR recognition
+                annotations = ocr_instance.recognize()
+
+                # Convert ocrmac output to HOCR format
+                hocr_content = self._convert_to_hocr(
+                    annotations, image_width, image_height, languages, recognition_level_str
+                )
+
+                page_hocr_list.append(hocr_content)
+            finally:
+                # Clean up temporary file
+                temp_path.unlink(missing_ok=True)
+
+        # Combine pages (for multi-page PDF)
+        if len(page_hocr_list) == 1:
+            hocr_content = page_hocr_list[0]
+        else:
+            hocr_content = self._merge_hocr_pages(page_hocr_list)
+
+        logger.info("pdf_processed", file=str(pdf_path), pages=len(images), engine="ocrmac")
+
+        return hocr_content
+
+    def _merge_hocr_pages(self, page_hocr_list: list[str]) -> str:
+        """
+        Merge multiple HOCR pages into single document.
+
+        Args:
+            page_hocr_list: List of HOCR XML strings, one per page
+
+        Returns:
+            Combined HOCR XML string
+        """
+        # Extract body content from each page and combine
+        combined_body = ""
+        for page_hocr in page_hocr_list:
+            # Extract content between <body> tags
+            start = page_hocr.find("<body>")
+            end = page_hocr.find("</body>")
+            if start != -1 and end != -1:
+                combined_body += page_hocr[start + 6 : end]
+
+        # Wrap in complete HOCR structure
+        hocr_template = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta name="ocr-system" content="ocrmac via restful-ocr" />
+</head>
+<body>{combined_body}</body>
+</html>"""
+
+        return hocr_template
+
+    def _get_image_dimensions(self, image_source: Union[Path, Image.Image]) -> tuple[int, int]:
+        """
+        Get image width and height from file path or PIL Image object.
+
+        Args:
+            image_source: Either a Path to an image file or a PIL.Image.Image object
 
         Returns:
             Tuple of (width, height)
 
         Raises:
-            RuntimeError: If image cannot be opened
+            RuntimeError: If image cannot be opened or processed
         """
         try:
-            with Image.open(image_path) as img:
-                return img.size  # Returns (width, height)
+            if isinstance(image_source, Image.Image):
+                # Already a PIL Image object, just return size
+                return image_source.size
+            else:
+                # It's a file path, open it
+                with Image.open(image_source) as img:
+                    return img.size  # Returns (width, height)
         except Exception as e:
             logger.error("failed_to_get_image_dimensions", error=str(e))
             raise RuntimeError(f"Failed to get image dimensions: {str(e)}")
+
+    def _group_words_into_lines(
+        self,
+        annotations: list,
+        image_width: int,
+        image_height: int
+    ) -> list[dict]:
+        """
+        Group word annotations into lines based on vertical position.
+
+        Args:
+            annotations: List of ocrmac annotations (text, confidence, bbox)
+            image_width: Image width in pixels
+            image_height: Image height in pixels
+
+        Returns:
+            List of line dictionaries, each containing:
+                - bbox: (x_min, y_min, x_max, y_max) in pixels
+                - words: List of word dictionaries with text, confidence, bbox
+        """
+        if not annotations:
+            return []
+
+        # Convert annotations to word dictionaries with absolute coordinates
+        words = []
+        for annotation in annotations:
+            text = annotation[0]
+            confidence = annotation[1]
+            bbox = annotation[2]
+
+            # Convert relative bbox to absolute pixels
+            # ocrmac bbox: [x_min, y_min, width, height] (relative 0.0-1.0)
+            # Note: ocrmac uses bottom-left origin (macOS), need to flip to top-left (hOCR)
+            x_min = int(bbox[0] * image_width)
+            x_max = int((bbox[0] + bbox[2]) * image_width)
+
+            # ocrmac y-coordinates are from bottom-left origin
+            y_min_from_bottom = int(bbox[1] * image_height)
+            y_max_from_bottom = int((bbox[1] + bbox[3]) * image_height)
+
+            # Flip to top-left origin for hOCR standard
+            y_min = image_height - y_max_from_bottom
+            y_max = image_height - y_min_from_bottom
+
+            # Calculate vertical center for line grouping
+            y_center = (y_min + y_max) / 2
+            height = y_max - y_min
+
+            words.append({
+                'text': text,
+                'confidence': confidence,
+                'bbox': (x_min, y_min, x_max, y_max),
+                'y_center': y_center,
+                'height': height,
+                'x_min': x_min
+            })
+
+        if not words:
+            return []
+
+        # Calculate median word height for threshold
+        heights = [w['height'] for w in words]
+        heights.sort()
+        median_height = heights[len(heights) // 2]
+        
+        # Threshold: words are on same line if y_centers within 50% of median height
+        line_threshold = median_height * 0.5
+
+        # Sort words by vertical position (top to bottom)
+        words.sort(key=lambda w: w['y_center'])
+
+        # Group words into lines
+        lines = []
+        current_line_words = [words[0]]
+        current_y_center = words[0]['y_center']
+
+        for word in words[1:]:
+            # Check if word belongs to current line
+            if abs(word['y_center'] - current_y_center) <= line_threshold:
+                current_line_words.append(word)
+            else:
+                # Start new line
+                lines.append(current_line_words)
+                current_line_words = [word]
+                current_y_center = word['y_center']
+
+        # Don't forget the last line
+        if current_line_words:
+            lines.append(current_line_words)
+
+        # Process each line: sort words left-to-right and calculate bbox
+        result_lines = []
+        for line_words in lines:
+            # Sort words left to right
+            line_words.sort(key=lambda w: w['x_min'])
+
+            # Calculate line bounding box
+            line_x_min = min(w['bbox'][0] for w in line_words)
+            line_y_min = min(w['bbox'][1] for w in line_words)
+            line_x_max = max(w['bbox'][2] for w in line_words)
+            line_y_max = max(w['bbox'][3] for w in line_words)
+
+            result_lines.append({
+                'bbox': (line_x_min, line_y_min, line_x_max, line_y_max),
+                'words': line_words
+            })
+
+        return result_lines
 
     def _convert_to_hocr(
         self,
@@ -124,7 +419,9 @@ class OcrmacEngine(OCREngine):
         recognition_level: str
     ) -> str:
         """
-        Convert ocrmac annotations to HOCR XML format.
+        Convert ocrmac annotations to HOCR XML format with standard hierarchy.
+
+        Creates proper hOCR structure: ocr_page → ocr_line → ocrx_word
 
         ocrmac output format:
         [
@@ -142,7 +439,7 @@ class OcrmacEngine(OCREngine):
             recognition_level: Recognition level used (for metadata)
 
         Returns:
-            HOCR XML string
+            HOCR XML string with standard hierarchy
         """
         # Create root structure
         html = ET.Element('html', xmlns="http://www.w3.org/1999/xhtml")
@@ -175,29 +472,34 @@ class OcrmacEngine(OCREngine):
         page.set('id', 'page_1')
         page.set('title', f'bbox 0 0 {image_width} {image_height}')
 
-        # Convert each annotation to a word span
-        for idx, annotation in enumerate(annotations, start=1):
-            # ocrmac returns tuples: (text, confidence, bbox)
-            text = annotation[0]
-            confidence = annotation[1]
-            bbox = annotation[2]
+        # Group words into lines
+        lines = self._group_words_into_lines(annotations, image_width, image_height)
 
-            # Convert relative bbox to absolute pixels
-            # ocrmac bbox: [x_min, y_min, width, height] (relative 0.0-1.0)
-            x_min = int(bbox[0] * image_width)
-            y_min = int(bbox[1] * image_height)
-            x_max = int((bbox[0] + bbox[2]) * image_width)
-            y_max = int((bbox[1] + bbox[3]) * image_height)
+        # Create ocr_line elements with words
+        word_counter = 1
+        for line_idx, line_data in enumerate(lines, start=1):
+            line_bbox = line_data['bbox']
+            
+            # Create line element
+            line_elem = ET.SubElement(page, 'span')
+            line_elem.set('class', 'ocr_line')
+            line_elem.set('id', f'line_1_{line_idx}')
+            line_elem.set('title', f'bbox {line_bbox[0]} {line_bbox[1]} {line_bbox[2]} {line_bbox[3]}')
 
-            # Convert confidence from float (0.0-1.0) to integer (0-100)
-            x_wconf = int(confidence * 100)
-
-            # Create word span
-            word = ET.SubElement(page, 'span')
-            word.set('class', 'ocrx_word')
-            word.set('id', f'word_1_{idx}')
-            word.set('title', f'bbox {x_min} {y_min} {x_max} {y_max}; x_wconf {x_wconf}')
-            word.text = text
+            # Add words to this line
+            for word_data in line_data['words']:
+                # Convert confidence from float (0.0-1.0) to integer (0-100)
+                x_wconf = int(word_data['confidence'] * 100)
+                
+                # Create word span
+                word_elem = ET.SubElement(line_elem, 'span')
+                word_elem.set('class', 'ocrx_word')
+                word_elem.set('id', f'word_1_{word_counter}')
+                word_bbox = word_data['bbox']
+                word_elem.set('title', f'bbox {word_bbox[0]} {word_bbox[1]} {word_bbox[2]} {word_bbox[3]}; x_wconf {x_wconf}')
+                word_elem.text = word_data['text']
+                
+                word_counter += 1
 
         # Convert to string with proper formatting
         tree = ET.ElementTree(html)
@@ -205,7 +507,7 @@ class OcrmacEngine(OCREngine):
         # Create the complete HOCR document with DOCTYPE
         hocr_doctype = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
         xml_declaration = '<?xml version="1.0" encoding="UTF-8"?>'
-        html_content = ET.tostring(html, encoding='unicode', method='html')
+        html_content = ET.tostring(html, encoding='unicode', method='xml')
 
         hocr_document = f"{xml_declaration}\n{hocr_doctype}\n{html_content}"
 
