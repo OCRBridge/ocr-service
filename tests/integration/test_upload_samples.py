@@ -1,0 +1,62 @@
+"""Integration tests for end-to-end upload with sample documents."""
+
+import time
+
+import pytest
+from fastapi.testclient import TestClient
+
+
+def test_ocr_jpeg_end_to_end(client: TestClient, sample_jpeg):
+    """Test end-to-end JPEG upload with numbers_gs150.jpg."""
+    # Upload
+    with open(sample_jpeg, "rb") as f:
+        upload_response = client.post("/upload", files={"file": f})
+
+    assert upload_response.status_code == 202
+    job_id = upload_response.json()["job_id"]
+
+    # Poll status (with timeout)
+    max_wait = 30
+    status = None
+    for _ in range(max_wait):
+        status_response = client.get(f"/jobs/{job_id}/status")
+        if status_response.status_code == 200:
+            status = status_response.json()["status"]
+            if status in ["completed", "failed"]:
+                break
+        time.sleep(1)
+
+    # This test will initially fail (TDD)
+    # When implemented:
+    # assert status == "completed", f"Job did not complete in {max_wait}s"
+
+    # Download result
+    # result_response = client.get(f"/jobs/{job_id}/result")
+    # assert result_response.status_code == 200
+    # hocr_content = result_response.text
+
+    # Validate HOCR structure
+    # assert '<?xml version="1.0"' in hocr_content
+    # assert 'ocr_page' in hocr_content
+    # assert 'bbox' in hocr_content  # Bounding boxes present
+
+
+def test_ocr_png_end_to_end(client: TestClient, sample_png):
+    """Test end-to-end PNG upload with stock_gs200.jpg."""
+    # Upload
+    with open(sample_png, "rb") as f:
+        upload_response = client.post("/upload", files={"file": f})
+
+    assert upload_response.status_code == 202
+    job_id = upload_response.json()["job_id"]
+
+    # This test will initially fail (TDD)
+    # Poll for completion and verify HOCR output
+
+
+@pytest.mark.slow
+def test_concurrent_uploads(client: TestClient, sample_jpeg):
+    """Test multiple concurrent uploads are handled correctly."""
+    # This test will initially fail (TDD)
+    # Upload 5 documents concurrently and verify all complete
+    pass

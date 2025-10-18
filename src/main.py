@@ -76,17 +76,9 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "version": "1.0.0",
-    }
+# Import and register routes
+from src.api.routes import health, jobs, upload
 
-
-# Import and register routes (will be added in later phases)
-# from src.api.routes import upload, jobs, health
-# app.include_router(upload.router)
-# app.include_router(jobs.router)
-# app.include_router(health.router)
+app.include_router(upload.router, tags=["upload"])
+app.include_router(jobs.router, tags=["jobs"])
+app.include_router(health.router, tags=["health"])
