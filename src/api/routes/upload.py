@@ -20,6 +20,7 @@ from src.models.responses import ErrorResponse, UploadResponse
 from src.services.file_handler import FileHandler
 from src.services.job_manager import JobManager
 from src.services.ocr_processor import OCRProcessor, OCRProcessorError
+from src.utils import metrics
 from src.utils.validators import FileTooLargeError, UnsupportedFormatError
 
 router = APIRouter()
@@ -49,7 +50,14 @@ async def process_ocr_task(job_id: str, redis: aioredis.Redis):
         job.mark_processing()
         await job_manager.update_job(job)
 
-        logger.info("ocr_processing_started", job_id=job_id)
+        # Track active jobs (US3 - T099)
+        metrics.active_jobs.inc()
+
+        # Track queue duration
+        queue_duration = (job.start_time - job.upload.upload_timestamp).total_seconds()
+        metrics.job_queue_duration_seconds.observe(queue_duration)
+
+        logger.info("ocr_processing_started", job_id=job_id, queue_duration=queue_duration)
 
         # Process document
         hocr_content = await ocr_processor.process_document(
@@ -64,15 +72,36 @@ async def process_ocr_task(job_id: str, redis: aioredis.Redis):
         job.mark_completed()
         await job_manager.update_job(job)
 
+        # Track metrics (US3 - T099)
+        metrics.jobs_completed_total.inc()
+        metrics.active_jobs.dec()
+
+        # Track processing duration
+        processing_duration = (job.completion_time - job.start_time).total_seconds()
+        metrics.job_processing_duration_seconds.observe(processing_duration)
+
+        # Track total duration
+        total_duration = (job.completion_time - job.upload.upload_timestamp).total_seconds()
+        metrics.job_total_duration_seconds.observe(total_duration)
+
         # Clean up temp upload file
         await file_handler.delete_temp_file(job.upload.temp_file_path)
 
-        logger.info("ocr_processing_completed", job_id=job_id)
+        logger.info(
+            "ocr_processing_completed",
+            job_id=job_id,
+            processing_duration=processing_duration,
+            total_duration=total_duration,
+        )
 
     except OCRProcessorError as e:
         # Mark as failed
         job.mark_failed(e.error_code, str(e))
         await job_manager.update_job(job)
+
+        # Track metrics (US3 - T099)
+        metrics.jobs_failed_total.labels(error_code=e.error_code.value).inc()
+        metrics.active_jobs.dec()
 
         logger.error("ocr_processing_failed", job_id=job_id, error=str(e))
 
@@ -83,6 +112,10 @@ async def process_ocr_task(job_id: str, redis: aioredis.Redis):
         # Mark as failed with internal error
         job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
         await job_manager.update_job(job)
+
+        # Track metrics (US3 - T099)
+        metrics.jobs_failed_total.labels(error_code=ErrorCode.INTERNAL_ERROR.value).inc()
+        metrics.active_jobs.dec()
 
         logger.error("ocr_processing_exception", job_id=job_id, error=str(e))
 
@@ -120,6 +153,10 @@ async def upload_document(
     try:
         # Save uploaded file
         upload = await file_handler.save_upload(file)
+
+        # Track metrics (US3 - T099)
+        metrics.jobs_created_total.inc()
+        metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job
         job = OCRJob(upload=upload)

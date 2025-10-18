@@ -1,5 +1,6 @@
 """FastAPI application entry point with lifecycle management."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -11,6 +12,7 @@ from redis import asyncio as aioredis
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
 from src.config import settings
+from src.services.cleanup import CleanupService
 
 # Configure structured logging
 structlog.configure(
@@ -31,6 +33,22 @@ structlog.configure(
 logger = structlog.get_logger()
 
 
+async def cleanup_task_runner():
+    """Background task to periodically clean expired files."""
+    cleanup_service = CleanupService()
+    logger.info("cleanup_task_started", interval_hours=1)
+
+    while True:
+        try:
+            await asyncio.sleep(3600)  # Run every hour
+            await cleanup_service.cleanup_expired_files()
+        except asyncio.CancelledError:
+            logger.info("cleanup_task_cancelled")
+            break
+        except Exception as e:
+            logger.error("cleanup_task_error", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
@@ -49,12 +67,24 @@ async def lifespan(app: FastAPI):
         logger.error("redis_connection_failed", error=str(e))
         raise
 
+    # Start cleanup background task (US3 - T096)
+    cleanup_task = asyncio.create_task(cleanup_task_runner())
+    app.state.cleanup_task = cleanup_task
+
     logger.info("application_ready")
 
     yield
 
     # Shutdown
     logger.info("application_shutting_down")
+
+    # Cancel cleanup task
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
     await redis_client.close()
     logger.info("application_shutdown_complete")
 

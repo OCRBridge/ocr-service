@@ -174,22 +174,22 @@
 
 ### Tests for User Story 3 (TDD - Write FIRST)
 
-- [ ] T087 [P] [US3] Integration test for job status polling lifecycle in tests/integration/test_status_polling.py
-- [ ] T088 [P] [US3] Integration test for expiration timestamp correctness in tests/integration/test_expiration.py
-- [ ] T089 [P] [US3] Integration test for 48h TTL enforcement with mocked time in tests/integration/test_expiration.py
-- [ ] T090 [P] [US3] Unit test for job state transition validation in tests/unit/test_models.py
-- [ ] T091 [P] [US3] Performance test for status endpoint p95 latency <800ms in tests/performance/test_endpoint_latency.py
-- [ ] T092 [P] [US3] Performance test for result endpoint p95 latency <800ms in tests/performance/test_endpoint_latency.py
+- [X] T087 [P] [US3] Integration test for job status polling lifecycle in tests/integration/test_status_polling.py
+- [X] T088 [P] [US3] Integration test for expiration timestamp correctness in tests/integration/test_expiration.py
+- [X] T089 [P] [US3] Integration test for 48h TTL enforcement with mocked time in tests/integration/test_expiration.py
+- [X] T090 [P] [US3] Unit test for job state transition validation in tests/unit/test_models.py
+- [X] T091 [P] [US3] Performance test for status endpoint p95 latency <800ms in tests/performance/test_endpoint_latency.py
+- [X] T092 [P] [US3] Performance test for result endpoint p95 latency <800ms in tests/performance/test_endpoint_latency.py
 
 ### Implementation for User Story 3
 
-- [ ] T093 [US3] Enhance JobManager in src/services/job_manager.py to track all timestamps (upload, start, completion, expiration) per data-model.md
-- [ ] T094 [US3] Implement automatic expiration_time calculation (completion + 48h) in OCRJob model in src/models/job.py
-- [ ] T095 [US3] Add background cleanup task in src/services/cleanup.py to delete expired files and Redis keys
-- [ ] T096 [US3] Register cleanup task as periodic background job in src/main.py lifespan
-- [ ] T097 [US3] Enhance status response in src/api/routes/jobs.py to include all timestamps and expiration info
-- [ ] T098 [US3] Add error state handling to status endpoint for failed jobs in src/api/routes/jobs.py
-- [ ] T099 [US3] Add metrics tracking for job lifecycle durations in src/services/ocr_processor.py
+- [X] T093 [US3] Enhance JobManager in src/services/job_manager.py to track all timestamps (upload, start, completion, expiration) per data-model.md (ALREADY IMPLEMENTED)
+- [X] T094 [US3] Implement automatic expiration_time calculation (completion + 48h) in OCRJob model in src/models/job.py (ALREADY IMPLEMENTED)
+- [X] T095 [US3] Add background cleanup task in src/services/cleanup.py to delete expired files and Redis keys
+- [X] T096 [US3] Register cleanup task as periodic background job in src/main.py lifespan
+- [X] T097 [US3] Enhance status response in src/api/routes/jobs.py to include all timestamps and expiration info (ALREADY IMPLEMENTED)
+- [X] T098 [US3] Add error state handling to status endpoint for failed jobs in src/api/routes/jobs.py (ALREADY IMPLEMENTED)
+- [X] T099 [US3] Add metrics tracking for job lifecycle durations in src/api/routes/upload.py
 
 **Checkpoint**: All user stories should now be independently functional with complete lifecycle tracking and auto-expiration.
 
