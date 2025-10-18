@@ -93,8 +93,8 @@ Python 3.11+: Follow PEP 8 conventions, enforced via ruff
 
 ## Recent Changes
 - 003-multi-engine-ocr: Added Python 3.11+
+- 003-multi-engine-ocr: Added Python 3.11+
 - 002-tesseract-params: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, Tesseract 5.3+
-- 001-ocr-hocr-upload: Added OCR document upload API with HOCR output support
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

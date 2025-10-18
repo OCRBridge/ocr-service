@@ -13,7 +13,9 @@ from redis import asyncio as aioredis
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
 from src.config import settings
+from src.models.job import EngineType
 from src.services.cleanup import CleanupService
+from src.services.ocr.registry import EngineRegistry
 
 # Configure structured logging
 structlog.configure(
@@ -55,6 +57,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
     # Startup
     logger.info("application_starting", version="1.0.0")
+
+    # Initialize EngineRegistry (detect OCR engines at startup)
+    registry = EngineRegistry()
+    app.state.engine_registry = registry
+    logger.info(
+        "engine_registry_initialized",
+        tesseract_available=registry.is_available(EngineType.TESSERACT),
+        ocrmac_available=registry.is_available(EngineType.OCRMAC),
+    )
 
     # Initialize Redis connection
     redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)

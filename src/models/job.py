@@ -4,12 +4,20 @@ import secrets
 from datetime import datetime, timedelta
 from enum import Enum
 
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
 from src.models import TesseractParams
+from src.models.ocr_params import OcrmacParams
 from src.models.upload import DocumentUpload
+
+
+class EngineType(str, Enum):
+    """Supported OCR engine types."""
+
+    TESSERACT = "tesseract"
+    OCRMAC = "ocrmac"
 
 
 class JobStatus(str, Enum):
@@ -38,7 +46,24 @@ class OCRJob(BaseModel):
     job_id: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     status: JobStatus = JobStatus.PENDING
     upload: DocumentUpload
-    tesseract_params: Optional[TesseractParams] = None
+
+    # Engine selection
+    engine: EngineType = Field(
+        default=EngineType.TESSERACT, description="OCR engine used for processing"
+    )
+
+    # Engine-specific parameters (union type)
+    engine_params: Optional[Union[TesseractParams, OcrmacParams]] = Field(
+        None, description="Engine-specific processing parameters"
+    )
+
+    # Legacy field for backward compatibility
+    tesseract_params: Optional[TesseractParams] = Field(
+        None,
+        description="Deprecated: Use engine_params instead. Kept for backward compatibility.",
+        deprecated=True,
+    )
+
     start_time: datetime | None = None
     completion_time: datetime | None = None
     expiration_time: datetime | None = None

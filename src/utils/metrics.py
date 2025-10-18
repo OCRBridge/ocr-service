@@ -11,12 +11,13 @@ jobs_created_total = Counter(
 jobs_completed_total = Counter(
     "ocr_jobs_completed_total",
     "Total number of OCR jobs completed successfully",
+    ["engine"],
 )
 
 jobs_failed_total = Counter(
     "ocr_jobs_failed_total",
     "Total number of OCR jobs that failed",
-    ["error_code"],
+    ["error_code", "engine"],
 )
 
 # Job duration histograms (in seconds)
