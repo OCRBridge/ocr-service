@@ -12,6 +12,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-18
 - pytest 7.4+ (Testing framework)
 - Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, Tesseract 5.3+ (002-tesseract-params)
 - Redis 7.0+ (job state), filesystem (temporary uploaded files) (002-tesseract-params)
+- Redis 7.0+ (job state), filesystem (temporary uploaded files, results) (003-multi-engine-ocr)
 
 ## Project Structure
 ```
@@ -91,6 +92,7 @@ Python 3.11+: Follow PEP 8 conventions, enforced via ruff
 - 80% overall test coverage, 90% for utilities
 
 ## Recent Changes
+- 003-multi-engine-ocr: Added Python 3.11+
 - 002-tesseract-params: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, Tesseract 5.3+
 - 001-ocr-hocr-upload: Added OCR document upload API with HOCR output support
 

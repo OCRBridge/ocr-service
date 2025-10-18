@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: RESTful OCR API - Tesseract Upload Endpoint
+  description: |
+    Dedicated endpoint for uploading documents to be processed with the Tesseract OCR engine.
+    Supports Tesseract-specific parameters (lang, psm, oem, dpi).
+  version: 1.0.0
+  contact:
+    name: RESTful OCR Support
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+paths:
+  /upload/tesseract:
+    post:
+      summary: Upload document for Tesseract OCR processing
+      description: |
+        Upload a document (JPEG, PNG, PDF, TIFF) for OCR processing using the Tesseract engine.
+        Processing happens asynchronously. Use the returned job_id to poll status and retrieve results.
+
+        **Default Behavior** (no parameters):
+        - Language: English (eng)
+        - PSM: 3 (Fully automatic page segmentation)
+        - OEM: 3 (Default based on available traineddata)
+        - DPI: Auto-detect from image metadata or 70
+
+        **Common Use Cases**:
+        - French document: `lang=fra`
+        - Invoice/form: `lang=eng, psm=6, oem=1, dpi=300`
+        - Receipt: `lang=eng, psm=11, oem=1, dpi=300`
+        - Multi-language: `lang=eng+fra+deu`
+
+      operationId: uploadDocumentTesseract
+      tags:
+        - Upload
+        - Tesseract
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file to process (JPEG, PNG, PDF, TIFF)
+
+                lang:
+                  type: string
+                  pattern: '^[a-z_]{3,7}(\+[a-z_]{3,7}){0,4}$'
+                  description: |
+                    Language code(s) for OCR recognition. Use 3-letter ISO 639-2/3 codes.
+                    Multiple languages can be specified using '+' separator (max 5).
+
+                    **Common codes**: eng (English), fra (French), deu (German), spa (Spanish),
+                    ita (Italian), por (Portuguese), rus (Russian), ara (Arabic),
+                    chi_sim (Simplified Chinese), jpn (Japanese)
+
+                    **Examples**: 'eng', 'eng+fra', 'eng+fra+deu'
+                  default: eng
+                  example: eng
+
+                psm:
+                  type: integer
+                  minimum: 0
+                  maximum: 13
+                  description: |
+                    Page Segmentation Mode (0-13) - controls how Tesseract segments the page.
+
+                    **Common modes**:
+                    - 3 = Fully automatic (default, best for most documents)
+                    - 6 = Single uniform block (best for tables/invoices/forms)
+                    - 7 = Single text line (best for single-line fields)
+                    - 11 = Sparse text (best for receipts with scattered text)
+
+                    **All modes**: 0=OSD only, 1=Auto with OSD, 2=Auto (no OSD/OCR),
+                    3=Fully auto, 4=Single column, 5=Single vertical block, 6=Single block,
+                    7=Single line, 8=Single word, 9=Single word (circle), 10=Single char,
+                    11=Sparse text, 12=Sparse text with OSD, 13=Raw line
+                  default: 3
+                  example: 3
+
+                oem:
+                  type: integer
+                  minimum: 0
+                  maximum: 3
+                  description: |
+                    OCR Engine Mode (0-3) - controls which Tesseract engine to use.
+
+                    - 0 = Legacy engine (faster, lower accuracy)
+                    - 1 = LSTM neural network (recommended - best accuracy)
+                    - 2 = Legacy+LSTM combined (slower)
+                    - 3 = Default (auto-select based on available traineddata)
+
+                    **Recommendation**: Use 1 (LSTM) for modern Tesseract 5.x
+                  default: 3
+                  example: 1
+
+                dpi:
+                  type: integer
+                  minimum: 70
+                  maximum: 2400
+                  description: |
+                    Image resolution (dots per inch) for OCR processing.
+                    Overrides missing or incorrect DPI metadata in image files.
+
+                    **Typical values**:
+                    - 150 = Low-res scans
+                    - 300 = Standard scans (most common)
+                    - 600 = High-quality scans for small text
+
+                    **Use when**: Image lacks DPI metadata, incorrect metadata,
+                    or to standardize processing.
+                  example: 300
+
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, application/pdf, image/tiff
+
+      responses:
+        '202':
+          description: Upload accepted, processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+              example:
+                job_id: "123e4567-e89b-12d3-a456-426614174000"
+                status: "pending"
+
+        '400':
+          description: Invalid request (bad parameters, invalid file format, validation error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_language:
+                  summary: Invalid language code
+                  value:
+                    detail: "Invalid language format: 'english'. Expected ISO 639-3 codes (e.g., eng, fra, deu)"
+                invalid_psm:
+                  summary: PSM out of range
+                  value:
+                    detail: "PSM must be between 0 and 13"
+                too_many_languages:
+                  summary: Too many languages
+                  value:
+                    detail: "Maximum 5 languages allowed. Received: eng+fra+deu+spa+ita+por"
+                unsupported_language:
+                  summary: Language not installed
+                  value:
+                    detail: "Tesseract language 'ara' not installed. Available: eng, fra, deu, spa"
+
+        '413':
+          description: File too large (>25MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "File size exceeds maximum allowed size of 25MB"
+
+        '415':
+          description: Unsupported file format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Unsupported file format: application/msword. Supported: image/jpeg, image/png, application/pdf, image/tiff"
+
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Rate limit exceeded: 100 requests per minute"
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Upload failed"
+
+components:
+  schemas:
+    UploadResponse:
+      type: object
+      required:
+        - job_id
+        - status
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Unique job identifier for status polling and result retrieval
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+          description: Current job status
+          example: pending
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+          description: Error message or list of validation errors
+          example: "Invalid request parameter"
