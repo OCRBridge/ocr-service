@@ -489,6 +489,11 @@ class OcrmacEngine(OCREngine):
             # Add words to this line
             for word_data in line_data['words']:
                 # Convert confidence from float (0.0-1.0) to integer (0-100)
+                # Note: Apple's Vision framework returns quantized confidence scores:
+                #   - Fast mode: 0.3 (30%) or 0.5 (50%)
+                #   - Accurate/Balanced: 0.5 (50%) or 1.0 (100%)
+                # This is expected behavior from the Vision framework's ML model,
+                # not a limitation of ocrmac or our implementation.
                 x_wconf = int(word_data['confidence'] * 100)
                 
                 # Create word span

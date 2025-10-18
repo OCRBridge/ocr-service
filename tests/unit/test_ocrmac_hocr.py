@@ -284,3 +284,42 @@ class TestOcrmacHocrStructure:
 
         lines = root.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocr_line"]')
         assert len(lines) == 0
+
+    def test_hocr_preserves_vision_framework_quantized_confidence_values(self):
+        """
+        Test that ocrmac confidence values are correctly preserved in hOCR output.
+
+        Apple's Vision framework returns quantized confidence scores:
+        - Fast mode: 0.3 (30%) or 0.5 (50%)
+        - Accurate/Balanced: 0.5 (50%) or 1.0 (100%)
+
+        This test verifies our implementation correctly converts these to x_wconf values.
+        """
+        engine = OcrmacEngine()
+
+        # Test typical Vision framework confidence values
+        annotations = [
+            ("Text1", 1.0, [0.1, 0.2, 0.1, 0.05]),   # Accurate mode: 100%
+            ("Text2", 0.5, [0.3, 0.2, 0.1, 0.05]),   # Common value: 50%
+            ("Text3", 0.3, [0.5, 0.2, 0.1, 0.05]),   # Fast mode: 30%
+        ]
+
+        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+
+        # Parse XML
+        xml_content = hocr_xml.split('\n', 2)[2]
+        root = ET.fromstring(xml_content)
+
+        # Find all words
+        words = root.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
+        assert len(words) == 3
+
+        # Verify confidence conversion (float 0.0-1.0 → integer 0-100)
+        assert 'x_wconf 100' in words[0].get('title'), "Confidence 1.0 should convert to 100"
+        assert 'x_wconf 50' in words[1].get('title'), "Confidence 0.5 should convert to 50"
+        assert 'x_wconf 30' in words[2].get('title'), "Confidence 0.3 should convert to 30"
+
+        # Verify text is preserved
+        assert words[0].text == "Text1"
+        assert words[1].text == "Text2"
+        assert words[2].text == "Text3"

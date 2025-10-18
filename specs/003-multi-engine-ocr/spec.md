@@ -180,6 +180,34 @@ A user wants to understand which parameters apply to each engine and receive cle
 - Platform detection (OS type) is reliable for determining ocrmac availability
 - Adding new engines in the future should follow the same parameter isolation pattern
 
+## Technical Notes
+
+### ocrmac Confidence Score Behavior
+
+**Important**: Apple's Vision framework (which ocrmac wraps) provides **quantized confidence scores** with limited granularity:
+
+- **Fast mode** (`recognition_level=fast`):
+  - Returns discrete values: 0.3 (30%) and 0.5 (50%)
+  - Limited variation across different text elements
+
+- **Accurate mode** (`recognition_level=accurate`):
+  - Returns discrete values: 0.5 (50%) and 1.0 (100%)
+  - Most results return 1.0 confidence
+
+- **Balanced mode** (`recognition_level=balanced`):
+  - Returns values similar to accurate mode: 0.5 and 1.0
+
+**Why this happens**: Apple's VNRecognizeTextRequest API returns quantized confidence scores from the underlying machine learning model. This is expected behavior, not a bug or limitation of ocrmac or our implementation.
+
+**Implications**:
+- Confidence scores in hOCR output (`x_wconf` attribute) will reflect these discrete values (30, 50, or 100)
+- Cannot be made more granular through parameters or configuration
+- For continuous confidence ranges, consider using Tesseract engine instead
+
+**References**:
+- Apple Developer Forums: "VNRecognizedText confidence values" (Thread 695693)
+- Vision Framework documentation on VNRecognizeTextRequest recognition levels
+
 ## Dependencies
 
 - Requires ocrmac binary to be installed on macOS deployment environments

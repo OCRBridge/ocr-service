@@ -102,6 +102,14 @@ paths:
                     **Use fast for**: Simple documents (receipts, forms with clear text)
                     **Use balanced for**: Most documents (default, good trade-off)
                     **Use accurate for**: Complex documents (handwriting, poor quality scans)
+
+                    **Confidence Scores**: Apple's Vision framework returns quantized confidence values:
+                    - **fast**: Returns 0.3 (30%) or 0.5 (50%)
+                    - **balanced/accurate**: Returns 0.5 (50%) or 1.0 (100%)
+
+                    Note: These discrete values are inherent to Apple's Vision framework ML model
+                    and cannot be made more granular. HOCR output will contain these values in
+                    the `x_wconf` attribute (30, 50, or 100).
                   default: balanced
                   example: balanced
 
