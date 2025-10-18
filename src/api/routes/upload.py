@@ -1,20 +1,26 @@
 """Upload endpoint for document submission."""
 
+import json
+from typing import Optional
+
 import structlog
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
     File,
+    Form,
     HTTPException,
     Request,
     UploadFile,
     status,
 )
+from pydantic import ValidationError
 from redis import asyncio as aioredis
 
 from src.api.dependencies import get_redis
 from src.api.middleware.rate_limit import limiter
+from src.models import TesseractParams
 from src.models.job import ErrorCode, OCRJob
 from src.models.responses import ErrorResponse, UploadResponse
 from src.services.file_handler import FileHandler
@@ -27,17 +33,20 @@ router = APIRouter()
 logger = structlog.get_logger()
 
 
-async def process_ocr_task(job_id: str, redis: aioredis.Redis):
+async def process_ocr_task(
+    job_id: str, redis: aioredis.Redis, tesseract_params: Optional[TesseractParams] = None
+):
     """
     Background task to process OCR for uploaded document.
 
     Args:
         job_id: Job identifier
         redis: Redis client
+        tesseract_params: Optional Tesseract OCR parameters
     """
     job_manager = JobManager(redis)
     file_handler = FileHandler()
-    ocr_processor = OCRProcessor()
+    ocr_processor = OCRProcessor(tesseract_params=tesseract_params)
 
     try:
         # Get job
@@ -139,6 +148,10 @@ async def upload_document(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    lang: Optional[str] = Form(None),
+    psm: Optional[int] = Form(None),
+    oem: Optional[int] = Form(None),
+    dpi: Optional[int] = Form(None),
     redis: aioredis.Redis = Depends(get_redis),
 ):
     """
@@ -151,6 +164,17 @@ async def upload_document(
     job_manager = JobManager(redis)
 
     try:
+        # Validate Tesseract parameters
+        try:
+            tesseract_params = TesseractParams(lang=lang, psm=psm, oem=oem, dpi=dpi)
+        except ValidationError as e:
+            logger.warning("parameter_validation_failed", errors=e.errors())
+            # Use e.json() for JSON-serializable error format
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=json.loads(e.json()),
+            )
+
         # Save uploaded file
         upload = await file_handler.save_upload(file)
 
@@ -158,12 +182,12 @@ async def upload_document(
         metrics.jobs_created_total.inc()
         metrics.document_size_bytes.observe(upload.file_size)
 
-        # Create job
-        job = OCRJob(upload=upload)
+        # Create job with Tesseract parameters
+        job = OCRJob(upload=upload, tesseract_params=tesseract_params)
         await job_manager.create_job(job)
 
         # Schedule background OCR processing
-        background_tasks.add_task(process_ocr_task, job.job_id, redis)
+        background_tasks.add_task(process_ocr_task, job.job_id, redis, tesseract_params)
 
         logger.info(
             "upload_accepted",
@@ -176,6 +200,10 @@ async def upload_document(
             job_id=job.job_id,
             status=job.status,
         )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (including validation errors)
+        raise
 
     except UnsupportedFormatError as e:
         logger.warning("unsupported_format", error=str(e))

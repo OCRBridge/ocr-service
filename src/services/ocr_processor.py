@@ -1,14 +1,17 @@
 """OCR processing service using Tesseract with HOCR output."""
 
 from pathlib import Path
+from typing import Optional
 
 import pytesseract
 import structlog
 from pdf2image import convert_from_path
 
 from src.config import settings
+from src.models import TesseractParams
 from src.models.job import ErrorCode
 from src.models.upload import FileFormat
+from src.utils.validators import build_tesseract_config
 
 logger = structlog.get_logger()
 
@@ -24,11 +27,31 @@ class OCRProcessorError(Exception):
 class OCRProcessor:
     """Tesseract OCR wrapper for processing documents and generating HOCR output."""
 
-    def __init__(self):
-        """Initialize OCR processor with Tesseract configuration."""
-        self.lang = settings.tesseract_lang
-        self.psm = settings.tesseract_psm
-        self.oem = settings.tesseract_oem
+    def __init__(self, tesseract_params: Optional[TesseractParams] = None):
+        """
+        Initialize OCR processor with Tesseract configuration.
+
+        Args:
+            tesseract_params: Optional Tesseract parameters. If None, uses config defaults.
+        """
+        if tesseract_params:
+            # Build config from provided parameters
+            config = build_tesseract_config(
+                lang=tesseract_params.lang,
+                psm=tesseract_params.psm,
+                oem=tesseract_params.oem,
+                dpi=tesseract_params.dpi,
+            )
+            self.lang = config.lang
+            self.config_string = config.config_string
+        else:
+            # Use settings defaults
+            self.lang = settings.tesseract_lang
+            config = build_tesseract_config(
+                lang=None, psm=settings.tesseract_psm, oem=settings.tesseract_oem, dpi=None
+            )
+            self.config_string = config.config_string
+
         self.pdf_dpi = settings.pdf_dpi
 
     async def process_document(self, file_path: Path, file_format: FileFormat) -> str:
@@ -71,12 +94,9 @@ class OCRProcessor:
         """
         logger.info("processing_image", file=str(image_path))
 
-        # Configure Tesseract
-        config = f"--psm {self.psm} --oem {self.oem}"
-
         # Run Tesseract with HOCR output
         hocr_output = pytesseract.image_to_pdf_or_hocr(
-            str(image_path), lang=self.lang, config=config, extension="hocr"
+            str(image_path), lang=self.lang, config=self.config_string, extension="hocr"
         )
 
         # Decode bytes to string
@@ -112,11 +132,9 @@ class OCRProcessor:
         for i, image in enumerate(images, start=1):
             logger.debug("processing_page", page=i, total=len(images))
 
-            config = f"--psm {self.psm} --oem {self.oem}"
-
             # Run Tesseract on page image
             hocr_output = pytesseract.image_to_pdf_or_hocr(
-                image, lang=self.lang, config=config, extension="hocr"
+                image, lang=self.lang, config=self.config_string, extension="hocr"
             )
 
             page_hocr_list.append(hocr_output.decode("utf-8"))

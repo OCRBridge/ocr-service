@@ -6,6 +6,7 @@ from datetime import datetime
 import structlog
 from redis import asyncio as aioredis
 
+from src.models import TesseractParams
 from src.models.job import ErrorCode, JobStatus, OCRJob
 from src.models.upload import DocumentUpload, FileFormat
 
@@ -38,6 +39,10 @@ class JobManager:
             "upload_time": job.upload.upload_timestamp.isoformat(),
             "temp_file_path": str(job.upload.temp_file_path),
         }
+
+        # Add Tesseract parameters if provided
+        if job.tesseract_params:
+            job_data["tesseract_params"] = job.tesseract_params.model_dump()
 
         # Store in Redis as JSON
         await self.redis.set(key, json.dumps(job_data))
@@ -73,10 +78,16 @@ class JobManager:
             temp_file_path=job_data["temp_file_path"],
         )
 
+        # Reconstruct Tesseract parameters if present
+        tesseract_params = None
+        if job_data.get("tesseract_params"):
+            tesseract_params = TesseractParams(**job_data["tesseract_params"])
+
         job = OCRJob(
             job_id=job_data["job_id"],
             status=JobStatus(job_data["status"]),
             upload=upload,
+            tesseract_params=tesseract_params,
             start_time=datetime.fromisoformat(job_data["start_time"])
             if job_data.get("start_time")
             else None,
@@ -111,6 +122,10 @@ class JobManager:
             "upload_time": job.upload.upload_timestamp.isoformat(),
             "temp_file_path": str(job.upload.temp_file_path),
         }
+
+        # Add Tesseract parameters if provided
+        if job.tesseract_params:
+            job_data["tesseract_params"] = job.tesseract_params.model_dump()
 
         # Add optional fields
         if job.start_time:

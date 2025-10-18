@@ -71,3 +71,78 @@ def test_file_size_validation_rejects_oversized():
     # with pytest.raises(FileTooLargeError):
     #     validate_file_size(26 * 1024 * 1024)  # 26MB - TOO LARGE
     pass
+
+
+# Tesseract parameter validation tests (T003, T005)
+
+
+def test_get_installed_languages_returns_set():
+    """Test that get_installed_languages returns a set of language codes."""
+    from src.utils.validators import get_installed_languages
+
+    langs = get_installed_languages()
+
+    assert isinstance(langs, set)
+    assert len(langs) > 0
+    assert "eng" in langs  # English should always be present
+
+
+def test_get_installed_languages_cached():
+    """Test that get_installed_languages is properly cached."""
+    from src.utils.validators import get_installed_languages
+
+    # Call twice, should return same object (cached)
+    langs1 = get_installed_languages()
+    langs2 = get_installed_languages()
+
+    assert langs1 is langs2  # Same object due to LRU cache
+
+
+def test_build_tesseract_config_defaults():
+    """Test build_tesseract_config with all defaults (None)."""
+    from src.utils.validators import build_tesseract_config
+
+    config = build_tesseract_config()
+
+    assert config.lang == "eng"
+    assert config.config_string == ""
+
+
+def test_build_tesseract_config_lang_only():
+    """Test build_tesseract_config with language only."""
+    from src.utils.validators import build_tesseract_config
+
+    config = build_tesseract_config(lang="fra")
+
+    assert config.lang == "fra"
+    assert config.config_string == ""
+
+
+def test_build_tesseract_config_all_params():
+    """Test build_tesseract_config with all parameters."""
+    from src.utils.validators import build_tesseract_config
+
+    config = build_tesseract_config(lang="eng+fra", psm=6, oem=1, dpi=300)
+
+    assert config.lang == "eng+fra"
+    assert config.config_string == "--psm 6 --oem 1 --dpi 300"
+
+
+def test_build_tesseract_config_partial_params():
+    """Test build_tesseract_config with some parameters."""
+    from src.utils.validators import build_tesseract_config
+
+    config = build_tesseract_config(psm=6, oem=1)
+
+    assert config.lang == "eng"  # Default
+    assert config.config_string == "--psm 6 --oem 1"
+
+
+def test_build_tesseract_config_dpi_only():
+    """Test build_tesseract_config with DPI only."""
+    from src.utils.validators import build_tesseract_config
+
+    config = build_tesseract_config(dpi=600)
+
+    assert config.lang == "eng"  # Default
+    assert config.config_string == "--dpi 600"

@@ -4,8 +4,11 @@ import secrets
 from datetime import datetime, timedelta
 from enum import Enum
 
+from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
 
+from src.models import TesseractParams
 from src.models.upload import DocumentUpload
 
 
@@ -35,6 +38,7 @@ class OCRJob(BaseModel):
     job_id: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     status: JobStatus = JobStatus.PENDING
     upload: DocumentUpload
+    tesseract_params: Optional[TesseractParams] = None
     start_time: datetime | None = None
     completion_time: datetime | None = None
     expiration_time: datetime | None = None
