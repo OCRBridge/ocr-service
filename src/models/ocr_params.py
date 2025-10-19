@@ -68,11 +68,6 @@ class EasyOCRParams(BaseModel):
         examples=[["en"], ["ch_sim", "en"], ["ja", "ko", "en"]],
     )
 
-    gpu: bool = Field(
-        default=False,
-        description="Enable GPU acceleration for EasyOCR processing (requires CUDA)",
-    )
-
     text_threshold: float = Field(
         default=0.7,
         description="Confidence threshold for text detection (0.0-1.0)",

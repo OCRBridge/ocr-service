@@ -51,3 +51,6 @@ coverage.xml
 
 # Sample PDFs (large files)
 samples/mietvertrag.pdf
+
+# EasyOCR model files (large models, downloaded at runtime)
+.EasyOCR/

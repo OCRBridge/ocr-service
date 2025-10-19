@@ -15,7 +15,8 @@ class EasyOCREngine(OCREngine):
     """
     EasyOCR engine implementation.
 
-    Uses deep learning models for multilingual OCR with optional GPU acceleration.
+    Uses deep learning models for multilingual OCR with automatic GPU acceleration.
+    GPU is automatically detected and used when available, with graceful fallback to CPU.
     Supports 80+ languages with superior accuracy for Asian scripts.
     """
 
@@ -24,14 +25,13 @@ class EasyOCREngine(OCREngine):
         Initialize EasyOCR engine with parameters.
 
         Args:
-            params: EasyOCR-specific parameters (languages, GPU, thresholds)
+            params: EasyOCR-specific parameters (languages, thresholds)
         """
         self.params = params or EasyOCRParams()
         self.reader = None
         logger.info(
             "easyocr_engine_initialized",
             languages=self.params.languages,
-            gpu=self.params.gpu,
             text_threshold=self.params.text_threshold,
             link_threshold=self.params.link_threshold,
         )
@@ -41,7 +41,7 @@ class EasyOCREngine(OCREngine):
         Create EasyOCR Reader instance with specified configuration.
 
         Models are cached after first initialization for performance.
-        Uses GPU if requested and available, falls back to CPU gracefully.
+        Automatically detects and uses GPU if available, falls back to CPU gracefully.
 
         Returns:
             easyocr.Reader instance
@@ -53,13 +53,12 @@ class EasyOCREngine(OCREngine):
                 "EasyOCR not installed. Install with: pip install easyocr"
             ) from e
 
-        # Determine device (GPU or CPU)
-        use_gpu, device_name = get_easyocr_device(self.params.gpu)
+        # Automatically determine device (GPU or CPU)
+        use_gpu, device_name = get_easyocr_device()
 
         logger.info(
             "creating_easyocr_reader",
             languages=self.params.languages,
-            gpu_requested=self.params.gpu,
             gpu_used=use_gpu,
             device=device_name,
         )

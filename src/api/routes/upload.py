@@ -660,14 +660,6 @@ async def upload_document_easyocr(
         ),
         examples=[["en"], ["ch_sim", "en"], ["ja"]],
     ),
-    gpu: Optional[bool] = Form(
-        None,
-        description=(
-            "Enable GPU acceleration for processing (requires CUDA). "
-            "Default: false (CPU-only). If GPU requested but unavailable, gracefully falls back to CPU."
-        ),
-        examples=[True, False],
-    ),
     text_threshold: Optional[float] = Form(
         None,
         description=(
@@ -698,14 +690,19 @@ async def upload_document_easyocr(
     **EasyOCR Engine Features:**
     - Cross-platform support (Linux, macOS, Windows)
     - Deep learning-based recognition with superior multilingual support (80+ languages)
-    - GPU acceleration support (CUDA required)
+    - Automatic GPU acceleration when CUDA is available
     - Excellent accuracy for Asian languages (Chinese, Japanese, Korean, Thai, etc.)
     - Automatic graceful fallback to CPU if GPU unavailable
 
+    **GPU Behavior:**
+    - GPU is automatically detected and used when available
+    - No configuration required - the system automatically optimizes for your hardware
+    - Falls back to CPU seamlessly if GPU is not available
+
     **Common Use Cases:**
-    - Chinese document: languages=['ch_sim', 'en'], gpu=true
+    - Chinese document: languages=['ch_sim', 'en']
     - Japanese receipt: languages=['ja'], text_threshold=0.8
-    - Korean form: languages=['ko', 'en'], gpu=true, text_threshold=0.7
+    - Korean form: languages=['ko', 'en'], text_threshold=0.7
 
     Returns job ID for status polling and result retrieval.
     """
@@ -730,7 +727,6 @@ async def upload_document_easyocr(
         try:
             easyocr_params = EasyOCRParams(
                 languages=languages if languages is not None else ["en"],
-                gpu=gpu if gpu is not None else False,
                 text_threshold=text_threshold if text_threshold is not None else 0.7,
                 link_threshold=link_threshold if link_threshold is not None else 0.7,
             )
@@ -776,7 +772,6 @@ async def upload_document_easyocr(
             size=upload.file_size,
             engine="easyocr",
             languages=easyocr_params.languages,
-            gpu=easyocr_params.gpu,
             text_threshold=easyocr_params.text_threshold,
             link_threshold=easyocr_params.link_threshold
         )
