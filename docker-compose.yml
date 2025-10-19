@@ -18,7 +18,7 @@ services:
       dockerfile: Dockerfile
     container_name: ocr-api
     ports:
-      - "8000:8000"
+      - "8080:8000"
     environment:
       - REDIS_URL=redis://redis:6379/0
       - API_HOST=0.0.0.0

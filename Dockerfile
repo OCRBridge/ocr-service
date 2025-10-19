@@ -1,14 +1,15 @@
 # Multi-stage build for production deployment
-FROM python:3.11-alpine AS base
+FROM python:3.11-slim AS base
 
 # Install system dependencies for Tesseract and PDF processing
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
-    tesseract-ocr-data-eng \
+    tesseract-ocr-eng \
     poppler-utils \
-    build-base \
+    build-essential \
     libffi-dev \
-    openssl-dev
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -31,8 +32,8 @@ RUN mkdir -p /tmp/uploads /tmp/results && \
     chmod 700 /tmp/uploads /tmp/results
 
 # Non-root user for security
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
+RUN groupadd -g 1000 appuser && \
+    useradd -r -u 1000 -g appuser appuser && \
     chown -R appuser:appuser /app /tmp/uploads /tmp/results
 
 USER appuser

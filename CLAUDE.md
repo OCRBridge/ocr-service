@@ -123,5 +123,20 @@ git commit --no-verify -m "message"  # Skip hooks (use sparingly)
 - 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
 - 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
 
+## Platform Limitations
+
+### ocrmac (macOS-only dependency)
+- **Limitation**: ocrmac requires Apple's Vision framework, which is **unavailable in Docker containers** (even on Mac)
+- **Reason**: Docker runs a Linux VM on all host platforms, preventing access to macOS-native frameworks
+- **Impact**:
+  - ✅ Works in local macOS development (`uv run uvicorn ...`)
+  - ❌ Not available in Docker containers
+  - ✅ Tesseract and EasyOCR remain available in all environments
+- **Workaround**: Use Tesseract or EasyOCR engines for containerized deployments
+
+### Docker base image requirements
+- **Use Debian-based images** (`python:3.11-slim`) for ML/AI dependencies (PyTorch, EasyOCR)
+- **Do NOT use Alpine** - Alpine uses musl libc, incompatible with PyTorch's manylinux wheels
+
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
