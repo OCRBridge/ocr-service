@@ -16,6 +16,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-18
 - Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+ (004-easyocr-engine)
 - Redis 7.0+ (job state), filesystem (temporary uploaded files, results), configurable persistent volume (EasyOCR models, 5GB default) (004-easyocr-engine)
 - Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+ (005-remove-generic-upload)
+- pyright 1.1+ (Type checking)
 
 ## Project Structure
 ```
@@ -58,6 +59,11 @@ uv run pytest --cov=src --cov-report=html --cov-report=term
 uv run ruff format src/ tests/                   # Format code
 uv run ruff check src/ tests/                    # Check for linting errors
 uv run ruff check src/ tests/ --fix             # Auto-fix linting errors
+
+# Type checking
+uv run pyright                                   # Run type checker
+uv run pyright --watch                           # Watch mode for continuous checking
+uv run pyright src/                              # Check only src directory
 ```
 
 ### Docker
@@ -85,10 +91,10 @@ redis-cli flushdb
 ```
 
 ## Code Style
-Python 3.11+: Follow PEP 8 conventions, enforced via ruff
+Python 3.11+: Follow PEP 8 conventions, enforced via ruff and pyright
 
 ### Key Conventions
-- Use type hints for all function parameters and return values
+- Use type hints for all function parameters and return values (enforced by pyright)
 - Pydantic models for all data validation
 - Async/await for I/O operations
 - Structured logging with structlog (JSON format)
