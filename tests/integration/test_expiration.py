@@ -19,7 +19,7 @@ async def test_expiration_timestamp_correctness(async_client: AsyncClient, sampl
     # Upload document
     with open(sample_jpeg, "rb") as f:
         upload_response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 
@@ -86,7 +86,7 @@ async def test_ttl_enforcement_with_mocked_time(
     # Upload document
     with open(sample_jpeg, "rb") as f:
         upload_response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 
@@ -139,7 +139,7 @@ async def test_expired_job_returns_404(async_client: AsyncClient, sample_jpeg, r
     # Upload document
     with open(sample_jpeg, "rb") as f:
         upload_response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 

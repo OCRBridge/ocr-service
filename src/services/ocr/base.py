@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Union
 
 from src.models import TesseractParams
 from src.models.ocr_params import OcrmacParams
@@ -12,9 +11,7 @@ class OCREngine(ABC):
     """Abstract base class for OCR engines."""
 
     @abstractmethod
-    def process(
-        self, file_path: Path, params: Union[TesseractParams, OcrmacParams, None]
-    ) -> str:
+    def process(self, file_path: Path, params: TesseractParams | OcrmacParams | None) -> str:
         """
         Process a document and return HOCR XML output.
 

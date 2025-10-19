@@ -1,7 +1,6 @@
 """Upload endpoint for document submission."""
 
 import json
-from typing import Optional
 
 import structlog
 from fastapi import (
@@ -34,7 +33,7 @@ logger = structlog.get_logger()
 
 
 async def process_ocr_task(
-    job_id: str, redis: aioredis.Redis, tesseract_params: Optional[TesseractParams] = None
+    job_id: str, redis: aioredis.Redis, tesseract_params: TesseractParams | None = None
 ):
     """
     Background task to process OCR for uploaded document.
@@ -123,179 +122,15 @@ async def process_ocr_task(
         await job_manager.update_job(job)
 
         # Track metrics (US3 - T099) - default to tesseract for backward compatibility
-        metrics.jobs_failed_total.labels(error_code=ErrorCode.INTERNAL_ERROR.value, engine="tesseract").inc()
+        metrics.jobs_failed_total.labels(
+            error_code=ErrorCode.INTERNAL_ERROR.value, engine="tesseract"
+        ).inc()
         metrics.active_jobs.dec()
 
         logger.error("ocr_processing_exception", job_id=job_id, error=str(e), engine="tesseract")
 
         # Clean up temp file
         await file_handler.delete_temp_file(job.upload.temp_file_path)
-
-
-@router.post(
-    "/upload",
-    response_model=UploadResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        400: {"model": ErrorResponse, "description": "Invalid request"},
-        413: {"model": ErrorResponse, "description": "File too large"},
-        415: {"model": ErrorResponse, "description": "Unsupported format"},
-        429: {"description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(f"{100}/minute")
-async def upload_document(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(..., description="Document file to process (JPEG, PNG, PDF, TIFF)"),
-    lang: Optional[str] = Form(
-        None,
-        description=(
-            "Language code(s) for OCR recognition. Use 3-letter ISO 639-2/3 codes. "
-            "Multiple languages can be specified using '+' separator (max 5). "
-            "Common codes: eng (English), fra (French), deu (German), spa (Spanish), "
-            "ita (Italian), por (Portuguese), rus (Russian), ara (Arabic), "
-            "chi_sim (Simplified Chinese), jpn (Japanese). "
-            "Examples: 'eng', 'eng+fra', 'eng+fra+deu'. "
-            "Default: eng"
-        ),
-        pattern=r"^[a-z]{3}(\+[a-z]{3})*$",
-        examples=["eng", "eng+fra", "fra"],
-    ),
-    psm: Optional[int] = Form(
-        None,
-        description=(
-            "Page Segmentation Mode (0-13) - controls how Tesseract segments the page. "
-            "Common modes: 3=Fully automatic (default, best for most documents), "
-            "6=Single uniform block (best for tables/invoices/forms), "
-            "7=Single text line (best for single-line fields), "
-            "11=Sparse text (best for receipts with scattered text). "
-            "All modes: 0=OSD only, 1=Auto with OSD, 2=Auto (no OSD/OCR), "
-            "3=Fully auto, 4=Single column, 5=Single vertical block, 6=Single block, "
-            "7=Single line, 8=Single word, 9=Single word (circle), 10=Single char, "
-            "11=Sparse text, 12=Sparse text with OSD, 13=Raw line. "
-            "Default: 3"
-        ),
-        ge=0,
-        le=13,
-        examples=[3, 6, 11],
-    ),
-    oem: Optional[int] = Form(
-        None,
-        description=(
-            "OCR Engine Mode (0-3) - controls which Tesseract engine to use. "
-            "0=Legacy engine (faster, lower accuracy), "
-            "1=LSTM neural network (recommended - best accuracy), "
-            "2=Legacy+LSTM combined (slower), "
-            "3=Default (auto-select based on available traineddata). "
-            "Recommendation: Use 1 (LSTM) for modern Tesseract 5.x. "
-            "Default: 3"
-        ),
-        ge=0,
-        le=3,
-        examples=[1, 3],
-    ),
-    dpi: Optional[int] = Form(
-        None,
-        description=(
-            "Image resolution (dots per inch) for OCR processing. "
-            "Overrides missing or incorrect DPI metadata in image files. "
-            "Typical values: 150 (low-res scans), 300 (standard scans - most common), "
-            "600 (high-quality scans for small text). "
-            "Use when: image lacks DPI metadata, incorrect metadata, "
-            "or to standardize processing. "
-            "Range: 70-2400. "
-            "Default: Auto-detect from image metadata or 70"
-        ),
-        ge=70,
-        le=2400,
-        examples=[300, 150, 600],
-    ),
-    redis: aioredis.Redis = Depends(get_redis),
-):
-    """
-    Upload a document for OCR processing with optional Tesseract configuration.
-
-    **Default Behavior (no parameters):**
-    - Language: English (eng)
-    - PSM: 3 (Fully automatic page segmentation)
-    - OEM: 3 (Default based on available traineddata)
-    - DPI: Auto-detect from image metadata or 70
-
-    **Common Use Cases:**
-    - French document: lang=fra
-    - Invoice/form: lang=eng, psm=6, oem=1, dpi=300
-    - Receipt: lang=eng, psm=11, oem=1, dpi=300
-    - Multi-language: lang=eng+fra+deu
-
-    Returns job ID for status polling and result retrieval.
-    Processing happens asynchronously in the background.
-    """
-    file_handler = FileHandler()
-    job_manager = JobManager(redis)
-
-    try:
-        # Validate Tesseract parameters
-        try:
-            tesseract_params = TesseractParams(lang=lang, psm=psm, oem=oem, dpi=dpi)
-        except ValidationError as e:
-            logger.warning("parameter_validation_failed", errors=e.errors())
-            # Use e.json() for JSON-serializable error format
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=json.loads(e.json()),
-            )
-
-        # Save uploaded file
-        upload = await file_handler.save_upload(file)
-
-        # Track metrics (US3 - T099)
-        metrics.jobs_created_total.inc()
-        metrics.document_size_bytes.observe(upload.file_size)
-
-        # Create job with Tesseract parameters
-        job = OCRJob(upload=upload, tesseract_params=tesseract_params)
-        await job_manager.create_job(job)
-
-        # Schedule background OCR processing
-        background_tasks.add_task(process_ocr_task, job.job_id, redis, tesseract_params)
-
-        logger.info(
-            "upload_accepted",
-            job_id=job.job_id,
-            filename=upload.file_name,
-            size=upload.file_size,
-        )
-
-        return UploadResponse(
-            job_id=job.job_id,
-            status=job.status,
-        )
-
-    except HTTPException:
-        # Re-raise HTTP exceptions (including validation errors)
-        raise
-
-    except UnsupportedFormatError as e:
-        logger.warning("unsupported_format", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=str(e),
-        )
-
-    except FileTooLargeError as e:
-        logger.warning("file_too_large", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=str(e),
-        )
-
-    except Exception as e:
-        logger.error("upload_failed", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Upload failed",
-        )
 
 
 @router.post(
@@ -314,7 +149,7 @@ async def upload_document_tesseract(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Document file to process (JPEG, PNG, PDF, TIFF)"),
-    lang: Optional[str] = Form(
+    lang: str | None = Form(
         None,
         description=(
             "Language code(s) for OCR recognition. Use 3-letter ISO 639-2/3 codes. "
@@ -328,7 +163,7 @@ async def upload_document_tesseract(
         pattern=r"^[a-z_]{3,7}(\+[a-z_]{3,7}){0,4}$",
         examples=["eng", "eng+fra", "fra"],
     ),
-    psm: Optional[int] = Form(
+    psm: int | None = Form(
         None,
         description=(
             "Page Segmentation Mode (0-13) - controls how Tesseract segments the page. "
@@ -342,7 +177,7 @@ async def upload_document_tesseract(
         le=13,
         examples=[3, 6, 11],
     ),
-    oem: Optional[int] = Form(
+    oem: int | None = Form(
         None,
         description=(
             "OCR Engine Mode (0-3) - controls which Tesseract engine to use. "
@@ -354,7 +189,7 @@ async def upload_document_tesseract(
         le=3,
         examples=[1, 3],
     ),
-    dpi: Optional[int] = Form(
+    dpi: int | None = Form(
         None,
         description=(
             "Image resolution (dots per inch) for OCR processing. "
@@ -383,8 +218,8 @@ async def upload_document_tesseract(
 
     Returns job ID for status polling and result retrieval.
     """
-    from src.services.ocr.registry import EngineRegistry
     from src.models.job import EngineType
+    from src.services.ocr.registry import EngineRegistry
 
     file_handler = FileHandler()
     job_manager = JobManager(redis)
@@ -396,7 +231,7 @@ async def upload_document_tesseract(
             logger.error("tesseract_not_available")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tesseract engine is not available on this server"
+                detail="Tesseract engine is not available on this server",
             )
 
         # Validate Tesseract parameters
@@ -417,11 +252,7 @@ async def upload_document_tesseract(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with Tesseract engine
-        job = OCRJob(
-            upload=upload,
-            engine=EngineType.TESSERACT,
-            engine_params=tesseract_params
-        )
+        job = OCRJob(upload=upload, engine=EngineType.TESSERACT, engine_params=tesseract_params)
         await job_manager.create_job(job)
 
         # Schedule background OCR processing
@@ -432,7 +263,7 @@ async def upload_document_tesseract(
             job_id=job.job_id,
             filename=upload.file_name,
             size=upload.file_size,
-            engine="tesseract"
+            engine="tesseract",
         )
 
         return UploadResponse(
@@ -470,7 +301,10 @@ async def upload_document_tesseract(
     response_model=UploadResponse,
     status_code=status.HTTP_202_ACCEPTED,
     responses={
-        400: {"model": ErrorResponse, "description": "Invalid request, engine not available, or platform incompatible"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid request, engine not available, or platform incompatible",
+        },
         413: {"model": ErrorResponse, "description": "File too large"},
         415: {"model": ErrorResponse, "description": "Unsupported format"},
         429: {"description": "Rate limit exceeded"},
@@ -481,7 +315,7 @@ async def upload_document_ocrmac(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Document file to process (JPEG, PNG, PDF, TIFF)"),
-    languages: Optional[list[str]] = Form(
+    languages: list[str] | None = Form(
         None,
         description=(
             "Language codes for OCR recognition in IETF BCP 47 format. "
@@ -492,7 +326,7 @@ async def upload_document_ocrmac(
         ),
         examples=[["en-US"], ["en-US", "fr-FR"]],
     ),
-    recognition_level: Optional[str] = Form(
+    recognition_level: str | None = Form(
         "balanced",
         description=(
             "Recognition level: 'fast' (faster, fewer languages), "
@@ -524,9 +358,9 @@ async def upload_document_ocrmac(
 
     **Platform Requirement:** macOS only (returns HTTP 400 on other platforms)
     """
-    from src.services.ocr.registry import EngineRegistry
     from src.models.job import EngineType
     from src.models.ocr_params import OcrmacParams, RecognitionLevel
+    from src.services.ocr.registry import EngineRegistry
 
     file_handler = FileHandler()
     job_manager = JobManager(redis)
@@ -537,27 +371,25 @@ async def upload_document_ocrmac(
         is_valid, error_msg = registry.validate_platform(EngineType.OCRMAC)
         if not is_valid:
             logger.warning("platform_incompatible", engine="ocrmac", error=error_msg)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
         # Check if ocrmac is available
         if not registry.is_available(EngineType.OCRMAC):
             logger.error("ocrmac_not_available")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="ocrmac engine is not available on this server. Install with: pip install ocrmac"
+                detail="ocrmac engine is not available on this server. Install with: pip install ocrmac",
             )
 
         # Map recognition_level string to enum
-        recognition_level_enum = RecognitionLevel(recognition_level) if recognition_level else RecognitionLevel.BALANCED
+        recognition_level_enum = (
+            RecognitionLevel(recognition_level) if recognition_level else RecognitionLevel.BALANCED
+        )
 
         # Validate ocrmac parameters
         try:
             ocrmac_params = OcrmacParams(
-                languages=languages,
-                recognition_level=recognition_level_enum
+                languages=languages, recognition_level=recognition_level_enum
             )
         except ValidationError as e:
             logger.warning("parameter_validation_failed", errors=e.errors())
@@ -571,10 +403,7 @@ async def upload_document_ocrmac(
             is_valid, error_msg = registry.validate_languages(EngineType.OCRMAC, languages)
             if not is_valid:
                 logger.warning("language_validation_failed", languages=languages, error=error_msg)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=error_msg
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
         # Save uploaded file
         upload = await file_handler.save_upload(file)
@@ -584,11 +413,7 @@ async def upload_document_ocrmac(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with ocrmac engine
-        job = OCRJob(
-            upload=upload,
-            engine=EngineType.OCRMAC,
-            engine_params=ocrmac_params
-        )
+        job = OCRJob(upload=upload, engine=EngineType.OCRMAC, engine_params=ocrmac_params)
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use new process_ocr_task_v2)
@@ -601,7 +426,7 @@ async def upload_document_ocrmac(
             size=upload.file_size,
             engine="ocrmac",
             languages=languages,
-            recognition_level=recognition_level
+            recognition_level=recognition_level,
         )
 
         return UploadResponse(
@@ -639,7 +464,10 @@ async def upload_document_ocrmac(
     response_model=UploadResponse,
     status_code=status.HTTP_202_ACCEPTED,
     responses={
-        400: {"model": ErrorResponse, "description": "Invalid request, engine not available, or invalid parameters"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid request, engine not available, or invalid parameters",
+        },
         413: {"model": ErrorResponse, "description": "File too large"},
         415: {"model": ErrorResponse, "description": "Unsupported format"},
         429: {"description": "Rate limit exceeded"},
@@ -650,7 +478,7 @@ async def upload_document_easyocr(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Document file to process (JPEG, PNG, PDF, TIFF)"),
-    languages: Optional[list[str]] = Form(
+    languages: list[str] | None = Form(
         None,
         description=(
             "Language codes for OCR recognition (EasyOCR naming convention). "
@@ -660,7 +488,7 @@ async def upload_document_easyocr(
         ),
         examples=[["en"], ["ch_sim", "en"], ["ja"]],
     ),
-    text_threshold: Optional[float] = Form(
+    text_threshold: float | None = Form(
         None,
         description=(
             "Confidence threshold for text detection (0.0-1.0). "
@@ -671,7 +499,7 @@ async def upload_document_easyocr(
         le=1.0,
         examples=[0.7, 0.8, 0.5],
     ),
-    link_threshold: Optional[float] = Form(
+    link_threshold: float | None = Form(
         None,
         description=(
             "Threshold for linking text regions (0.0-1.0). "
@@ -706,9 +534,9 @@ async def upload_document_easyocr(
 
     Returns job ID for status polling and result retrieval.
     """
-    from src.services.ocr.registry import EngineRegistry
     from src.models.job import EngineType
     from src.models.ocr_params import EasyOCRParams
+    from src.services.ocr.registry import EngineRegistry
 
     file_handler = FileHandler()
     job_manager = JobManager(redis)
@@ -720,7 +548,7 @@ async def upload_document_easyocr(
             logger.error("easyocr_not_available")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="EasyOCR engine is not available on this server. Install with: pip install easyocr torch"
+                detail="EasyOCR engine is not available on this server. Install with: pip install easyocr torch",
             )
 
         # Validate EasyOCR parameters
@@ -742,10 +570,7 @@ async def upload_document_easyocr(
             is_valid, error_msg = registry.validate_languages(EngineType.EASYOCR, languages)
             if not is_valid:
                 logger.warning("language_validation_failed", languages=languages, error=error_msg)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=error_msg
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
         # Save uploaded file
         upload = await file_handler.save_upload(file)
@@ -755,11 +580,7 @@ async def upload_document_easyocr(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with EasyOCR engine
-        job = OCRJob(
-            upload=upload,
-            engine=EngineType.EASYOCR,
-            engine_params=easyocr_params
-        )
+        job = OCRJob(upload=upload, engine=EngineType.EASYOCR, engine_params=easyocr_params)
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use process_ocr_task_v2)
@@ -773,7 +594,7 @@ async def upload_document_easyocr(
             engine="easyocr",
             languages=easyocr_params.languages,
             text_threshold=easyocr_params.text_threshold,
-            link_threshold=easyocr_params.link_threshold
+            link_threshold=easyocr_params.link_threshold,
         )
 
         return UploadResponse(
@@ -816,10 +637,10 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         job_id: Job identifier
         redis: Redis client
     """
-    from src.services.ocr.tesseract import TesseractEngine
-    from src.services.ocr.ocrmac import OcrmacEngine
-    from src.services.ocr.easyocr import EasyOCREngine
     from src.models.job import EngineType
+    from src.services.ocr.easyocr import EasyOCREngine
+    from src.services.ocr.ocrmac import OcrmacEngine
+    from src.services.ocr.tesseract import TesseractEngine
 
     job_manager = JobManager(redis)
     file_handler = FileHandler()
@@ -846,7 +667,7 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
             "ocr_processing_started",
             job_id=job_id,
             engine=job.engine.value,
-            queue_duration=queue_duration
+            queue_duration=queue_duration,
         )
 
         # Select appropriate engine
@@ -901,17 +722,11 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         # Track metrics with engine label
         engine_label = job.engine.value if job else "unknown"
         metrics.jobs_failed_total.labels(
-            error_code=ErrorCode.INTERNAL_ERROR.value,
-            engine=engine_label
+            error_code=ErrorCode.INTERNAL_ERROR.value, engine=engine_label
         ).inc()
         metrics.active_jobs.dec()
 
-        logger.error(
-            "ocr_processing_exception",
-            job_id=job_id,
-            engine=engine_label,
-            error=str(e)
-        )
+        logger.error("ocr_processing_exception", job_id=job_id, engine=engine_label, error=str(e))
 
         # Clean up temp file
         if job:

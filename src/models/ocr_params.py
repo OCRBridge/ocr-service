@@ -2,7 +2,6 @@
 
 import re
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,7 +19,7 @@ class RecognitionLevel(str, Enum):
 class OcrmacParams(BaseModel):
     """ocrmac OCR engine parameters."""
 
-    languages: Optional[list[str]] = Field(
+    languages: list[str] | None = Field(
         None,
         description="Language codes in IETF BCP 47 format (e.g., en-US, fr-FR, zh-Hans). Max 5.",
         min_length=1,
@@ -35,7 +34,7 @@ class OcrmacParams(BaseModel):
 
     @field_validator("languages")
     @classmethod
-    def validate_languages(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+    def validate_languages(cls, v: list[str] | None) -> list[str] | None:
         """Validate IETF BCP 47 language code format."""
         if v is None:
             return v

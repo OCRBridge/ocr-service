@@ -3,7 +3,7 @@
 import functools
 import subprocess
 from dataclasses import dataclass
-from typing import IO, Optional
+from typing import IO
 
 import structlog
 
@@ -167,10 +167,10 @@ class TesseractConfig:
 
 
 def build_tesseract_config(
-    lang: Optional[str] = None,
-    psm: Optional[int] = None,
-    oem: Optional[int] = None,
-    dpi: Optional[int] = None,
+    lang: str | None = None,
+    psm: int | None = None,
+    oem: int | None = None,
+    dpi: int | None = None,
 ) -> TesseractConfig:
     """
     Build Tesseract configuration from validated parameters.

@@ -4,12 +4,10 @@ import secrets
 from datetime import datetime, timedelta
 from enum import Enum
 
-from typing import Optional, Union
-
 from pydantic import BaseModel, Field, field_validator
 
 from src.models import TesseractParams
-from src.models.ocr_params import OcrmacParams, EasyOCRParams
+from src.models.ocr_params import EasyOCRParams, OcrmacParams
 from src.models.upload import DocumentUpload
 
 
@@ -54,12 +52,12 @@ class OCRJob(BaseModel):
     )
 
     # Engine-specific parameters (union type)
-    engine_params: Optional[Union[TesseractParams, OcrmacParams, EasyOCRParams]] = Field(
+    engine_params: TesseractParams | OcrmacParams | EasyOCRParams | None = Field(
         None, description="Engine-specific processing parameters"
     )
 
     # Legacy field for backward compatibility
-    tesseract_params: Optional[TesseractParams] = Field(
+    tesseract_params: TesseractParams | None = Field(
         None,
         description="Deprecated: Use engine_params instead. Kept for backward compatibility.",
         deprecated=True,

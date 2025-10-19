@@ -19,7 +19,7 @@ def test_job_status_polling_lifecycle(client: TestClient, sample_jpeg):
     # Upload document
     with open(sample_jpeg, "rb") as f:
         upload_response = client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 
@@ -92,7 +92,7 @@ def test_failed_job_status_lifecycle(client: TestClient):
     invalid_content = b"Not a real image file"
 
     upload_response = client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", invalid_content, "image/jpeg")},
     )
 

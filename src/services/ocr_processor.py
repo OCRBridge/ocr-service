@@ -1,7 +1,6 @@
 """OCR processing service using Tesseract with HOCR output."""
 
 from pathlib import Path
-from typing import Optional
 
 import pytesseract
 import structlog
@@ -27,7 +26,7 @@ class OCRProcessorError(Exception):
 class OCRProcessor:
     """Tesseract OCR wrapper for processing documents and generating HOCR output."""
 
-    def __init__(self, tesseract_params: Optional[TesseractParams] = None):
+    def __init__(self, tesseract_params: TesseractParams | None = None):
         """
         Initialize OCR processor with Tesseract configuration.
 

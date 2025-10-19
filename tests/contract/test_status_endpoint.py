@@ -7,7 +7,7 @@ def test_status_with_valid_job_returns_200(client: TestClient, sample_jpeg):
     """Test getting status for valid job returns 200."""
     # First upload a document
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
     job_id = upload_response.json()["job_id"]
 
     # Get status
@@ -34,7 +34,7 @@ def test_status_response_schema_matches_openapi(client: TestClient, sample_jpeg)
     """Test status response matches OpenAPI schema."""
     # Upload document
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
     job_id = upload_response.json()["job_id"]
 
     # Get status

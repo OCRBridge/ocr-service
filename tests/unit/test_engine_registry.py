@@ -128,9 +128,7 @@ class TestEngineRegistry:
     @patch("platform.system")
     @patch("pytesseract.get_tesseract_version")
     @patch("pytesseract.get_languages")
-    def test_ocrmac_detection_on_macos_not_installed(
-        self, mock_langs, mock_version, mock_platform
-    ):
+    def test_ocrmac_detection_on_macos_not_installed(self, mock_langs, mock_version, mock_platform):
         """Test ocrmac detection when not installed on macOS."""
         mock_platform.return_value = "Darwin"
         mock_version.return_value = "5.3.0"

@@ -2,7 +2,6 @@
 
 import time
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -10,7 +9,7 @@ def test_language_parameter_end_to_end(client: TestClient, sample_jpeg):
     """Test that language parameter is used throughout OCR processing pipeline (T017)."""
     # Upload with specific language
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f}, data={"lang": "eng"})
+        upload_response = client.post("/upload/tesseract", files={"file": f}, data={"lang": "eng"})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]
@@ -45,9 +44,7 @@ def test_multiple_languages_end_to_end(client: TestClient, sample_jpeg):
     """Test that multiple languages work in OCR processing (US1)."""
     # Upload with multiple languages
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post(
-            "/upload", files={"file": f}, data={"lang": "eng+fra"}
-        )
+        upload_response = client.post("/upload/tesseract", files={"file": f}, data={"lang": "eng+fra"})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]
@@ -82,7 +79,7 @@ def test_all_parameters_end_to_end(client: TestClient, sample_jpeg):
     # Upload with all parameters
     with open(sample_jpeg, "rb") as f:
         upload_response = client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": f},
             data={"lang": "eng", "psm": 6, "oem": 1, "dpi": 300},
         )

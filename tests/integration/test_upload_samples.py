@@ -10,7 +10,7 @@ def test_ocr_jpeg_end_to_end(client: TestClient, sample_jpeg):
     """Test end-to-end JPEG upload with numbers_gs150.jpg."""
     # Upload
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]
@@ -45,7 +45,7 @@ def test_ocr_png_end_to_end(client: TestClient, sample_png):
     """Test end-to-end PNG upload with stock_gs200.jpg."""
     # Upload
     with open(sample_png, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]
@@ -69,7 +69,7 @@ def test_ocr_pdf_end_to_end(client: TestClient, sample_pdf):
     """Test end-to-end PDF upload with mietvertrag.pdf (multi-page)."""
     # Upload PDF
     with open(sample_pdf, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]
@@ -109,7 +109,7 @@ def test_ocr_tiff_end_to_end(client: TestClient, sample_tiff):
     """Test end-to-end TIFF upload."""
     # Upload TIFF
     with open(sample_tiff, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]

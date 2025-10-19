@@ -1,4 +1,7 @@
-"""Integration tests for rate limiting enforcement (FR-015: 100 req/min per IP)."""
+"""Integration tests for rate limiting enforcement (FR-015: 100 req/min per IP).
+
+Note: Tests use /upload/tesseract endpoint since generic /upload was removed.
+"""
 
 import asyncio
 from pathlib import Path
@@ -19,7 +22,7 @@ async def test_rate_limit_enforcement_upload_endpoint(
     successful_requests = 0
     for _ in range(100):
         response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
         )
         if response.status_code in [200, 201]:
@@ -32,7 +35,7 @@ async def test_rate_limit_enforcement_upload_endpoint(
 
     # 101st request should be rate limited
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert response.status_code == 429, (
@@ -49,7 +52,7 @@ async def test_rate_limit_enforcement_status_endpoint(
     # First upload a file to get a job ID
     file_content = sample_jpeg.read_bytes()
     upload_response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert upload_response.status_code in [200, 201]
@@ -83,13 +86,13 @@ async def test_rate_limit_reset_after_window(async_client: AsyncClient, sample_j
     # Make 100 requests to hit the limit
     for _ in range(100):
         await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
         )
 
     # Verify we're rate limited
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert response.status_code == 429
@@ -100,7 +103,7 @@ async def test_rate_limit_reset_after_window(async_client: AsyncClient, sample_j
 
     # Should be able to make requests again
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert response.status_code in [200, 201], (
@@ -117,14 +120,14 @@ async def test_rate_limit_per_ip_isolation(async_client: AsyncClient, sample_jpe
     # Make 100 requests from IP 1.1.1.1
     for _ in range(100):
         await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             headers={"X-Forwarded-For": "1.1.1.1"},
         )
 
     # 101st request from 1.1.1.1 should be rate limited
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
         headers={"X-Forwarded-For": "1.1.1.1"},
     )
@@ -132,7 +135,7 @@ async def test_rate_limit_per_ip_isolation(async_client: AsyncClient, sample_jpe
 
     # But request from different IP (2.2.2.2) should succeed
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
         headers={"X-Forwarded-For": "2.2.2.2"},
     )
@@ -152,13 +155,13 @@ async def test_rate_limit_error_response_format(
     # Make 100 requests to hit the limit
     for _ in range(100):
         await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
         )
 
     # Get rate limited response
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert response.status_code == 429

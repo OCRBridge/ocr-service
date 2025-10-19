@@ -7,7 +7,7 @@ def test_result_with_completed_job_returns_200(client: TestClient, sample_jpeg):
     """Test getting result for completed job returns 200 with HOCR content."""
     # Upload document
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
     job_id = upload_response.json()["job_id"]
 
     # Wait for processing (in real test, would poll status)
@@ -25,7 +25,7 @@ def test_result_with_pending_job_returns_400(client: TestClient, sample_jpeg):
     """Test getting result for pending job returns 400."""
     # Upload document
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
     job_id = upload_response.json()["job_id"]
 
     # Try to get result immediately (should be pending)
@@ -61,7 +61,7 @@ def test_multi_page_hocr_output_structure(client: TestClient, sample_pdf):
 
     # Upload multi-page PDF
     with open(sample_pdf, "rb") as f:
-        upload_response = client.post("/upload", files={"file": f})
+        upload_response = client.post("/upload/tesseract", files={"file": f})
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]

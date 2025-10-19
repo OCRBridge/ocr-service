@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 def test_400_validation_error_schema(client: TestClient):
     """Test 400 response for validation errors matches schema."""
-    response = client.post("/upload")
+    response = client.post("/upload/tesseract")
 
     assert response.status_code == 400
     data = response.json()
@@ -30,7 +30,7 @@ def test_413_file_too_large_error_schema(client: TestClient, tmp_path):
         f.write(b"0" * (26 * 1024 * 1024))
 
     with open(large_file, "rb") as f:
-        response = client.post("/upload", files={"file": f})
+        response = client.post("/upload/tesseract", files={"file": f})
 
     # This test will initially fail (TDD)
     # When implemented:
@@ -46,7 +46,7 @@ def test_415_unsupported_format_error_schema(client: TestClient, tmp_path):
     text_file.write_text("This is not an image")
 
     with open(text_file, "rb") as f:
-        response = client.post("/upload", files={"file": f})
+        response = client.post("/upload/tesseract", files={"file": f})
 
     # This test will initially fail (TDD)
     # When implemented:

@@ -22,11 +22,11 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Parse XML (skip DOCTYPE for easier parsing)
-        xml_content = hocr_xml.split('\n', 2)[2]  # Skip XML declaration and DOCTYPE
+        xml_content = hocr_xml.split("\n", 2)[2]  # Skip XML declaration and DOCTYPE
         root = ET.fromstring(xml_content)
 
         # Find ocr_page
-        body = root.find('.//{http://www.w3.org/1999/xhtml}body')
+        body = root.find(".//{http://www.w3.org/1999/xhtml}body")
         page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')
         assert page is not None, "ocr_page element not found"
 
@@ -40,7 +40,9 @@ class TestEasyOCRHocrStructure:
 
         # Verify words are inside lines, not direct children of page
         for line in lines:
-            words_in_line = line.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
+            words_in_line = line.findall(
+                './/{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]'
+            )
             assert len(words_in_line) > 0, "ocr_line should contain ocrx_word elements"
 
     def test_hocr_line_has_correct_attributes(self):
@@ -52,7 +54,7 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Parse XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
 
         # Find first ocr_line
@@ -60,14 +62,14 @@ class TestEasyOCRHocrStructure:
         assert line is not None, "ocr_line element not found"
 
         # Check ID attribute
-        line_id = line.get('id')
+        line_id = line.get("id")
         assert line_id is not None, "ocr_line should have id attribute"
-        assert line_id.startswith('line_'), f"Line id should start with 'line_', got {line_id}"
+        assert line_id.startswith("line_"), f"Line id should start with 'line_', got {line_id}"
 
         # Check title attribute with bbox
-        title = line.get('title')
+        title = line.get("title")
         assert title is not None, "ocr_line should have title attribute"
-        assert 'bbox' in title, "ocr_line title should contain bbox"
+        assert "bbox" in title, "ocr_line title should contain bbox"
 
     def test_hocr_words_sorted_left_to_right_within_line(self):
         """Test that words within a line are sorted left to right."""
@@ -82,7 +84,7 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Parse XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
 
         # Find first ocr_line
@@ -91,7 +93,9 @@ class TestEasyOCRHocrStructure:
 
         # Extract word text
         word_texts = [word.text for word in words]
-        assert word_texts == ["First", "Second", "Third"], f"Words should be sorted left to right, got {word_texts}"
+        assert word_texts == ["First", "Second", "Third"], (
+            f"Words should be sorted left to right, got {word_texts}"
+        )
 
     def test_hocr_line_grouping_by_vertical_position(self):
         """Test that words are correctly grouped into lines by vertical position."""
@@ -99,7 +103,11 @@ class TestEasyOCRHocrStructure:
         easyocr_results = [
             # Line 1 at y=100
             ([[10, 100], [60, 100], [60, 130], [10, 130]], "Line1Word1", 0.95),
-            ([[70, 102], [130, 102], [130, 132], [70, 132]], "Line1Word2", 0.93),  # Slightly offset but same line
+            (
+                [[70, 102], [130, 102], [130, 132], [70, 132]],
+                "Line1Word2",
+                0.93,
+            ),  # Slightly offset but same line
             # Line 2 at y=200 (far enough to be different line)
             ([[10, 200], [60, 200], [60, 230], [10, 230]], "Line2Word1", 0.91),
         ]
@@ -107,7 +115,7 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Parse XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
 
         # Find all ocr_line elements
@@ -132,16 +140,17 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Parse XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
 
         # Find line
         line = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocr_line"]')
-        line_title = line.get('title')
+        line_title = line.get("title")
 
         # Extract line bbox
         import re
-        line_bbox_match = re.search(r'bbox (\d+) (\d+) (\d+) (\d+)', line_title)
+
+        line_bbox_match = re.search(r"bbox (\d+) (\d+) (\d+) (\d+)", line_title)
         assert line_bbox_match, "Line should have bbox in title"
         line_x_min, line_y_min, line_x_max, line_y_max = map(int, line_bbox_match.groups())
 
@@ -160,16 +169,17 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Parse XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
 
         # Find word
         word = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
-        word_title = word.get('title')
+        word_title = word.get("title")
 
         # Check confidence
         import re
-        conf_match = re.search(r'x_wconf (\d+)', word_title)
+
+        conf_match = re.search(r"x_wconf (\d+)", word_title)
         assert conf_match, "Word should have x_wconf in title"
         confidence = int(conf_match.group(1))
         assert confidence == 95, f"Confidence should be 95, got {confidence}"
@@ -181,11 +191,11 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Should still have page element
-        assert 'ocr_page' in hocr_xml, "Empty results should still create ocr_page"
-        assert '800' in hocr_xml and '600' in hocr_xml, "Page dimensions should be in output"
+        assert "ocr_page" in hocr_xml, "Empty results should still create ocr_page"
+        assert "800" in hocr_xml and "600" in hocr_xml, "Page dimensions should be in output"
 
         # Parse to verify valid XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
         page = root.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')
         assert page is not None, "ocr_page element should exist even with no words"
@@ -199,10 +209,10 @@ class TestEasyOCRHocrStructure:
         hocr_xml = easyocr_to_hocr(easyocr_results, 800, 600)
 
         # Should contain escaped characters
-        assert '&lt;Test&amp;&gt;' in hocr_xml, "Special characters should be escaped"
+        assert "&lt;Test&amp;&gt;" in hocr_xml, "Special characters should be escaped"
 
         # Parse to verify valid XML
-        xml_content = hocr_xml.split('\n', 2)[2]
+        xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
         word = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
         assert word.text == "<Test&>", "Parsed text should match original"

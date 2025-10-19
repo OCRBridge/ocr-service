@@ -19,7 +19,7 @@ async def test_upload_blank_image(async_client: AsyncClient) -> None:
     img_bytes.seek(0)
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("blank.jpg", img_bytes.getvalue(), "image/jpeg")},
     )
 
@@ -61,7 +61,7 @@ async def test_upload_corrupted_jpeg(async_client: AsyncClient) -> None:
     corrupted_data = img_bytes.getvalue()[:50]  # Only take first 50 bytes
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("corrupted.jpg", corrupted_data, "image/jpeg")},
     )
 
@@ -93,7 +93,7 @@ async def test_upload_oversized_file(async_client: AsyncClient) -> None:
     oversized_data = b"x" * (26 * 1024 * 1024)  # 26MB
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("huge.jpg", oversized_data, "image/jpeg")},
     )
 
@@ -112,7 +112,7 @@ async def test_upload_oversized_file(async_client: AsyncClient) -> None:
 async def test_upload_zero_byte_file(async_client: AsyncClient) -> None:
     """Test uploading an empty file (0 bytes)."""
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("empty.jpg", b"", "image/jpeg")},
     )
 
@@ -135,7 +135,7 @@ async def test_upload_wrong_extension_correct_mime(async_client: AsyncClient) ->
 
     # Upload as .txt file but with correct JPEG MIME type
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("image.txt", img_bytes.getvalue(), "image/jpeg")},
     )
 
@@ -157,7 +157,7 @@ async def test_upload_special_characters_filename(async_client: AsyncClient) -> 
     special_filename = "test file (copy) [2023] #1 & more!.jpg"
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": (special_filename, img_bytes.getvalue(), "image/jpeg")},
     )
 
@@ -181,7 +181,7 @@ async def test_upload_path_traversal_attempt(async_client: AsyncClient) -> None:
     malicious_filename = "../../../etc/passwd.jpg"
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": (malicious_filename, img_bytes.getvalue(), "image/jpeg")},
     )
 
@@ -218,7 +218,7 @@ async def test_get_result_before_completion(async_client: AsyncClient, sample_jp
     # Upload file
     file_content = sample_jpeg.read_bytes()
     upload_response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert upload_response.status_code in [200, 201]
@@ -241,7 +241,7 @@ async def test_concurrent_uploads_same_file(async_client: AsyncClient, sample_jp
     # Upload same file 5 times concurrently
     async def upload_file():
         return await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
         )
 
@@ -272,7 +272,7 @@ async def test_upload_unsupported_format(async_client: AsyncClient) -> None:
     fake_data = b"This is not an image file"
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("image.bmp", fake_data, "image/bmp")},
     )
 
@@ -292,7 +292,7 @@ async def test_upload_text_file_with_image_extension(async_client: AsyncClient) 
     text_data = b"This is a plain text file, not a JPEG"
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("fake.jpg", text_data, "image/jpeg")},
     )
 
@@ -316,7 +316,7 @@ async def test_upload_extremely_long_filename(async_client: AsyncClient) -> None
     long_filename = "a" * 300 + ".jpg"
 
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": (long_filename, img_bytes.getvalue(), "image/jpeg")},
     )
 
@@ -329,7 +329,7 @@ async def test_multipart_form_missing_file_field(async_client: AsyncClient) -> N
     """Test submitting upload form without the 'file' field."""
     # Send multipart form with wrong field name
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         data={"document": "some data"},
     )
 

@@ -19,7 +19,7 @@ async def test_upload_endpoint_memory_usage(async_client: AsyncClient, sample_jp
 
     # Make upload request
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
 
@@ -46,7 +46,7 @@ async def test_status_endpoint_memory_usage(async_client: AsyncClient, sample_jp
     # First upload a file to get a job ID
     file_content = sample_jpeg.read_bytes()
     upload_response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert upload_response.status_code in [200, 201]
@@ -84,7 +84,7 @@ async def test_result_endpoint_memory_usage(async_client: AsyncClient, sample_jp
     # First upload a file to get a job ID
     file_content = sample_jpeg.read_bytes()
     upload_response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.jpg", file_content, "image/jpeg")},
     )
     assert upload_response.status_code in [200, 201]
@@ -140,7 +140,7 @@ async def test_large_pdf_memory_usage(async_client: AsyncClient, sample_pdf: Pat
 
     # Make upload request
     response = await async_client.post(
-        "/upload",
+        "/upload/tesseract",
         files={"file": ("test.pdf", file_content, "application/pdf")},
     )
 
@@ -177,7 +177,7 @@ async def test_concurrent_requests_memory_isolation(
     # Make 10 concurrent upload requests
     async def upload_file():
         return await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
         )
 

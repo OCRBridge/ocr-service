@@ -1,17 +1,17 @@
 """Tesseract OCR engine implementation."""
 
-import pytesseract
 from pathlib import Path
+
+import pytesseract
+import structlog
 from pdf2image import convert_from_path
-from typing import Optional
 
 from src.config import settings
 from src.models import TesseractParams
-from src.models.upload import FileFormat
 from src.models.responses import ErrorCode
+from src.models.upload import FileFormat
 from src.services.ocr.base import OCREngine
 from src.utils.validators import build_tesseract_config
-import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +28,7 @@ class TesseractEngineError(Exception):
 class TesseractEngine(OCREngine):
     """Tesseract OCR engine implementation."""
 
-    def process(self, file_path: Path, params: Optional[TesseractParams] = None) -> str:
+    def process(self, file_path: Path, params: TesseractParams | None = None) -> str:
         """
         Process a document using Tesseract and return HOCR XML output.
 
@@ -96,12 +96,12 @@ class TesseractEngine(OCREngine):
         """
         suffix = file_path.suffix.lower()
         format_map = {
-            '.jpg': FileFormat.JPEG,
-            '.jpeg': FileFormat.JPEG,
-            '.png': FileFormat.PNG,
-            '.pdf': FileFormat.PDF,
-            '.tiff': FileFormat.TIFF,
-            '.tif': FileFormat.TIFF,
+            ".jpg": FileFormat.JPEG,
+            ".jpeg": FileFormat.JPEG,
+            ".png": FileFormat.PNG,
+            ".pdf": FileFormat.PDF,
+            ".tiff": FileFormat.TIFF,
+            ".tif": FileFormat.TIFF,
         }
 
         if suffix not in format_map:

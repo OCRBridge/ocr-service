@@ -135,43 +135,45 @@ def _group_easyocr_words_into_lines(easyocr_results: list) -> list[dict]:
         y_center = (y_min + y_max) / 2
         height = y_max - y_min
 
-        words.append({
-            'text': text,
-            'confidence': confidence,
-            'bbox': (x_min, y_min, x_max, y_max),
-            'y_center': y_center,
-            'height': height,
-            'x_min': x_min
-        })
+        words.append(
+            {
+                "text": text,
+                "confidence": confidence,
+                "bbox": (x_min, y_min, x_max, y_max),
+                "y_center": y_center,
+                "height": height,
+                "x_min": x_min,
+            }
+        )
 
     if not words:
         return []
 
     # Calculate median word height for threshold
-    heights = [w['height'] for w in words]
+    heights = [w["height"] for w in words]
     heights.sort()
     median_height = heights[len(heights) // 2]
-    
+
     # Threshold: words are on same line if y_centers within 50% of median height
     line_threshold = median_height * 0.5
 
     # Sort words by vertical position (top to bottom)
-    words.sort(key=lambda w: w['y_center'])
+    words.sort(key=lambda w: w["y_center"])
 
     # Group words into lines
     lines = []
     current_line_words = [words[0]]
-    current_y_center = words[0]['y_center']
+    current_y_center = words[0]["y_center"]
 
     for word in words[1:]:
         # Check if word belongs to current line
-        if abs(word['y_center'] - current_y_center) <= line_threshold:
+        if abs(word["y_center"] - current_y_center) <= line_threshold:
             current_line_words.append(word)
         else:
             # Start new line
             lines.append(current_line_words)
             current_line_words = [word]
-            current_y_center = word['y_center']
+            current_y_center = word["y_center"]
 
     # Don't forget the last line
     if current_line_words:
@@ -181,18 +183,17 @@ def _group_easyocr_words_into_lines(easyocr_results: list) -> list[dict]:
     result_lines = []
     for line_words in lines:
         # Sort words left to right
-        line_words.sort(key=lambda w: w['x_min'])
+        line_words.sort(key=lambda w: w["x_min"])
 
         # Calculate line bounding box
-        line_x_min = min(w['bbox'][0] for w in line_words)
-        line_y_min = min(w['bbox'][1] for w in line_words)
-        line_x_max = max(w['bbox'][2] for w in line_words)
-        line_y_max = max(w['bbox'][3] for w in line_words)
+        line_x_min = min(w["bbox"][0] for w in line_words)
+        line_y_min = min(w["bbox"][1] for w in line_words)
+        line_x_max = max(w["bbox"][2] for w in line_words)
+        line_y_max = max(w["bbox"][3] for w in line_words)
 
-        result_lines.append({
-            'bbox': (line_x_min, line_y_min, line_x_max, line_y_max),
-            'words': line_words
-        })
+        result_lines.append(
+            {"bbox": (line_x_min, line_y_min, line_x_max, line_y_max), "words": line_words}
+        )
 
     return result_lines
 
@@ -218,12 +219,12 @@ def easyocr_to_hocr(easyocr_results: list, image_width: int, image_height: int) 
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">',
         '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">',
-        '<head>',
+        "<head>",
         '  <meta http-equiv="content-type" content="text/html; charset=utf-8" />',
         '  <meta name="ocr-system" content="easyocr" />',
         '  <meta name="ocr-capabilities" content="ocr_page ocr_carea ocr_par ocr_line ocrx_word" />',
-        '</head>',
-        '<body>',
+        "</head>",
+        "<body>",
         f'  <div class="ocr_page" id="page_1" title="bbox 0 0 {image_width} {image_height}">',
     ]
 
@@ -233,8 +234,8 @@ def easyocr_to_hocr(easyocr_results: list, image_width: int, image_height: int) 
     # Add each line with its words
     word_counter = 1
     for line_idx, line_data in enumerate(lines, start=1):
-        line_bbox = line_data['bbox']
-        
+        line_bbox = line_data["bbox"]
+
         # Create line element
         hocr_lines.append(
             f'    <span class="ocr_line" id="line_1_{line_idx}" '
@@ -242,13 +243,14 @@ def easyocr_to_hocr(easyocr_results: list, image_width: int, image_height: int) 
         )
 
         # Add words to this line
-        for word_data in line_data['words']:
+        for word_data in line_data["words"]:
             # Convert confidence (0.0-1.0) to percentage (0-100)
-            conf_percent = int(word_data['confidence'] * 100)
+            conf_percent = int(word_data["confidence"] * 100)
 
             # Escape text for XML
             escaped_text = (
-                word_data['text'].replace("&", "&amp;")
+                word_data["text"]
+                .replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace('"', "&quot;")
@@ -256,17 +258,17 @@ def easyocr_to_hocr(easyocr_results: list, image_width: int, image_height: int) 
             )
 
             # Create HOCR word element
-            word_bbox = word_data['bbox']
+            word_bbox = word_data["bbox"]
             hocr_lines.append(
                 f'      <span class="ocrx_word" id="word_1_{word_counter}" '
                 f'title="bbox {word_bbox[0]} {word_bbox[1]} {word_bbox[2]} {word_bbox[3]}; x_wconf {conf_percent}">'
                 f"{escaped_text}</span>"
             )
-            
+
             word_counter += 1
 
         # Close line element
-        hocr_lines.append('    </span>')
+        hocr_lines.append("    </span>")
 
     # Close HOCR structure
     hocr_lines.extend(["  </div>", "</body>", "</html>"])

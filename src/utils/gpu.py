@@ -1,7 +1,6 @@
 """GPU detection and management utilities for EasyOCR."""
 
 import logging
-from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ def detect_gpu_availability() -> bool:
         return False
 
 
-def get_easyocr_device() -> Tuple[bool, str]:
+def get_easyocr_device() -> tuple[bool, str]:
     """
     Automatically detect and determine the best device for EasyOCR.
 

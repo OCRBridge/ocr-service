@@ -18,7 +18,7 @@ async def test_status_endpoint_p95_latency(async_client: AsyncClient, sample_jpe
     # Upload document first
     with open(sample_jpeg, "rb") as f:
         upload_response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 
@@ -82,7 +82,7 @@ async def test_result_endpoint_p95_latency(async_client: AsyncClient, sample_jpe
     # Upload document first
     with open(sample_jpeg, "rb") as f:
         upload_response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 
@@ -143,7 +143,7 @@ async def test_concurrent_status_requests(async_client: AsyncClient, sample_jpeg
     # Upload document first
     with open(sample_jpeg, "rb") as f:
         upload_response = await async_client.post(
-            "/upload",
+            "/upload/tesseract",
             files={"file": ("test.jpg", f, "image/jpeg")},
         )
 

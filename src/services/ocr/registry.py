@@ -2,7 +2,7 @@
 
 import platform
 from dataclasses import dataclass
-from typing import Optional, Set
+from typing import Optional
 
 from src.models.job import EngineType
 
@@ -12,9 +12,9 @@ class EngineCapabilities:
     """Cached capabilities for an OCR engine."""
 
     available: bool  # Whether engine is currently available
-    version: Optional[str]  # Engine version (e.g., "5.3.0", "0.1.0")
-    supported_languages: Set[str]  # Set of supported language codes
-    platform_requirement: Optional[str]  # Required platform (e.g., "darwin" for macOS)
+    version: str | None  # Engine version (e.g., "5.3.0", "0.1.0")
+    supported_languages: set[str]  # Set of supported language codes
+    platform_requirement: str | None  # Required platform (e.g., "darwin" for macOS)
 
 
 class EngineRegistry:
@@ -85,23 +85,48 @@ class EngineRegistry:
             # Include both bare codes and common regional variants
             languages = {
                 # Bare language codes
-                "en", "fr", "de", "es", "it", "pt", "ru", "ar", "ja", "ko", "th", "vi",
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt",
+                "ru",
+                "ar",
+                "ja",
+                "ko",
+                "th",
+                "vi",
                 # Common regional variants (IETF BCP 47)
-                "en-US", "en-GB", "en-CA", "en-AU",
-                "fr-FR", "fr-CA",
-                "de-DE", "de-AT", "de-CH",
-                "es-ES", "es-MX", "es-AR",
+                "en-US",
+                "en-GB",
+                "en-CA",
+                "en-AU",
+                "fr-FR",
+                "fr-CA",
+                "de-DE",
+                "de-AT",
+                "de-CH",
+                "es-ES",
+                "es-MX",
+                "es-AR",
                 "it-IT",
-                "pt-PT", "pt-BR",
+                "pt-PT",
+                "pt-BR",
                 "ru-RU",
-                "ar-SA", "ar-AE",
+                "ar-SA",
+                "ar-AE",
                 "ja-JP",
                 "ko-KR",
                 "th-TH",
                 "vi-VN",
                 # Chinese with script codes
-                "zh-Hans", "zh-Hans-CN", "zh-Hans-SG",
-                "zh-Hant", "zh-Hant-TW", "zh-Hant-HK",
+                "zh-Hans",
+                "zh-Hans-CN",
+                "zh-Hans-SG",
+                "zh-Hant",
+                "zh-Hant-TW",
+                "zh-Hant-HK",
             }
             self._capabilities[EngineType.OCRMAC] = EngineCapabilities(
                 available=True,
@@ -149,7 +174,7 @@ class EngineRegistry:
         """Get cached capabilities for engine."""
         return self._capabilities[engine]
 
-    def validate_platform(self, engine: EngineType) -> tuple[bool, Optional[str]]:
+    def validate_platform(self, engine: EngineType) -> tuple[bool, str | None]:
         """
         Validate platform compatibility for engine.
 
@@ -171,7 +196,7 @@ class EngineRegistry:
 
     def validate_languages(
         self, engine: EngineType, languages: list[str]
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """
         Validate language codes against engine capabilities.
 
