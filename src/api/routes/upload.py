@@ -634,6 +634,183 @@ async def upload_document_ocrmac(
         )
 
 
+@router.post(
+    "/upload/easyocr",
+    response_model=UploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request, engine not available, or invalid parameters"},
+        413: {"model": ErrorResponse, "description": "File too large"},
+        415: {"model": ErrorResponse, "description": "Unsupported format"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(f"{100}/minute")
+async def upload_document_easyocr(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="Document file to process (JPEG, PNG, PDF, TIFF)"),
+    languages: Optional[list[str]] = Form(
+        None,
+        description=(
+            "Language codes for OCR recognition (EasyOCR naming convention). "
+            "Use EasyOCR format (e.g., 'en', 'ch_sim', 'ja', 'ko'). "
+            "Max 5 languages. Default: ['en'] if not specified. "
+            "Examples: ['en'], ['ch_sim', 'en'], ['ja', 'ko', 'en']"
+        ),
+        examples=[["en"], ["ch_sim", "en"], ["ja"]],
+    ),
+    gpu: Optional[bool] = Form(
+        None,
+        description=(
+            "Enable GPU acceleration for processing (requires CUDA). "
+            "Default: false (CPU-only). If GPU requested but unavailable, gracefully falls back to CPU."
+        ),
+        examples=[True, False],
+    ),
+    text_threshold: Optional[float] = Form(
+        None,
+        description=(
+            "Confidence threshold for text detection (0.0-1.0). "
+            "Lower: more text detected (higher recall). Higher: only high-confidence text (higher precision). "
+            "Default: 0.7"
+        ),
+        ge=0.0,
+        le=1.0,
+        examples=[0.7, 0.8, 0.5],
+    ),
+    link_threshold: Optional[float] = Form(
+        None,
+        description=(
+            "Threshold for linking text regions (0.0-1.0). "
+            "Controls how text boxes are grouped together. "
+            "Default: 0.7"
+        ),
+        ge=0.0,
+        le=1.0,
+        examples=[0.7, 0.8],
+    ),
+    redis: aioredis.Redis = Depends(get_redis),
+):
+    """
+    Upload a document for OCR processing using EasyOCR engine.
+
+    **EasyOCR Engine Features:**
+    - Cross-platform support (Linux, macOS, Windows)
+    - Deep learning-based recognition with superior multilingual support (80+ languages)
+    - GPU acceleration support (CUDA required)
+    - Excellent accuracy for Asian languages (Chinese, Japanese, Korean, Thai, etc.)
+    - Automatic graceful fallback to CPU if GPU unavailable
+
+    **Common Use Cases:**
+    - Chinese document: languages=['ch_sim', 'en'], gpu=true
+    - Japanese receipt: languages=['ja'], text_threshold=0.8
+    - Korean form: languages=['ko', 'en'], gpu=true, text_threshold=0.7
+
+    Returns job ID for status polling and result retrieval.
+    """
+    from src.services.ocr.registry import EngineRegistry
+    from src.models.job import EngineType
+    from src.models.ocr_params import EasyOCRParams
+
+    file_handler = FileHandler()
+    job_manager = JobManager(redis)
+    registry = EngineRegistry()
+
+    try:
+        # Check if EasyOCR is available
+        if not registry.is_available(EngineType.EASYOCR):
+            logger.error("easyocr_not_available")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="EasyOCR engine is not available on this server. Install with: pip install easyocr torch"
+            )
+
+        # Validate EasyOCR parameters
+        try:
+            easyocr_params = EasyOCRParams(
+                languages=languages if languages is not None else ["en"],
+                gpu=gpu if gpu is not None else False,
+                text_threshold=text_threshold if text_threshold is not None else 0.7,
+                link_threshold=link_threshold if link_threshold is not None else 0.7,
+            )
+        except ValidationError as e:
+            logger.warning("parameter_validation_failed", errors=e.errors())
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=json.loads(e.json()),
+            )
+
+        # Validate languages against engine capabilities
+        if languages:
+            is_valid, error_msg = registry.validate_languages(EngineType.EASYOCR, languages)
+            if not is_valid:
+                logger.warning("language_validation_failed", languages=languages, error=error_msg)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=error_msg
+                )
+
+        # Save uploaded file
+        upload = await file_handler.save_upload(file)
+
+        # Track metrics
+        metrics.jobs_created_total.inc()
+        metrics.document_size_bytes.observe(upload.file_size)
+
+        # Create job with EasyOCR engine
+        job = OCRJob(
+            upload=upload,
+            engine=EngineType.EASYOCR,
+            engine_params=easyocr_params
+        )
+        await job_manager.create_job(job)
+
+        # Schedule background OCR processing (will use process_ocr_task_v2)
+        background_tasks.add_task(process_ocr_task_v2, job.job_id, redis)
+
+        logger.info(
+            "upload_accepted",
+            job_id=job.job_id,
+            filename=upload.file_name,
+            size=upload.file_size,
+            engine="easyocr",
+            languages=easyocr_params.languages,
+            gpu=easyocr_params.gpu,
+            text_threshold=easyocr_params.text_threshold,
+            link_threshold=easyocr_params.link_threshold
+        )
+
+        return UploadResponse(
+            job_id=job.job_id,
+            status=job.status,
+        )
+
+    except HTTPException:
+        raise
+
+    except UnsupportedFormatError as e:
+        logger.warning("unsupported_format", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(e),
+        )
+
+    except FileTooLargeError as e:
+        logger.warning("file_too_large", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(e),
+        )
+
+    except Exception as e:
+        logger.error("upload_failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Upload failed",
+        )
+
+
 async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
     """
     Background task to process OCR for uploaded document using engine-specific processing.
@@ -646,6 +823,7 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
     """
     from src.services.ocr.tesseract import TesseractEngine
     from src.services.ocr.ocrmac import OcrmacEngine
+    from src.services.ocr.easyocr import EasyOCREngine
     from src.models.job import EngineType
 
     job_manager = JobManager(redis)
@@ -681,6 +859,8 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
             engine = TesseractEngine()
         elif job.engine == EngineType.OCRMAC:
             engine = OcrmacEngine()
+        elif job.engine == EngineType.EASYOCR:
+            engine = EasyOCREngine()
         else:
             raise ValueError(f"Unknown engine type: {job.engine}")
 

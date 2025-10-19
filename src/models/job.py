@@ -9,7 +9,7 @@ from typing import Optional, Union
 from pydantic import BaseModel, Field, field_validator
 
 from src.models import TesseractParams
-from src.models.ocr_params import OcrmacParams
+from src.models.ocr_params import OcrmacParams, EasyOCRParams
 from src.models.upload import DocumentUpload
 
 
@@ -54,7 +54,7 @@ class OCRJob(BaseModel):
     )
 
     # Engine-specific parameters (union type)
-    engine_params: Optional[Union[TesseractParams, OcrmacParams]] = Field(
+    engine_params: Optional[Union[TesseractParams, OcrmacParams, EasyOCRParams]] = Field(
         None, description="Engine-specific processing parameters"
     )
 

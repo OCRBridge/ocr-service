@@ -41,6 +41,7 @@ class EngineRegistry:
         """Detect all supported engines at startup."""
         self._detect_tesseract()
         self._detect_ocrmac()
+        self._detect_easyocr()
 
     def _detect_tesseract(self):
         """Detect Tesseract availability and capabilities."""
@@ -114,6 +115,30 @@ class EngineRegistry:
                 version=None,
                 supported_languages=set(),
                 platform_requirement="darwin",
+            )
+
+    def _detect_easyocr(self):
+        """Detect EasyOCR availability and capabilities."""
+        try:
+            import easyocr  # noqa: F401
+            import torch  # noqa: F401
+
+            # EasyOCR supported languages (80+ languages)
+            # Reference: https://github.com/JaidedAI/EasyOCR#supported-languages
+            from src.utils.validators import EASYOCR_SUPPORTED_LANGUAGES
+
+            self._capabilities[EngineType.EASYOCR] = EngineCapabilities(
+                available=True,
+                version="1.7.0",  # EasyOCR package version
+                supported_languages=EASYOCR_SUPPORTED_LANGUAGES,
+                platform_requirement=None,  # Available on all platforms
+            )
+        except ImportError:
+            self._capabilities[EngineType.EASYOCR] = EngineCapabilities(
+                available=False,
+                version=None,
+                supported_languages=set(),
+                platform_requirement=None,
             )
 
     def is_available(self, engine: EngineType) -> bool:
