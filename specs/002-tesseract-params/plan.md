@@ -172,4 +172,3 @@ tests/
 ## Complexity Tracking
 
 *No violations - this section is empty as all constitution principles pass.*
-

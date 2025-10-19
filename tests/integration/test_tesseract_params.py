@@ -44,7 +44,9 @@ def test_multiple_languages_end_to_end(client: TestClient, sample_jpeg):
     """Test that multiple languages work in OCR processing (US1)."""
     # Upload with multiple languages
     with open(sample_jpeg, "rb") as f:
-        upload_response = client.post("/upload/tesseract", files={"file": f}, data={"lang": "eng+fra"})
+        upload_response = client.post(
+            "/upload/tesseract", files={"file": f}, data={"lang": "eng+fra"}
+        )
 
     assert upload_response.status_code == 202
     job_id = upload_response.json()["job_id"]

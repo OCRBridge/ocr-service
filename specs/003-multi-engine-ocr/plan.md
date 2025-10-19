@@ -299,4 +299,3 @@ tests/
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | Separate endpoints per engine (Principle 7) | Clear API contracts per engine, explicit parameter validation, easier versioning | Single parametric endpoint would require complex conditional validation, unclear OpenAPI schema (all params listed but only subset valid), risk of breaking existing `/upload` contract |
-
