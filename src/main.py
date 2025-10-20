@@ -119,8 +119,9 @@ app.mount("/metrics", metrics_app)
 
 
 # Import and register routes
-from src.api.routes import health, jobs, upload  # noqa: E402
+from src.api.routes import health, jobs, sync, upload  # noqa: E402
 
 app.include_router(upload.router, tags=["upload"])
 app.include_router(jobs.router, tags=["jobs"])
+app.include_router(sync.router, prefix="/sync", tags=["sync"])
 app.include_router(health.router, tags=["health"])

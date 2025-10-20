@@ -1,5 +1,6 @@
 """Application configuration using Pydantic Settings."""
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +35,20 @@ class Settings(BaseSettings):
     tesseract_oem: int = 1  # LSTM only
     pdf_dpi: int = 300
 
+    # Synchronous Endpoint Configuration
+    sync_timeout_seconds: int = Field(
+        default=30,
+        description="Maximum processing time for synchronous OCR requests",
+        ge=5,
+        le=60,
+    )
+    sync_max_file_size_mb: int = Field(
+        default=5,
+        description="Maximum file size in MB for synchronous OCR requests",
+        ge=1,
+        le=25,  # Must be <= max_upload_size_mb
+    )
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"
@@ -46,6 +61,11 @@ class Settings(BaseSettings):
     def max_upload_size_bytes(self) -> int:
         """Convert max upload size from MB to bytes."""
         return self.max_upload_size_mb * 1024 * 1024
+
+    @property
+    def sync_max_file_size_bytes(self) -> int:
+        """Convert sync max file size from MB to bytes."""
+        return self.sync_max_file_size_mb * 1024 * 1024
 
 
 # Global settings instance

@@ -1,0 +1,273 @@
+openapi: 3.1.0
+info:
+  title: RESTful OCR - Synchronous ocrmac Endpoint
+  description: |
+    Synchronous OCR processing endpoint for ocrmac engine (macOS only).
+    Returns hOCR output directly in the HTTP response body.
+
+    **Use cases:**
+    - macOS-native OCR with Apple Vision framework
+    - High accuracy and performance on macOS
+    - Quick processing (< 30 seconds)
+    - Small files (< 5MB)
+
+    **Platform requirements:**
+    - macOS only (requires Apple Vision framework)
+    - Not available in Docker containers (even on macOS hosts)
+    - Use Tesseract or EasyOCR for cross-platform processing
+
+    **Limitations:**
+    - 30-second processing timeout
+    - 5MB file size limit
+    - No job persistence or result storage
+    - For larger/multi-page documents, use async endpoints (/upload/ocrmac)
+
+  version: 1.0.0
+  contact:
+    name: RESTful OCR API Support
+servers:
+  - url: http://localhost:8000
+    description: Local development server (macOS only)
+
+paths:
+  /sync/ocrmac:
+    post:
+      summary: Synchronous OCR processing with ocrmac
+      description: |
+        Upload a document and receive OCR results immediately in the response.
+
+        This endpoint uses Apple's Vision framework for high-quality OCR.
+        **Only available on macOS** - returns HTTP 400 on other platforms.
+
+        **Processing constraints:**
+        - Maximum file size: 5MB
+        - Maximum processing time: 30 seconds
+        - Supported formats: JPEG, PNG, PDF, TIFF
+        - Platform: macOS only
+
+      operationId: syncOcrmac
+      tags:
+        - Synchronous OCR
+        - ocrmac
+        - macOS
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    Document file to process (JPEG, PNG, PDF, TIFF).
+                    Maximum size: 5MB.
+                recognition_level:
+                  type: string
+                  enum:
+                    - accurate
+                    - fast
+                  default: accurate
+                  description: |
+                    Recognition accuracy level:
+                    - accurate: Higher accuracy, slower processing
+                    - fast: Faster processing, may have lower accuracy
+                  example: accurate
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  default: ["en-US"]
+                  description: |
+                    Language codes for OCR recognition in IETF BCP 47 format.
+                    Supported: en-US, fr-FR, de-DE, es-ES, it-IT, pt-PT, ru, ar,
+                    zh-Hans (Simplified Chinese), zh-Hant (Traditional Chinese), ja-JP, ko-KR.
+                    Max 5 languages. Omit for automatic language detection.
+
+                    **Usage in curl:**
+                    - Single language: `-F 'languages=en-US'`
+                    - Multiple languages: `-F 'languages=en-US' -F 'languages=de-DE'`
+
+                    Multiple languages can improve recognition for multilingual documents.
+                  example: ["en-US", "de-DE"]
+
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, application/pdf, image/tiff
+
+      responses:
+        '200':
+          description: OCR processing completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncOCRResponse'
+              example:
+                hocr: |
+                  <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><title></title><meta http-equiv="content-type" content="text/html; charset=utf-8" /><meta name='ocr-system' content='ocrmac' /><meta name='ocr-capabilities' content='ocr_page ocr_line ocrx_word ocrp_wconf'/></head><body><div class='ocr_page' id='page_1' title='bbox 0 0 2480 3508'><span class='ocr_line' id='line_1_1' title='bbox 150 200 2330 400'><span class='ocrx_word' id='word_1_1' title='bbox 150 200 450 390; x_wconf 99'>Sample</span> <span class='ocrx_word' id='word_1_2' title='bbox 500 200 800 390; x_wconf 99'>Text</span></span></div></body></html>
+                processing_duration_seconds: 1.45
+                engine: ocrmac
+                pages: 1
+
+        '400':
+          description: Bad request - invalid parameters or platform unsupported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                platform_unsupported:
+                  summary: ocrmac not available (non-macOS platform)
+                  value:
+                    detail: "ocrmac engine is only available on macOS with Apple Vision framework. Platform: Linux. Use Tesseract or EasyOCR for cross-platform processing."
+                    status_code: 400
+                engine_unavailable:
+                  summary: ocrmac engine unavailable on macOS
+                  value:
+                    detail: "ocrmac engine is unavailable. Apple Vision framework may not be installed."
+                    status_code: 400
+                invalid_recognition_level:
+                  summary: Invalid recognition level
+                  value:
+                    detail: "recognition_level must be 'accurate' or 'fast'"
+                    status_code: 400
+
+        '408':
+          description: Request timeout - processing exceeded 30-second limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Processing exceeded 30s timeout. Document may be too complex. Use async endpoints (/upload/ocrmac) for large or multi-page documents."
+                status_code: 408
+
+        '413':
+          description: Payload too large - file exceeds 5MB limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "File size (5.5MB) exceeds 5MB limit. Use async endpoints (/upload/ocrmac) for larger files."
+                status_code: 413
+
+        '415':
+          description: Unsupported media type - invalid file format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Unsupported file format. Supported formats: JPEG, PNG, PDF, TIFF"
+                status_code: 415
+
+        '422':
+          description: Validation error - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Rate limit exceeded. Maximum 100 requests per 60 seconds."
+                status_code: 429
+
+        '500':
+          description: Internal server error - OCR processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "OCR processing failed: ocrmac error"
+                status_code: 500
+
+components:
+  schemas:
+    SyncOCRResponse:
+      type: object
+      required:
+        - hocr
+        - processing_duration_seconds
+        - engine
+        - pages
+      properties:
+        hocr:
+          type: string
+          description: |
+            hOCR XML output as escaped string.
+            Contains structured OCR results with bounding boxes, confidence scores, and text.
+          minLength: 1
+        processing_duration_seconds:
+          type: number
+          format: float
+          description: Time taken to process the document (seconds)
+          minimum: 0
+          maximum: 30
+          example: 1.45
+        engine:
+          type: string
+          description: OCR engine used for processing
+          enum:
+            - tesseract
+            - easyocr
+            - ocrmac
+          example: ocrmac
+        pages:
+          type: integer
+          description: Number of pages processed in the document
+          minimum: 1
+          example: 1
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+        - status_code
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+        status_code:
+          type: integer
+          description: HTTP status code
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+              msg:
+                type: string
+              type:
+                type: string
+
+tags:
+  - name: Synchronous OCR
+    description: Direct request-response OCR processing (no job queue)
+  - name: ocrmac
+    description: ocrmac engine endpoints (macOS only, Apple Vision framework)
+  - name: macOS
+    description: macOS-specific features

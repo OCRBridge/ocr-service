@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2025-10-18
 - Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+ (005-remove-generic-upload)
 - pyright 1.1+ (Type checking)
 - pre-commit 3.5+ (Git hooks for code quality)
+- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints) (006-direct-ocr-endpoints)
+- Filesystem (temporary uploaded files - cleaned up immediately after sync processing), Redis 7.0+ (job state for async endpoints only) (006-direct-ocr-endpoints)
 
 ## Project Structure
 ```
@@ -119,8 +121,8 @@ git commit --no-verify -m "message"  # Skip hooks (use sparingly)
 ```
 
 ## Recent Changes
+- 006-direct-ocr-endpoints: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints)
 - 005-remove-generic-upload: Added Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+
-- 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
 - 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
 
 ## Platform Limitations

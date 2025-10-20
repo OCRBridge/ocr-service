@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import IO
 
 import structlog
+from fastapi import HTTPException, UploadFile
 
 from src.config import settings
 
@@ -99,6 +100,42 @@ def validate_upload_file(file: IO[bytes]) -> tuple[str, int]:
     validate_file_size(file_size)
 
     return mime_type, file_size
+
+
+# Synchronous endpoint file size validation
+SYNC_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+
+
+async def validate_sync_file_size(file: UploadFile) -> UploadFile:
+    """Validate file size for synchronous OCR endpoints.
+
+    Args:
+        file: Uploaded file from FastAPI
+
+    Returns:
+        Same file if valid
+
+    Raises:
+        HTTPException: 413 Payload Too Large if file exceeds limit
+    """
+    # Read file to determine size
+    contents = await file.read()
+    file_size = len(contents)
+
+    # Reset file pointer for subsequent processing
+    await file.seek(0)
+
+    sync_max_size = settings.sync_max_file_size_bytes
+    if file_size > sync_max_size:
+        size_mb = file_size / (1024 * 1024)
+        limit_mb = settings.sync_max_file_size_mb
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size ({size_mb:.2f}MB) exceeds {limit_mb}MB limit. "
+            f"Use async endpoints (/upload/{{engine}}) for larger files.",
+        )
+
+    return file
 
 
 # Tesseract parameter validation utilities

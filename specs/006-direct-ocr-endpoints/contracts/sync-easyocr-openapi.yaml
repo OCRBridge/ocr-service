@@ -1,0 +1,277 @@
+openapi: 3.1.0
+info:
+  title: RESTful OCR - Synchronous EasyOCR Endpoint
+  description: |
+    Synchronous OCR processing endpoint for EasyOCR engine.
+    Returns hOCR output directly in the HTTP response body.
+
+    **Use cases:**
+    - Multilingual documents (80+ languages supported)
+    - Non-Latin scripts (Chinese, Arabic, Korean, etc.)
+    - GPU-accelerated processing
+    - Quick processing (< 30 seconds)
+    - Small files (< 5MB)
+
+    **Limitations:**
+    - 30-second processing timeout
+    - 5MB file size limit
+    - No job persistence or result storage
+    - For larger/multi-page documents, use async endpoints (/upload/easyocr)
+
+  version: 1.0.0
+  contact:
+    name: RESTful OCR API Support
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (example)
+
+paths:
+  /sync/easyocr:
+    post:
+      summary: Synchronous OCR processing with EasyOCR
+      description: |
+        Upload a document and receive OCR results immediately in the response.
+
+        This endpoint uses EasyOCR for superior multilingual text recognition.
+        Processes documents synchronously and returns hOCR output directly.
+
+        **Processing constraints:**
+        - Maximum file size: 5MB
+        - Maximum processing time: 30 seconds
+        - Supported formats: JPEG, PNG, PDF, TIFF
+
+      operationId: syncEasyOCR
+      tags:
+        - Synchronous OCR
+        - EasyOCR
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    Document file to process (JPEG, PNG, PDF, TIFF).
+                    Maximum size: 5MB.
+                languages:
+                  type: array
+                  items:
+                    type: string
+                  default: ["en"]
+                  description: |
+                    Language codes for OCR recognition (EasyOCR naming convention).
+                    Use EasyOCR format (e.g., 'en', 'ch_sim', 'ja', 'ko').
+                    Max 5 languages. Default: ['en'] if not specified.
+
+                    Common codes: en (English), ch_sim (Simplified Chinese),
+                    ch_tra (Traditional Chinese), ja (Japanese), ko (Korean),
+                    ar (Arabic), fr (French), de (German), es (Spanish).
+
+                    **Usage in curl:**
+                    - Single language: `-F 'languages=en'`
+                    - Multiple languages: `-F 'languages=en' -F 'languages=ch_sim'`
+
+                    Specify multiple languages for multilingual documents.
+                  example: ["en", "ch_sim"]
+                gpu:
+                  type: boolean
+                  default: true
+                  description: |
+                    Enable GPU acceleration (if available).
+                    Significantly faster for complex documents.
+                  example: true
+                paragraph:
+                  type: boolean
+                  default: false
+                  description: |
+                    Enable paragraph detection.
+                    Groups lines into logical paragraphs.
+                  example: false
+                batch_size:
+                  type: integer
+                  default: 1
+                  minimum: 1
+                  maximum: 10
+                  description: |
+                    Batch size for GPU processing.
+                    Higher values improve throughput but increase memory usage.
+                  example: 1
+
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, application/pdf, image/tiff
+
+      responses:
+        '200':
+          description: OCR processing completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncOCRResponse'
+              example:
+                hocr: |
+                  <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><title></title><meta http-equiv="content-type" content="text/html; charset=utf-8" /><meta name='ocr-system' content='easyocr' /><meta name='ocr-capabilities' content='ocr_page ocr_line ocrx_word ocrp_wconf'/></head><body><div class='ocr_page' id='page_1' title='bbox 0 0 2480 3508'><span class='ocr_line' id='line_1_1' title='bbox 150 200 2330 400'><span class='ocrx_word' id='word_1_1' title='bbox 150 200 450 390; x_wconf 98'>你好</span> <span class='ocrx_word' id='word_1_2' title='bbox 500 200 800 390; x_wconf 97'>World</span></span></div></body></html>
+                processing_duration_seconds: 3.12
+                engine: easyocr
+                pages: 1
+
+        '400':
+          description: Bad request - invalid parameters or engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_language:
+                  summary: Unsupported language code
+                  value:
+                    detail: "Unsupported language code: 'xyz'"
+                    status_code: 400
+                engine_unavailable:
+                  summary: EasyOCR engine unavailable
+                  value:
+                    detail: "easyocr engine is unavailable"
+                    status_code: 400
+
+        '408':
+          description: Request timeout - processing exceeded 30-second limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Processing exceeded 30s timeout. Document may be too complex. Use async endpoints (/upload/easyocr) for large or multi-page documents."
+                status_code: 408
+
+        '413':
+          description: Payload too large - file exceeds 5MB limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "File size (6.8MB) exceeds 5MB limit. Use async endpoints (/upload/easyocr) for larger files."
+                status_code: 413
+
+        '415':
+          description: Unsupported media type - invalid file format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Unsupported file format. Supported formats: JPEG, PNG, PDF, TIFF"
+                status_code: 415
+
+        '422':
+          description: Validation error - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Rate limit exceeded. Maximum 100 requests per 60 seconds."
+                status_code: 429
+
+        '500':
+          description: Internal server error - OCR processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "OCR processing failed: EasyOCR error"
+                status_code: 500
+
+components:
+  schemas:
+    SyncOCRResponse:
+      type: object
+      required:
+        - hocr
+        - processing_duration_seconds
+        - engine
+        - pages
+      properties:
+        hocr:
+          type: string
+          description: |
+            hOCR XML output as escaped string.
+            Contains structured OCR results with bounding boxes, confidence scores, and text.
+          minLength: 1
+        processing_duration_seconds:
+          type: number
+          format: float
+          description: Time taken to process the document (seconds)
+          minimum: 0
+          maximum: 30
+          example: 3.12
+        engine:
+          type: string
+          description: OCR engine used for processing
+          enum:
+            - tesseract
+            - easyocr
+            - ocrmac
+          example: easyocr
+        pages:
+          type: integer
+          description: Number of pages processed in the document
+          minimum: 1
+          example: 1
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+        - status_code
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+        status_code:
+          type: integer
+          description: HTTP status code
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+              msg:
+                type: string
+              type:
+                type: string
+
+tags:
+  - name: Synchronous OCR
+    description: Direct request-response OCR processing (no job queue)
+  - name: EasyOCR
+    description: EasyOCR engine endpoints (multilingual, GPU-accelerated)

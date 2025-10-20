@@ -1,0 +1,306 @@
+openapi: 3.1.0
+info:
+  title: RESTful OCR - Synchronous Tesseract Endpoint
+  description: |
+    Synchronous OCR processing endpoint for Tesseract engine.
+    Returns hOCR output directly in the HTTP response body.
+
+    **Use cases:**
+    - Single-page documents
+    - Quick processing (< 30 seconds)
+    - Small files (< 5MB)
+    - Simple request-response integration
+
+    **Limitations:**
+    - 30-second processing timeout
+    - 5MB file size limit
+    - No job persistence or result storage
+    - For larger/multi-page documents, use async endpoints (/upload/tesseract)
+
+  version: 1.0.0
+  contact:
+    name: RESTful OCR API Support
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (example)
+
+paths:
+  /sync/tesseract:
+    post:
+      summary: Synchronous OCR processing with Tesseract
+      description: |
+        Upload a document and receive OCR results immediately in the response.
+
+        This endpoint processes the document synchronously and returns hOCR output
+        directly, eliminating the need for job status polling. Ideal for single-page
+        documents and real-time integrations.
+
+        **Processing constraints:**
+        - Maximum file size: 5MB
+        - Maximum processing time: 30 seconds
+        - Supported formats: JPEG, PNG, PDF, TIFF
+
+      operationId: syncTesseract
+      tags:
+        - Synchronous OCR
+        - Tesseract
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    Document file to process (JPEG, PNG, PDF, TIFF).
+                    Maximum size: 5MB.
+                lang:
+                  type: string
+                  default: eng
+                  description: |
+                    Tesseract language code (e.g., 'eng', 'fra', 'spa', 'deu').
+                    Multiple languages separated by '+' (e.g., 'eng+fra').
+                  example: eng
+                psm:
+                  type: integer
+                  default: 3
+                  minimum: 0
+                  maximum: 13
+                  description: |
+                    Page Segmentation Mode:
+                    - 0: Orientation and script detection only
+                    - 1: Automatic page segmentation with OSD
+                    - 3: Fully automatic page segmentation (default)
+                    - 6: Assume a single uniform block of text
+                    - 11: Sparse text; find as much text as possible
+                  example: 3
+                oem:
+                  type: integer
+                  default: 1
+                  minimum: 0
+                  maximum: 3
+                  description: |
+                    OCR Engine Mode:
+                    - 0: Legacy engine only
+                    - 1: Neural nets LSTM engine only (default)
+                    - 2: Legacy + LSTM engines
+                    - 3: Default, based on what is available
+                  example: 1
+                dpi:
+                  type: integer
+                  default: 300
+                  minimum: 72
+                  maximum: 600
+                  description: |
+                    DPI for PDF rendering. Higher values improve quality but increase processing time.
+                  example: 300
+                config:
+                  type: string
+                  description: |
+                    Additional Tesseract configuration string (advanced).
+                    Example: 'tessedit_char_whitelist=0123456789'
+                  example: ""
+
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, application/pdf, image/tiff
+
+      responses:
+        '200':
+          description: OCR processing completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncOCRResponse'
+              example:
+                hocr: |
+                  <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><title></title><meta http-equiv="content-type" content="text/html; charset=utf-8" /><meta name='ocr-system' content='tesseract 5.3.0' /><meta name='ocr-capabilities' content='ocr_page ocr_carea ocr_par ocr_line ocrx_word ocrp_wconf'/></head><body><div class='ocr_page' id='page_1' title='bbox 0 0 2480 3508'><div class='ocr_carea' id='carea_1_1' title='bbox 150 200 2330 400'><p class='ocr_par' id='par_1_1' title='bbox 150 200 2330 400'><span class='ocr_line' id='line_1_1' title='bbox 150 200 2330 400; baseline 0 -10'><span class='ocrx_word' id='word_1_1' title='bbox 150 200 450 390; x_wconf 95'>Sample</span> <span class='ocrx_word' id='word_1_2' title='bbox 500 200 800 390; x_wconf 96'>Text</span></span></p></div></div></body></html>
+                processing_duration_seconds: 2.34
+                engine: tesseract
+                pages: 1
+
+        '400':
+          description: Bad request - invalid parameters or engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_psm:
+                  summary: Invalid PSM value
+                  value:
+                    detail: "PSM must be between 0 and 13"
+                    status_code: 400
+                engine_unavailable:
+                  summary: Tesseract engine unavailable
+                  value:
+                    detail: "tesseract engine is unavailable"
+                    status_code: 400
+
+        '408':
+          description: Request timeout - processing exceeded 30-second limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Processing exceeded 30s timeout. Document may be too complex. Use async endpoints (/upload/tesseract) for large or multi-page documents."
+                status_code: 408
+
+        '413':
+          description: Payload too large - file exceeds 5MB limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "File size (7.2MB) exceeds 5MB limit. Use async endpoints (/upload/tesseract) for larger files."
+                status_code: 413
+
+        '415':
+          description: Unsupported media type - invalid file format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Unsupported file format. Supported formats: JPEG, PNG, PDF, TIFF"
+                status_code: 415
+
+        '422':
+          description: Validation error - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                detail:
+                  - loc: ["body", "psm"]
+                    msg: "ensure this value is less than or equal to 13"
+                    type: "value_error.number.not_le"
+
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Rate limit exceeded. Maximum 100 requests per 60 seconds."
+                status_code: 429
+
+        '500':
+          description: Internal server error - OCR processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "OCR processing failed: Tesseract error"
+                status_code: 500
+
+        '503':
+          description: Service unavailable - OCR engine not responding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "OCR service temporarily unavailable"
+                status_code: 503
+
+components:
+  schemas:
+    SyncOCRResponse:
+      type: object
+      required:
+        - hocr
+        - processing_duration_seconds
+        - engine
+        - pages
+      properties:
+        hocr:
+          type: string
+          description: |
+            hOCR XML output as escaped string.
+            Contains structured OCR results with bounding boxes, confidence scores, and text.
+          minLength: 1
+          example: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title></title></head><body><div class='ocr_page'><span class='ocrx_word'>Sample</span></div></body></html>"
+        processing_duration_seconds:
+          type: number
+          format: float
+          description: Time taken to process the document (seconds)
+          minimum: 0
+          maximum: 30
+          example: 2.34
+        engine:
+          type: string
+          description: OCR engine used for processing
+          enum:
+            - tesseract
+            - easyocr
+            - ocrmac
+          example: tesseract
+        pages:
+          type: integer
+          description: Number of pages processed in the document
+          minimum: 1
+          example: 1
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+        - status_code
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: "Processing exceeded 30s timeout"
+        status_code:
+          type: integer
+          description: HTTP status code
+          example: 408
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                description: Location of the error in the request
+              msg:
+                type: string
+                description: Error message
+              type:
+                type: string
+                description: Error type identifier
+
+  securitySchemes:
+    # No authentication required for MVP
+    # Future: Add API key or OAuth2
+    {}
+
+tags:
+  - name: Synchronous OCR
+    description: Direct request-response OCR processing (no job queue)
+  - name: Tesseract
+    description: Tesseract OCR engine endpoints

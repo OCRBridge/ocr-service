@@ -22,6 +22,9 @@ dependencies = [
     "ocrmac>=0.1.0; sys_platform == 'darwin'",
     "easyocr>=1.7.0",
     "torch>=2.0.0",
+    # Pin opencv-python-headless to avoid broken 4.11.0.86 release
+    # See: https://github.com/opencv/opencv-python/issues (version 4.11.0.86 has missing attributes)
+    "opencv-python-headless>=4.8.0,<4.11.0",
 ]
 
 [dependency-groups]

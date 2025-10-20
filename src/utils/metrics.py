@@ -58,3 +58,30 @@ document_pages = Histogram(
     "Number of pages in processed documents",
     buckets=[1, 2, 5, 10, 20, 50, 100],
 )
+
+# Synchronous endpoint metrics
+sync_ocr_requests_total = Counter(
+    "sync_ocr_requests_total",
+    "Total synchronous OCR requests",
+    ["engine", "status"],  # status: success, timeout, error, rejected
+)
+
+sync_ocr_duration_seconds = Histogram(
+    "sync_ocr_duration_seconds",
+    "Synchronous OCR processing duration in seconds",
+    ["engine"],
+    buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0],  # Aligned with timeout
+)
+
+sync_ocr_timeouts_total = Counter(
+    "sync_ocr_timeouts_total",
+    "Total synchronous OCR timeout errors",
+    ["engine"],
+)
+
+sync_ocr_file_size_bytes = Histogram(
+    "sync_ocr_file_size_bytes",
+    "Synchronous OCR uploaded file sizes in bytes",
+    ["engine"],
+    buckets=[10240, 102400, 524288, 1048576, 2621440, 5242880],  # 10KB to 5MB
+)
