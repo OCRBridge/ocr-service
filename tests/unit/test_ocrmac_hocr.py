@@ -2,6 +2,8 @@
 
 import xml.etree.ElementTree as ET
 
+import pytest
+
 from src.services.ocr.ocrmac import OcrmacEngine
 
 
@@ -320,3 +322,150 @@ class TestOcrmacHocrStructure:
         assert words[0].text == "Text1"
         assert words[1].text == "Text2"
         assert words[2].text == "Text3"
+
+    def test_hocr_metadata_with_livetext_framework(self):
+        """Test that hOCR metadata includes 'ocrmac-livetext' for LiveText framework (T033)."""
+        engine = OcrmacEngine()
+        annotations = [("Test", 1.0, [0.1, 0.2, 0.1, 0.05])]
+
+        # Test with livetext recognition level
+        hocr_xml_livetext = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "livetext")
+
+        # Parse XML
+        xml_content_livetext = hocr_xml_livetext.split("\n", 2)[2]
+        root_livetext = ET.fromstring(xml_content_livetext)
+
+        # Find ocr-system metadata
+        meta_system = root_livetext.find(
+            './/{http://www.w3.org/1999/xhtml}meta[@name="ocr-system"]'
+        )
+        assert meta_system is not None
+        assert meta_system.get("content") == "ocrmac-livetext via restful-ocr"
+
+        # Compare with Vision framework (other recognition levels)
+        for recognition_level in ["fast", "balanced", "accurate"]:
+            hocr_xml_vision = engine._convert_to_hocr(
+                annotations, 800, 600, ["en-US"], recognition_level
+            )
+            xml_content_vision = hocr_xml_vision.split("\n", 2)[2]
+            root_vision = ET.fromstring(xml_content_vision)
+
+            meta_system_vision = root_vision.find(
+                './/{http://www.w3.org/1999/xhtml}meta[@name="ocr-system"]'
+            )
+            assert meta_system_vision is not None
+            assert meta_system_vision.get("content") == "ocrmac via restful-ocr"
+
+    def test_hocr_confidence_always_100_for_livetext(self):
+        """Test that LiveText always returns confidence 100 in hOCR output (T034)."""
+        engine = OcrmacEngine()
+
+        # LiveText framework always returns confidence 1.0
+        annotations_livetext = [
+            ("Word1", 1.0, [0.1, 0.2, 0.1, 0.05]),
+            ("Word2", 1.0, [0.3, 0.2, 0.1, 0.05]),
+            ("Word3", 1.0, [0.5, 0.2, 0.1, 0.05]),
+        ]
+
+        hocr_xml = engine._convert_to_hocr(annotations_livetext, 800, 600, ["en-US"], "livetext")
+
+        # Parse XML
+        xml_content = hocr_xml.split("\n", 2)[2]
+        root = ET.fromstring(xml_content)
+
+        # Find all words
+        words = root.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
+        assert len(words) == 3
+
+        # Verify all words have confidence 100
+        for word in words:
+            title = word.get("title")
+            assert "x_wconf 100" in title, (
+                f"LiveText should always have confidence 100, got: {title}"
+            )
+
+        # Verify text is preserved
+        assert words[0].text == "Word1"
+        assert words[1].text == "Word2"
+        assert words[2].text == "Word3"
+
+
+class TestAnnotationFormatValidation:
+    """Test annotation format validation for LiveText output (T032)."""
+
+    def test_annotation_format_validation_with_valid_annotations(self):
+        """Test that valid annotation format passes validation (T032)."""
+        engine = OcrmacEngine()
+
+        # Valid annotations: [(text, confidence, bbox), ...]
+        valid_annotations = [
+            ("Hello", 1.0, [0.1, 0.2, 0.1, 0.05]),  # 3-tuple: text, conf, bbox
+            ("World", 1.0, [0.25, 0.2, 0.12, 0.05]),  # bbox is 4-element list
+        ]
+
+        # Should not raise exception
+        hocr_xml = engine._convert_to_hocr(valid_annotations, 800, 600, ["en-US"], "livetext")
+
+        # Verify hOCR was generated
+        assert '<?xml version="1.0"' in hocr_xml
+        assert "Hello" in hocr_xml
+        assert "World" in hocr_xml
+
+    def test_annotation_format_validation_detects_invalid_tuple_length(self):
+        """Test that invalid annotation tuple length is detected."""
+        engine = OcrmacEngine()
+
+        # Invalid annotations: 2-tuple instead of 3-tuple
+        invalid_annotations = [
+            ("Text", 1.0),  # Missing bbox!
+        ]
+
+        # Should raise ValueError or IndexError when trying to unpack
+        with pytest.raises((ValueError, IndexError)):
+            engine._convert_to_hocr(invalid_annotations, 800, 600, ["en-US"], "livetext")
+
+    def test_annotation_format_validation_detects_invalid_bbox_length(self):
+        """Test that invalid bbox length is detected."""
+        engine = OcrmacEngine()
+
+        # Invalid annotations: bbox has only 3 elements instead of 4
+        invalid_annotations = [
+            ("Text", 1.0, [0.1, 0.2, 0.1]),  # Missing height!
+        ]
+
+        # Should raise ValueError or IndexError when accessing bbox elements
+        with pytest.raises((ValueError, IndexError)):
+            engine._convert_to_hocr(invalid_annotations, 800, 600, ["en-US"], "livetext")
+
+    def test_annotation_format_validation_with_non_list_bbox(self):
+        """Test that non-list bbox format is handled."""
+        engine = OcrmacEngine()
+
+        # Invalid annotations: bbox is tuple instead of list (should still work)
+        annotations_with_tuple_bbox = [
+            ("Text", 1.0, (0.1, 0.2, 0.1, 0.05)),  # Tuple instead of list
+        ]
+
+        # Tuples should work the same as lists (both are sequences)
+        hocr_xml = engine._convert_to_hocr(
+            annotations_with_tuple_bbox, 800, 600, ["en-US"], "livetext"
+        )
+
+        assert "Text" in hocr_xml
+
+    def test_annotation_format_validation_with_empty_text(self):
+        """Test handling of annotations with empty text."""
+        engine = OcrmacEngine()
+
+        # Annotations with empty string
+        annotations_empty_text = [
+            ("", 1.0, [0.1, 0.2, 0.1, 0.05]),  # Empty text
+            ("Valid", 1.0, [0.3, 0.2, 0.1, 0.05]),
+        ]
+
+        # Should still generate hOCR (empty words are valid in hOCR)
+        hocr_xml = engine._convert_to_hocr(annotations_empty_text, 800, 600, ["en-US"], "livetext")
+
+        assert "Valid" in hocr_xml
+        # Empty text should create an element but with no text content
+        assert '<span class="ocrx_word"' in hocr_xml

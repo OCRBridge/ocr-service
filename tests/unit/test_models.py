@@ -1,5 +1,84 @@
 """Unit tests for Pydantic model validation and state transitions."""
 
+import pytest
+from pydantic import ValidationError
+
+from src.models.ocr_params import OcrmacParams, RecognitionLevel
+
+
+def test_recognition_level_enum_includes_livetext():
+    """Test RecognitionLevel enum includes LIVETEXT value (T025)."""
+    # Verify all expected enum values exist
+    assert hasattr(RecognitionLevel, "FAST")
+    assert hasattr(RecognitionLevel, "BALANCED")
+    assert hasattr(RecognitionLevel, "ACCURATE")
+    assert hasattr(RecognitionLevel, "LIVETEXT")
+
+    # Verify string values
+    assert RecognitionLevel.FAST.value == "fast"
+    assert RecognitionLevel.BALANCED.value == "balanced"
+    assert RecognitionLevel.ACCURATE.value == "accurate"
+    assert RecognitionLevel.LIVETEXT.value == "livetext"
+
+    # Verify enum members list
+    all_levels = [level.value for level in RecognitionLevel]
+    assert "livetext" in all_levels
+    assert len(all_levels) == 4  # fast, balanced, accurate, livetext
+
+
+def test_pydantic_validation_accepts_livetext():
+    """Test Pydantic validation accepts 'livetext' as valid recognition_level (T026)."""
+    # Create OcrmacParams with livetext
+    params = OcrmacParams(recognition_level="livetext")
+
+    assert params.recognition_level == RecognitionLevel.LIVETEXT
+    assert params.recognition_level.value == "livetext"
+
+    # Verify default remains BALANCED
+    params_default = OcrmacParams()
+    assert params_default.recognition_level == RecognitionLevel.BALANCED
+
+    # Test all valid values
+    for level in ["fast", "balanced", "accurate", "livetext"]:
+        params = OcrmacParams(recognition_level=level)
+        assert params.recognition_level.value == level
+
+
+def test_pydantic_validation_rejects_livetext_typo():
+    """Test Pydantic validation rejects 'livetextt' typo and other invalid values (T027)."""
+    # Test typo: extra 't'
+    with pytest.raises(ValidationError) as exc_info:
+        OcrmacParams(recognition_level="livetextt")
+
+    error = exc_info.value.errors()[0]
+    assert error["loc"] == ("recognition_level",)
+    assert "enum" in error["type"].lower() or "literal" in error["type"].lower()
+    assert "livetext" in str(error["msg"])  # Error message should mention valid values
+
+    # Test other invalid values
+    invalid_values = ["live_text", "LiveText", "LIVETEXT", "liveText", "live-text", ""]
+
+    for invalid_value in invalid_values:
+        with pytest.raises(ValidationError):
+            OcrmacParams(recognition_level=invalid_value)
+
+
+def test_default_recognition_level_remains_balanced():
+    """Test default recognition_level remains BALANCED after adding livetext (T028)."""
+    # Create OcrmacParams without specifying recognition_level
+    params = OcrmacParams()
+
+    assert params.recognition_level == RecognitionLevel.BALANCED
+    assert params.recognition_level.value == "balanced"
+
+    # Verify with explicit default
+    params_explicit = OcrmacParams(recognition_level=RecognitionLevel.BALANCED)
+    assert params_explicit.recognition_level == params.recognition_level
+
+    # Verify with languages parameter (should still default to BALANCED)
+    params_with_langs = OcrmacParams(languages=["en-US", "fr-FR"])
+    assert params_with_langs.recognition_level == RecognitionLevel.BALANCED
+
 
 def test_document_upload_model_validation():
     """Test DocumentUpload model validates fields correctly."""

@@ -20,6 +20,8 @@ Auto-generated from all feature plans. Last updated: 2025-10-18
 - pre-commit 3.5+ (Git hooks for code quality)
 - Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints) (006-direct-ocr-endpoints)
 - Filesystem (temporary uploaded files - cleaned up immediately after sync processing), Redis 7.0+ (job state for async endpoints only) (006-direct-ocr-endpoints)
+- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+ (007-ocrmac-livetext-option)
+- Redis (job state for async), filesystem (temporary uploaded files) (007-ocrmac-livetext-option)
 
 ## Project Structure
 ```
@@ -121,9 +123,9 @@ git commit --no-verify -m "message"  # Skip hooks (use sparingly)
 ```
 
 ## Recent Changes
+- 007-ocrmac-livetext-option: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+
 - 006-direct-ocr-endpoints: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints)
 - 005-remove-generic-upload: Added Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+
-- 004-easyocr-engine: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+
 
 ## Platform Limitations
 
@@ -135,6 +137,17 @@ git commit --no-verify -m "message"  # Skip hooks (use sparingly)
   - ❌ Not available in Docker containers
   - ✅ Tesseract and EasyOCR remain available in all environments
 - **Workaround**: Use Tesseract or EasyOCR engines for containerized deployments
+
+### ocrmac LiveText Recognition Level
+- **Library Version**: Requires ocrmac 0.1+ with `framework` parameter support
+- **Platform Requirement**: macOS Sonoma 14.0+ (LiveText framework)
+- **Limitation**: LiveText is unavailable on macOS versions < 14.0
+- **Impact**:
+  - ✅ `fast`, `balanced`, `accurate` work on macOS 10.15+ (Vision framework)
+  - ✅ `livetext` works on macOS Sonoma 14.0+ (LiveText framework)
+  - ❌ `livetext` not available on pre-Sonoma macOS or in Docker containers
+- **Error Handling**: API returns HTTP 400 with clear message if LiveText requested on incompatible system
+- **Performance**: ~174ms per image (faster than "accurate" 207ms, slower than "fast" 131ms)
 
 ### Docker base image requirements
 - **Use Debian-based images** (`python:3.11-slim`) for ML/AI dependencies (PyTorch, EasyOCR)

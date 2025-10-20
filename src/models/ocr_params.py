@@ -9,11 +9,23 @@ from src.utils.validators import EASYOCR_SUPPORTED_LANGUAGES
 
 
 class RecognitionLevel(str, Enum):
-    """ocrmac recognition level options."""
+    """ocrmac recognition level options.
+
+    Platform requirements:
+    - fast, balanced, accurate: macOS 10.15+ (Vision framework)
+    - livetext: macOS Sonoma 14.0+ (LiveText framework)
+
+    Performance notes:
+    - fast: ~131ms per image (fewer languages, faster processing)
+    - balanced: ~150ms per image (default, good balance)
+    - accurate: ~207ms per image (slower, highest accuracy)
+    - livetext: ~174ms per image (enhanced accuracy, Sonoma+ only)
+    """
 
     FAST = "fast"
     BALANCED = "balanced"
     ACCURATE = "accurate"
+    LIVETEXT = "livetext"
 
 
 class OcrmacParams(BaseModel):
@@ -29,7 +41,7 @@ class OcrmacParams(BaseModel):
 
     recognition_level: RecognitionLevel = Field(
         RecognitionLevel.BALANCED,
-        description="Recognition level: fast (fewer languages, faster), balanced (default), accurate (slower)",
+        description="Recognition level: fast (~131ms), balanced (default, ~150ms), accurate (~207ms), livetext (~174ms, requires macOS Sonoma 14.0+)",
     )
 
     @field_validator("languages")

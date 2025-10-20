@@ -261,3 +261,68 @@ def test_sync_ocrmac_openapi_response_schema(client: TestClient):
         "engine",
         "pages",
     }
+
+
+# T040: Contract test for LiveText recognition_level in OpenAPI schema
+
+
+def test_sync_ocrmac_openapi_recognition_level_includes_livetext(client: TestClient):
+    """T040: Test that OpenAPI schema includes 'livetext' in recognition_level pattern."""
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+
+    openapi_schema = response.json()
+
+    # Find the sync ocrmac endpoint schema
+    sync_ocrmac_path = openapi_schema["paths"]["/sync/ocrmac"]["post"]
+
+    # Get the request body schema reference
+    request_body_ref = sync_ocrmac_path["requestBody"]["content"]["multipart/form-data"]["schema"][
+        "$ref"
+    ]
+    schema_name = request_body_ref.split("/")[-1]
+
+    # Get the Body schema
+    body_schema = openapi_schema["components"]["schemas"][schema_name]
+
+    # Check recognition_level field
+    assert "recognition_level" in body_schema["properties"], (
+        "recognition_level not found in request schema"
+    )
+
+    recognition_level_prop = body_schema["properties"]["recognition_level"]
+
+    # Should have a pattern that includes all four recognition levels
+    # The field is anyOf [pattern string, null] due to Form(None, pattern=...)
+    if "anyOf" in recognition_level_prop:
+        # Find the pattern in anyOf options
+        pattern_found = None
+        for option in recognition_level_prop["anyOf"]:
+            if "pattern" in option:
+                pattern_found = option["pattern"]
+                break
+
+        assert pattern_found is not None, "Pattern not found in recognition_level anyOf options"
+
+        # Verify the pattern includes all four values
+        assert "fast" in pattern_found, "fast not in recognition_level pattern"
+        assert "balanced" in pattern_found, "balanced not in recognition_level pattern"
+        assert "accurate" in pattern_found, "accurate not in recognition_level pattern"
+        assert "livetext" in pattern_found, "livetext not in recognition_level pattern"
+
+        # Verify the exact pattern format
+        assert pattern_found == "^(fast|balanced|accurate|livetext)$", (
+            f"Expected pattern '^(fast|balanced|accurate|livetext)$', got '{pattern_found}'"
+        )
+    elif "pattern" in recognition_level_prop:
+        # Direct pattern field
+        pattern = recognition_level_prop["pattern"]
+        assert (
+            "fast" in pattern
+            and "balanced" in pattern
+            and "accurate" in pattern
+            and "livetext" in pattern
+        )
+        assert pattern == "^(fast|balanced|accurate|livetext)$"
+    else:
+        raise AssertionError("recognition_level field does not have a pattern constraint")

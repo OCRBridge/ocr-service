@@ -43,11 +43,13 @@ def parse_hocr(hocr_content: str) -> HOCRInfo:
     except ET.ParseError as e:
         raise HOCRParseError(f"Failed to parse HOCR XML: {e}")
 
+    # Define namespace for XML queries (used if elements not found without it)
+    namespace = {"html": "http://www.w3.org/1999/xhtml"}
+
     # Count pages (elements with class="ocr_page")
     page_count = len(root.findall(".//*[@class='ocr_page']"))
     if page_count == 0:
         # Try with namespace
-        namespace = {"html": "http://www.w3.org/1999/xhtml"}
         page_count = len(root.findall(".//*[@class='ocr_page']", namespace))
 
     # Count words (elements with class="ocrx_word")

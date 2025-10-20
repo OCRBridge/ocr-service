@@ -331,11 +331,12 @@ async def upload_document_ocrmac(
         description=(
             "Recognition level: 'fast' (faster, fewer languages), "
             "'balanced' (default, good speed/accuracy), "
-            "'accurate' (slower, more accurate). "
+            "'accurate' (slower, more accurate), "
+            "'livetext' (Apple LiveText, macOS Sonoma 14.0+). "
             "Default: balanced"
         ),
-        pattern=r"^(fast|balanced|accurate)$",
-        examples=["balanced", "fast", "accurate"],
+        pattern=r"^(fast|balanced|accurate|livetext)$",
+        examples=["balanced", "fast", "accurate", "livetext"],
     ),
     redis: aioredis.Redis = Depends(get_redis),
 ):

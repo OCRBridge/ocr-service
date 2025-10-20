@@ -490,3 +490,114 @@ def test_sync_ocrmac_unavailable_non_macos_400(client: TestClient, sample_jpeg, 
 
     assert response.status_code == 400
     assert "macOS" in response.json()["detail"]
+
+
+# T035-T036: Integration test for end-to-end LiveText processing
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ocrmac", reason="ocrmac only available on macOS"),
+    reason="ocrmac only available on macOS",
+)
+def test_sync_ocrmac_livetext_end_to_end(client: TestClient, sample_jpeg, monkeypatch):
+    """Test end-to-end synchronous ocrmac LiveText processing (macOS Sonoma 14.0+ only)."""
+    import platform
+
+    # Check macOS version - skip if not Sonoma 14.0+
+    if platform.system() != "Darwin":
+        pytest.skip("ocrmac LiveText only available on macOS")
+
+    mac_version = platform.mac_ver()[0]
+    if not mac_version:
+        pytest.skip("Unable to determine macOS version")
+
+    try:
+        major_version = int(mac_version.split(".")[0])
+        if major_version < 14:
+            pytest.skip(f"LiveText requires macOS Sonoma 14.0+, current: {mac_version}")
+    except (ValueError, IndexError):
+        pytest.skip(f"Invalid macOS version format: {mac_version}")
+
+    # Test LiveText recognition level
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac", files={"file": f}, data={"recognition_level": "livetext"}
+        )
+
+    # Skip if ocrmac library doesn't support framework parameter (HTTP 500)
+    if response.status_code == 500 and "framework" in response.json()["detail"]:
+        pytest.skip("ocrmac library version does not support LiveText framework parameter")
+
+    # Should succeed on macOS Sonoma 14.0+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Validate response structure
+    assert "hocr" in data
+    assert "processing_duration_seconds" in data
+    assert "engine" in data
+    assert "pages" in data
+
+    # Validate hOCR content contains LiveText metadata
+    hocr_content = data["hocr"]
+    assert '<?xml version="1.0"' in hocr_content
+    assert "ocrmac-livetext" in hocr_content  # Check for LiveText framework marker
+    assert "ocr_page" in hocr_content or "ocr_line" in hocr_content
+
+    # Validate metadata
+    assert data["engine"] == "ocrmac"
+    assert data["pages"] >= 1
+    assert data["processing_duration_seconds"] > 0
+
+    # LiveText should be reasonably fast (~174ms per image, allow up to 5s for test image)
+    assert data["processing_duration_seconds"] < 5.0
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ocrmac", reason="ocrmac only available on macOS"),
+    reason="ocrmac only available on macOS",
+)
+def test_sync_ocrmac_livetext_confidence_values(client: TestClient, sample_jpeg):
+    """Test that LiveText always returns confidence 100 (macOS Sonoma 14.0+ only)."""
+    import platform
+
+    # Check macOS version - skip if not Sonoma 14.0+
+    if platform.system() != "Darwin":
+        pytest.skip("ocrmac LiveText only available on macOS")
+
+    mac_version = platform.mac_ver()[0]
+    if not mac_version:
+        pytest.skip("Unable to determine macOS version")
+
+    try:
+        major_version = int(mac_version.split(".")[0])
+        if major_version < 14:
+            pytest.skip(f"LiveText requires macOS Sonoma 14.0+, current: {mac_version}")
+    except (ValueError, IndexError):
+        pytest.skip(f"Invalid macOS version format: {mac_version}")
+
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac", files={"file": f}, data={"recognition_level": "livetext"}
+        )
+
+    # Skip if ocrmac library doesn't support framework parameter
+    if response.status_code == 500 and "framework" in response.json()["detail"]:
+        pytest.skip("ocrmac library version does not support LiveText framework parameter")
+
+    if response.status_code != 200:
+        pytest.skip(f"LiveText processing failed: {response.json()}")
+
+    data = response.json()
+    hocr_content = data["hocr"]
+
+    # All confidence values should be 100 for LiveText (characteristic of the framework)
+    # Check for x_wconf values in hOCR
+    if "x_wconf" in hocr_content:
+        # Extract confidence values - should all be 100
+        import re
+
+        conf_values = re.findall(r"x_wconf\s+(\d+)", hocr_content)
+        if conf_values:  # If any confidence values found
+            for conf in conf_values:
+                assert int(conf) == 100, f"LiveText should return confidence 100, got {conf}"

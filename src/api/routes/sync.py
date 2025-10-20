@@ -531,11 +531,12 @@ async def sync_ocrmac(
         None,
         description=(
             "Recognition level: 'fast' (fewer languages, faster), "
-            "'balanced' (default), 'accurate' (slower, more thorough). "
+            "'balanced' (default), 'accurate' (slower, more thorough), "
+            "'livetext' (Apple LiveText, macOS Sonoma 14.0+). "
             "Default: balanced"
         ),
-        pattern="^(fast|balanced|accurate)$",
-        examples=["balanced"],
+        pattern="^(fast|balanced|accurate|livetext)$",
+        examples=["balanced", "livetext"],
     ),
 ) -> SyncOCRResponse:
     """Process document with synchronous ocrmac endpoint.

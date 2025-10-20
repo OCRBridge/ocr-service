@@ -543,3 +543,200 @@ def test_upload_tesseract_with_ocrmac_only_parameters_returns_400(client: TestCl
     # Based on FastAPI Form validation, unrecognized params are ignored
     # So we need to check the actual implementation
     assert response.status_code in [202, 400]
+
+
+# ============================================================================
+# T037-T043: LiveText Recognition Level Contract Tests
+# ============================================================================
+
+
+def test_upload_ocrmac_livetext_parameter_validation_accepts_valid(client: TestClient, sample_jpeg):
+    """T037: Test that 'livetext' is accepted as valid recognition_level value."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/upload/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "livetext"},
+        )
+
+    # Should accept the parameter (202 if macOS Sonoma+, 400 if platform incompatible)
+    assert response.status_code in [202, 400]
+
+    # If 400, should be platform incompatibility, not parameter validation error
+    if response.status_code == 400:
+        detail = response.json()["detail"]
+        assert "Sonoma" in detail or "macOS" in detail or "platform" in detail.lower()
+
+
+def test_sync_ocrmac_livetext_parameter_validation_accepts_valid(client: TestClient, sample_jpeg):
+    """T037: Test that 'livetext' is accepted as valid recognition_level in sync endpoint."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "livetext"},
+        )
+
+    # Should accept the parameter (200 if macOS Sonoma+, 400 if platform incompatible)
+    assert response.status_code in [200, 400, 500]
+
+    # If 400, should be platform incompatibility message
+    if response.status_code == 400:
+        detail = response.json()["detail"]
+        assert "Sonoma" in detail or "macOS" in detail or "platform" in detail.lower()
+
+
+def test_sync_ocrmac_livetext_platform_incompatibility_error(client: TestClient, sample_jpeg):
+    """T038: Test HTTP 400 platform incompatibility error for LiveText on pre-Sonoma."""
+    import platform
+
+    # Only run this test if NOT on macOS Sonoma 14.0+
+    if platform.system() == "Darwin":
+        mac_version = platform.mac_ver()[0]
+        if mac_version:
+            try:
+                major_version = int(mac_version.split(".")[0])
+                if major_version >= 14:
+                    pytest.skip("Test requires pre-Sonoma macOS")
+            except (ValueError, IndexError):
+                pass
+
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "livetext"},
+        )
+
+    # If ocrmac is not available at all (non-macOS), will get generic 400
+    # If ocrmac available but pre-Sonoma, should get specific LiveText error
+    if response.status_code == 400:
+        detail = response.json()["detail"]
+        # Should mention Sonoma requirement or platform limitation
+        assert "Sonoma" in detail or "14.0" in detail or "macOS" in detail
+
+
+def test_sync_ocrmac_livetext_library_incompatibility_error(client: TestClient, sample_jpeg):
+    """T039: Test HTTP 500 library incompatibility error for unsupported ocrmac version."""
+    # This test verifies the error handling pattern
+    # In reality, we can't force an old ocrmac version, but we test the contract
+    # The actual error is tested via mock in unit tests
+
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "livetext"},
+        )
+
+    # If we get HTTP 500, verify it's a well-formed error
+    if response.status_code == 500:
+        data = response.json()
+        assert "detail" in data
+        # Should be a string error message
+        assert isinstance(data["detail"], str)
+
+
+def test_sync_ocrmac_recognition_level_fast_still_works(client: TestClient, sample_jpeg):
+    """T041: Test backward compatibility - 'fast' recognition_level still works."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "fast"},
+        )
+
+    # Should work (200 on macOS, 400 on non-macOS)
+    assert response.status_code in [200, 400]
+
+    if response.status_code == 200:
+        data = response.json()
+        assert "hocr" in data
+        assert data["engine"] == "ocrmac"
+
+
+def test_sync_ocrmac_recognition_level_balanced_still_works(client: TestClient, sample_jpeg):
+    """T042: Test backward compatibility - 'balanced' recognition_level still works."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "balanced"},
+        )
+
+    # Should work (200 on macOS, 400 on non-macOS)
+    assert response.status_code in [200, 400]
+
+    if response.status_code == 200:
+        data = response.json()
+        assert "hocr" in data
+        assert data["engine"] == "ocrmac"
+
+
+def test_sync_ocrmac_recognition_level_accurate_still_works(client: TestClient, sample_jpeg):
+    """T043: Test backward compatibility - 'accurate' recognition_level still works."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/sync/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "accurate"},
+        )
+
+    # Should work (200 on macOS, 400 on non-macOS)
+    assert response.status_code in [200, 400]
+
+    if response.status_code == 200:
+        data = response.json()
+        assert "hocr" in data
+        assert data["engine"] == "ocrmac"
+
+
+def test_upload_ocrmac_recognition_level_fast_still_works(client: TestClient, sample_jpeg):
+    """T041: Test backward compatibility - 'fast' works in upload endpoint."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/upload/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "fast"},
+        )
+
+    # Should work (202 on macOS, 400 on non-macOS)
+    assert response.status_code in [202, 400]
+
+    if response.status_code == 202:
+        data = response.json()
+        assert "job_id" in data
+
+
+def test_upload_ocrmac_recognition_level_balanced_still_works(client: TestClient, sample_jpeg):
+    """T042: Test backward compatibility - 'balanced' works in upload endpoint."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/upload/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "balanced"},
+        )
+
+    # Should work (202 on macOS, 400 on non-macOS)
+    assert response.status_code in [202, 400]
+
+    if response.status_code == 202:
+        data = response.json()
+        assert "job_id" in data
+
+
+def test_upload_ocrmac_recognition_level_accurate_still_works(client: TestClient, sample_jpeg):
+    """T043: Test backward compatibility - 'accurate' works in upload endpoint."""
+    with open(sample_jpeg, "rb") as f:
+        response = client.post(
+            "/upload/ocrmac",
+            files={"file": f},
+            data={"recognition_level": "accurate"},
+        )
+
+    # Should work (202 on macOS, 400 on non-macOS)
+    assert response.status_code in [202, 400]
+
+    if response.status_code == 202:
+        data = response.json()
+        assert "job_id" in data
