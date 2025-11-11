@@ -24,22 +24,14 @@ Auto-generated from all feature plans. Last updated: 2025-10-18
 - Redis (job state for async), filesystem (temporary uploaded files) (007-ocrmac-livetext-option)
 
 ## Project Structure
+
 ```
 src/                    # Application source code
-├── main.py            # FastAPI app entry point
-├── config.py          # Pydantic settings
-├── models/            # Data models
-├── api/               # API routes and middleware
-├── services/          # Business logic
-└── utils/             # Shared utilities
 tests/                 # Test suite (TDD)
-├── unit/              # Unit tests
-├── integration/       # Integration tests
-├── contract/          # OpenAPI contract tests
-└── performance/       # Performance tests
 samples/               # Test fixtures
-specs/                 # Design documentation
 ```
+
+For detailed project structure with explanations of each directory, see [CONTRIBUTING.md - Project Structure](CONTRIBUTING.md#project-structure).
 
 ## Commands
 
@@ -102,25 +94,24 @@ redis-cli flushdb
 ```
 
 ## Code Style
-Python 3.11+: Follow PEP 8 conventions, enforced via ruff and pyright
+
+**Quick Reference** - See [CONTRIBUTING.md - Code Style](CONTRIBUTING.md#code-style-guidelines) for detailed guidelines and examples.
 
 ### Key Conventions
-- Use type hints for all function parameters and return values (enforced by pyright)
+- Python 3.11+ following PEP 8 (enforced via ruff and pyright)
+- Type hints required for all function parameters and return values
 - Pydantic models for all data validation
 - Async/await for I/O operations
 - Structured logging with structlog (JSON format)
-- 80% overall test coverage, 90% for utilities
+- Coverage targets: 80% overall, 90% for utilities
 
 ### Pre-commit Hooks
 Automatically run before each commit:
-- **Standard checks**: trailing whitespace, end-of-file fixer, YAML/JSON/TOML validation
-- **Ruff**: auto-format code and fix linting issues
-- **Pyright**: type checking (currently has 80 errors - work in progress)
+- Standard checks (whitespace, EOF, YAML/JSON/TOML validation)
+- Ruff (auto-format and fix linting)
+- Pyright (type checking - currently 80 errors, work in progress)
 
-**Note**: Commits will be blocked if pyright finds type errors. To bypass temporarily:
-```bash
-git commit --no-verify -m "message"  # Skip hooks (use sparingly)
-```
+**Bypass hooks** (use sparingly): `git commit --no-verify -m "message"`
 
 ## Recent Changes
 - 007-ocrmac-livetext-option: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+

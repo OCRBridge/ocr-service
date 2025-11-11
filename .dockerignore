@@ -69,7 +69,6 @@ Dockerfile*
 *.md
 !README.md
 docs/
-specs/
 
 # Temporary files
 /tmp/

@@ -14,41 +14,6 @@ A high-performance RESTful API service for document OCR processing with HOCR (HT
 
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- Redis 7.0+
-- Tesseract OCR 5.3+
-- Poppler utils (for PDF processing)
-- uv (Python package manager)
-
-### Installation
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd restful-ocr
-
-# Install system dependencies (Ubuntu/Debian)
-sudo apt-get update
-sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils redis-server
-
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate
-uv sync --group dev
-
-# Create required directories
-mkdir -p /tmp/uploads /tmp/results
-chmod 700 /tmp/uploads /tmp/results
-
-# Copy environment configuration
-cp .env.example .env
-
-# Start Redis
-sudo systemctl start redis
-```
-
 ### Running with Docker Compose (Recommended)
 
 ```bash
@@ -62,15 +27,17 @@ docker compose logs -f api
 docker compose down
 ```
 
-### Running Locally
-
+The API will be available at `http://localhost:8000`. Check the health endpoint to verify:
 ```bash
-# Development mode (auto-reload)
-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Production mode (4 workers)
-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
+curl http://localhost:8000/health
 ```
+
+### Development Setup
+
+For local development without Docker, or to contribute to the project, see the [Contributing Guide](CONTRIBUTING.md) for detailed setup instructions including:
+- Installing dependencies (Python, Redis, Tesseract, etc.)
+- Setting up your development environment
+- Running tests and code quality tools
 
 ## API Usage
 
@@ -159,22 +126,16 @@ All configuration is via environment variables (see `.env.example`):
 - **Logging**: structlog (JSON format)
 - **Metrics**: Prometheus client
 
-## Platform-Specific Dependencies
+## Platform Notes
 
-### ocrmac (macOS Only)
+### macOS OCR Engine
 
-The `ocrmac` package is conditionally installed on macOS via the dependency specification:
-```python
-"ocrmac>=0.1.0; sys_platform == 'darwin'"
-```
+This API includes support for macOS's native Vision and LiveText OCR frameworks when running natively on macOS. However, these features are **not available in Docker containers** due to macOS framework limitations.
 
-**Important**: `ocrmac` requires Apple's Vision framework, which is **unavailable in Docker containers** (even on Mac). Docker runs a Linux VM, so containers cannot access macOS-native frameworks. This means:
+- When running in Docker (recommended): Tesseract and EasyOCR engines are available
+- When running natively on macOS: All engines including ocrmac (Vision/LiveText) are available
 
-- ✅ **Local macOS development**: ocrmac works when running the application directly on macOS
-- ❌ **Docker containers**: ocrmac is not available in Docker, regardless of host OS
-- ✅ **Linux/Windows**: Application runs fine without ocrmac (Tesseract/EasyOCR available)
-
-If you need macOS Vision framework features, run the application natively on macOS without Docker. For containerized deployments, use Tesseract or EasyOCR engines instead.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more details on platform-specific limitations.
 
 ## Deployment
 
@@ -289,13 +250,6 @@ Minimum per instance:
 - **Memory**: 2GB RAM (4GB+ recommended)
 - **Storage**: 10GB for temp files + results
 - **Redis**: 512MB RAM minimum
-
-## Documentation
-
-- **Specification**: [specs/001-ocr-hocr-upload/spec.md](specs/001-ocr-hocr-upload/spec.md)
-- **Implementation Plan**: [specs/001-ocr-hocr-upload/plan.md](specs/001-ocr-hocr-upload/plan.md)
-- **Quickstart Guide**: [specs/001-ocr-hocr-upload/quickstart.md](specs/001-ocr-hocr-upload/quickstart.md)
-- **OpenAPI Contract**: [specs/001-ocr-hocr-upload/contracts/openapi.yaml](specs/001-ocr-hocr-upload/contracts/openapi.yaml)
 
 ## Contributing
 
