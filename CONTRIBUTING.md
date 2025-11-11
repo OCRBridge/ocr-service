@@ -91,7 +91,6 @@ restful-ocr/
 │   ├── contract/          # OpenAPI contract tests
 │   └── performance/       # Performance benchmarks
 ├── samples/               # Test fixtures and sample documents
-├── specs/                 # Design documentation and specifications
 ├── pyproject.toml         # Project metadata and dependencies
 ├── docker-compose.yml     # Docker stack configuration
 └── Dockerfile             # API container image
@@ -127,8 +126,6 @@ This project follows **Test-Driven Development (TDD)** principles. All contribut
    - Continue with the next feature or bug fix
 
 ### Detailed TDD Workflow
-
-For a comprehensive guide on the TDD workflow used in this project, see [specs/001-ocr-hocr-upload/quickstart.md](specs/001-ocr-hocr-upload/quickstart.md).
 
 ### Branch Naming Convention
 
@@ -173,6 +170,8 @@ Closes #123
 ## Testing
 
 Testing is a critical part of our development process. All contributions must include appropriate tests.
+
+> **Quick Command Reference**: For a quick reference of all development commands (testing, formatting, type checking, Docker, etc.), see [AGENTS.md](AGENTS.md).
 
 ### Running Tests
 
@@ -307,11 +306,20 @@ class JobStatus(BaseModel):
 
 ### Type Checking
 
-Use type hints and consider running mypy for type checking:
+This project uses [Pyright](https://github.com/microsoft/pyright) for static type checking. All code should include type hints:
 
 ```bash
-uv run mypy src/
+# Run type checker
+uv run pyright
+
+# Check specific directory
+uv run pyright src/
+
+# Watch mode for continuous checking
+uv run pyright --watch
 ```
+
+**Note**: Type checking is automatically run via pre-commit hooks. See [AGENTS.md](AGENTS.md) for pre-commit hook configuration and commands.
 
 ## Submitting Changes
 
@@ -433,22 +441,25 @@ What would make this feature complete?
 - [ ] Criterion 2
 ```
 
-## Development Resources
+## Platform Limitations
 
-- **Specifications**: See `specs/` directory for detailed design docs
-- **API Contract**: `specs/001-ocr-hocr-upload/contracts/openapi.yaml`
-- **FastAPI Documentation**: https://fastapi.tiangolo.com/
-- **Pytest Documentation**: https://docs.pytest.org/
-- **Ruff Documentation**: https://github.com/astral-sh/ruff
+### macOS-specific Dependencies
+
+The `ocrmac` package provides access to Apple's Vision and LiveText OCR frameworks but has important limitations:
+
+- **Docker Incompatibility**: ocrmac requires macOS-native frameworks that are unavailable in Docker containers (even on Mac hosts)
+- **Local Development**: Works only when running the application natively on macOS
+- **Alternative Engines**: Tesseract and EasyOCR work in all environments including Docker
+
+For detailed platform requirements and limitations, see the [Platform Limitations section in AGENTS.md](AGENTS.md#platform-limitations).
 
 ## Questions?
 
 If you have questions about contributing:
 
-1. Check existing documentation in `specs/`
-2. Search closed issues for similar questions
-3. Open a new issue with the "question" label
-4. Join community discussions (if available)
+1. Search closed issues for similar questions
+2. Open a new issue with the "question" label
+3. Join community discussions (if available)
 
 ## Code of Conduct
 
