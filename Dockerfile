@@ -25,7 +25,6 @@ RUN uv pip install --system -e .
 
 # Copy application source
 COPY src ./src
-COPY samples ./samples
 
 # Create temporary directories with correct permissions
 RUN mkdir -p /tmp/uploads /tmp/results && \
