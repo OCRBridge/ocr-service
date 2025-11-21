@@ -15,6 +15,32 @@ from src.config import settings
 from src.main import app
 
 
+def pytest_addoption(parser):
+    """Add custom command line options for pytest."""
+    parser.addoption(
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="run slow tests (performance, load tests, etc.)",
+    )
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers."""
+    config.addinivalue_line("markers", "slow: marks tests as slow (performance, load tests, etc.)")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip slow tests unless --run-slow is provided."""
+    if config.getoption("--run-slow"):
+        # If --run-slow is provided, run all tests
+        return
+    skip_slow = pytest.mark.skip(reason="need --run-slow option to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create event loop for async tests."""
