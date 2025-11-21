@@ -17,7 +17,7 @@ def ocr_processor():
 @pytest.fixture
 def sample_pdf_path():
     """Get path to sample PDF."""
-    return Path(__file__).parent.parent.parent / "samples" / "mietvertrag.pdf"
+    return Path(__file__).parent.parent.parent / "samples" / "contract_en_photo.pdf"
 
 
 def test_pdf_page_count_detection(sample_pdf_path):
@@ -31,7 +31,7 @@ def test_pdf_page_count_detection(sample_pdf_path):
     # Verify PDF has multiple pages
     assert len(images) > 0, "PDF should have at least one page"
 
-    # mietvertrag.pdf is a multi-page document
+    # contract_en_photo.pdf is a multi-page document
     # This test verifies we can detect page count correctly
     page_count = len(images)
     assert isinstance(page_count, int)

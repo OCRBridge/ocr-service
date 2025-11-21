@@ -50,7 +50,7 @@ coverage.xml
 /tmp/results/
 
 # Sample PDFs (large files)
-samples/mietvertrag.pdf
+samples/*_signed.pdf
 
 # EasyOCR model files (large models, downloaded at runtime)
 .EasyOCR/
