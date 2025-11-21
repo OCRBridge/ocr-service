@@ -261,4 +261,4 @@ Interested in contributing? Check out our [CONTRIBUTING.md](CONTRIBUTING.md) for
 
 ## License
 
-[Add your license here]
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
