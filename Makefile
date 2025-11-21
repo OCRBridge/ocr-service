@@ -1,11 +1,12 @@
-.PHONY: help install dev test test-unit test-integration test-contract test-coverage lint format typecheck pre-commit docker-up docker-down docker-logs clean run redis-cli redis-monitor redis-flush
+.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs clean run redis-start redis-stop redis-cli redis-monitor redis-flush redis-check setup-test-env
 
 # Default target
 help:
 	@echo "Available targets:"
 	@echo "  make install          - Install dependencies"
 	@echo "  make dev              - Run development server"
-	@echo "  make test             - Run all tests"
+	@echo "  make test             - Run all tests (excluding slow tests)"
+	@echo "  make test-slow        - Run all tests including slow tests"
 	@echo "  make test-unit        - Run unit tests only"
 	@echo "  make test-integration - Run integration tests only"
 	@echo "  make test-contract    - Run contract tests only"
@@ -19,9 +20,13 @@ help:
 	@echo "  make docker-up        - Start Docker services (API + Redis)"
 	@echo "  make docker-down      - Stop Docker services"
 	@echo "  make docker-logs      - View Docker logs"
+	@echo "  make redis-start      - Start Redis server"
+	@echo "  make redis-stop       - Stop Redis server"
+	@echo "  make redis-check      - Check if Redis is running"
 	@echo "  make redis-cli        - Open Redis CLI"
 	@echo "  make redis-monitor    - Monitor Redis operations"
 	@echo "  make redis-flush      - Flush Redis test data"
+	@echo "  make setup-test-env   - Set up test environment (start Redis, create samples)"
 	@echo "  make clean            - Remove cache and temporary files"
 
 # Development
@@ -34,20 +39,40 @@ dev:
 run: dev
 
 # Testing
-test:
-	uv run pytest
+setup-test-env: redis-start
+	@echo "Setting up test environment..."
+	@uv run python3 -c "from PIL import Image, ImageDraw, ImageFont; import os; os.makedirs('samples', exist_ok=True); \
+	img1 = Image.new('L', (800, 600), color=255) if not os.path.exists('samples/numbers_gs150.jpg') else None; \
+	draw1 = ImageDraw.Draw(img1) if img1 else None; \
+	draw1.text((100, 200), '0123456789', fill=0) if draw1 else None; \
+	draw1.text((100, 300), 'Test Numbers', fill=0) if draw1 else None; \
+	img1.save('samples/numbers_gs150.jpg', dpi=(150, 150)) if img1 else None; \
+	print('Created samples/numbers_gs150.jpg') if img1 else print('samples/numbers_gs150.jpg exists'); \
+	img2 = Image.new('L', (1024, 768), color=255) if not os.path.exists('samples/stock_gs200.jpg') else None; \
+	draw2 = ImageDraw.Draw(img2) if img2 else None; \
+	draw2.text((100, 200), 'Sample Text', fill=0) if draw2 else None; \
+	draw2.text((100, 300), 'OCR Test Document', fill=0) if draw2 else None; \
+	img2.save('samples/stock_gs200.jpg', dpi=(200, 200)) if img2 else None; \
+	print('Created samples/stock_gs200.jpg') if img2 else print('samples/stock_gs200.jpg exists')" 2>/dev/null || echo "Warning: Could not create sample files"
+	@echo "Test environment ready"
+
+test: redis-check
+	uv run pytest -m "not slow"
+
+test-slow: redis-check
+	uv run pytest --run-slow
 
 test-unit:
 	uv run pytest tests/unit/
 
-test-integration:
+test-integration: redis-check
 	uv run pytest tests/integration/
 
-test-contract:
+test-contract: redis-check
 	uv run pytest tests/contract/
 
-test-coverage:
-	uv run pytest --cov=src --cov-report=html --cov-report=term
+test-coverage: redis-check
+	uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
 
 # Code quality
 lint:
@@ -95,6 +120,36 @@ docker-restart:
 	docker compose restart
 
 # Redis
+redis-start:
+	@if ! redis-cli ping >/dev/null 2>&1; then \
+		echo "Starting Redis server..."; \
+		redis-server --daemonize yes; \
+		sleep 1; \
+		if redis-cli ping >/dev/null 2>&1; then \
+			echo "Redis started successfully"; \
+		else \
+			echo "Failed to start Redis"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "Redis is already running"; \
+	fi
+
+redis-stop:
+	@if redis-cli ping >/dev/null 2>&1; then \
+		echo "Stopping Redis server..."; \
+		redis-cli shutdown; \
+		echo "Redis stopped"; \
+	else \
+		echo "Redis is not running"; \
+	fi
+
+redis-check:
+	@if ! redis-cli ping >/dev/null 2>&1; then \
+		echo "Error: Redis is not running. Start it with 'make redis-start'"; \
+		exit 1; \
+	fi
+
 redis-cli:
 	redis-cli
 
@@ -120,4 +175,4 @@ clean:
 check: lint format-check typecheck test
 
 # CI simulation (what runs in CI)
-ci: install check
+ci: install redis-start check
