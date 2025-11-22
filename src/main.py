@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
 
     # Verify Redis connection
     try:
-        await redis_client.ping()
+        await redis_client.ping()  # type: ignore[misc]
         logger.info("redis_connected", url=settings.redis_url)
     except Exception as e:
         logger.error("redis_connection_failed", error=str(e))

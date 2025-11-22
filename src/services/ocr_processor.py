@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-import pytesseract
+try:
+    import pytesseract  # type: ignore[import-untyped]
+except ImportError:
+    pytesseract = None  # type: ignore[assignment]
+
 import structlog
 from pdf2image import convert_from_path
 
@@ -67,6 +71,12 @@ class OCRProcessor:
         Raises:
             OCRProcessorError: If processing fails
         """
+        if pytesseract is None:
+            raise OCRProcessorError(
+                "Tesseract is not installed. Install with: pip install pytesseract",
+                ErrorCode.OCR_ENGINE_ERROR,
+            )
+
         try:
             # Handle PDF separately
             if file_format == FileFormat.PDF:
@@ -171,12 +181,13 @@ class OCRProcessor:
                 combined_body += page_hocr[start + 6 : end]
 
         # Wrap in complete HOCR structure
+        version_str = pytesseract.get_tesseract_version() if pytesseract else "unknown"
         hocr_template = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<meta name="ocr-system" content="tesseract {pytesseract.get_tesseract_version()}" />
+<meta name="ocr-system" content="tesseract {version_str}" />
 </head>
 <body>{combined_body}</body>
 </html>"""

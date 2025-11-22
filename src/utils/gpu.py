@@ -13,7 +13,7 @@ def detect_gpu_availability() -> bool:
         bool: True if CUDA GPU is available, False otherwise
     """
     try:
-        import torch
+        import torch  # type: ignore[import-untyped]
 
         return torch.cuda.is_available()
     except ImportError:
@@ -37,7 +37,7 @@ def get_easyocr_device() -> tuple[bool, str]:
         - device_name: PyTorch device string (e.g., "cuda:0" or "cpu")
     """
     if detect_gpu_availability():
-        import torch
+        import torch  # type: ignore[import-untyped]
 
         device_name = f"cuda:{torch.cuda.current_device()}"
         logger.info(f"GPU detected and will be used: {device_name}")

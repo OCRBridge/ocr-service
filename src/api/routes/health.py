@@ -20,7 +20,7 @@ async def health_check(redis: aioredis.Redis = Depends(get_redis)):
     """
     # Check Redis connection
     try:
-        await redis.ping()
+        await redis.ping()  # type: ignore[misc]
         redis_status = "connected"
     except Exception as e:
         logger.error("health_check_redis_failed", error=str(e))

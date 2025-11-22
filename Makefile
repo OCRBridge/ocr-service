@@ -30,7 +30,7 @@ help:
 
 # Development
 install:
-	uv sync --group dev
+	uv sync --group dev --all-extras
 
 dev:
 	uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000

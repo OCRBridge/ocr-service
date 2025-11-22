@@ -62,6 +62,7 @@ async def process_ocr_task(
         metrics.active_jobs.inc()
 
         # Track queue duration
+        assert job.start_time is not None
         queue_duration = (job.start_time - job.upload.upload_timestamp).total_seconds()
         metrics.job_queue_duration_seconds.observe(queue_duration)
 
@@ -85,6 +86,8 @@ async def process_ocr_task(
         metrics.active_jobs.dec()
 
         # Track processing duration
+        assert job.completion_time is not None
+        assert job.start_time is not None
         processing_duration = (job.completion_time - job.start_time).total_seconds()
         metrics.job_processing_duration_seconds.observe(processing_duration)
 
@@ -103,9 +106,15 @@ async def process_ocr_task(
         )
 
     except OCRProcessorError as e:
-        # Mark as failed
-        job.mark_failed(e.error_code, str(e))
-        await job_manager.update_job(job)
+        # Re-fetch job in case it wasn't retrieved earlier
+        job = await job_manager.get_job(job_id)
+        if job:
+            # Mark as failed
+            job.mark_failed(e.error_code, str(e))
+            await job_manager.update_job(job)
+
+            # Clean up temp file
+            await file_handler.delete_temp_file(job.upload.temp_file_path)
 
         # Track metrics (US3 - T099) - default to tesseract for backward compatibility
         metrics.jobs_failed_total.labels(error_code=e.error_code.value, engine="tesseract").inc()
@@ -113,13 +122,16 @@ async def process_ocr_task(
 
         logger.error("ocr_processing_failed", job_id=job_id, error=str(e))
 
-        # Clean up temp file
-        await file_handler.delete_temp_file(job.upload.temp_file_path)
-
     except Exception as e:
-        # Mark as failed with internal error
-        job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
-        await job_manager.update_job(job)
+        # Re-fetch job in case it wasn't retrieved earlier
+        job = await job_manager.get_job(job_id)
+        if job:
+            # Mark as failed with internal error
+            job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
+            await job_manager.update_job(job)
+
+            # Clean up temp file
+            await file_handler.delete_temp_file(job.upload.temp_file_path)
 
         # Track metrics (US3 - T099) - default to tesseract for backward compatibility
         metrics.jobs_failed_total.labels(
@@ -128,9 +140,6 @@ async def process_ocr_task(
         metrics.active_jobs.dec()
 
         logger.error("ocr_processing_exception", job_id=job_id, error=str(e), engine="tesseract")
-
-        # Clean up temp file
-        await file_handler.delete_temp_file(job.upload.temp_file_path)
 
 
 @router.post(
@@ -236,7 +245,7 @@ async def upload_document_tesseract(
 
         # Validate Tesseract parameters
         try:
-            tesseract_params = TesseractParams(lang=lang, psm=psm, oem=oem, dpi=dpi)
+            tesseract_params = TesseractParams(lang=lang, psm=psm, oem=oem, dpi=dpi)  # type: ignore[arg-type]
         except ValidationError as e:
             logger.warning("parameter_validation_failed", errors=e.errors())
             raise HTTPException(
@@ -252,7 +261,7 @@ async def upload_document_tesseract(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with Tesseract engine
-        job = OCRJob(upload=upload, engine=EngineType.TESSERACT, engine_params=tesseract_params)
+        job = OCRJob(upload=upload, engine=EngineType.TESSERACT, engine_params=tesseract_params)  # type: ignore[call-arg]
         await job_manager.create_job(job)
 
         # Schedule background OCR processing
@@ -414,7 +423,7 @@ async def upload_document_ocrmac(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with ocrmac engine
-        job = OCRJob(upload=upload, engine=EngineType.OCRMAC, engine_params=ocrmac_params)
+        job = OCRJob(upload=upload, engine=EngineType.OCRMAC, engine_params=ocrmac_params)  # type: ignore[call-arg]
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use new process_ocr_task_v2)
@@ -581,7 +590,7 @@ async def upload_document_easyocr(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with EasyOCR engine
-        job = OCRJob(upload=upload, engine=EngineType.EASYOCR, engine_params=easyocr_params)
+        job = OCRJob(upload=upload, engine=EngineType.EASYOCR, engine_params=easyocr_params)  # type: ignore[call-arg]
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use process_ocr_task_v2)
@@ -661,6 +670,7 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         metrics.active_jobs.inc()
 
         # Track queue duration
+        assert job.start_time is not None
         queue_duration = (job.start_time - job.upload.upload_timestamp).total_seconds()
         metrics.job_queue_duration_seconds.observe(queue_duration)
 
@@ -697,6 +707,8 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         metrics.active_jobs.dec()
 
         # Track processing duration
+        assert job.completion_time is not None
+        assert job.start_time is not None
         processing_duration = (job.completion_time - job.start_time).total_seconds()
         metrics.job_processing_duration_seconds.observe(processing_duration)
 
@@ -716,19 +728,24 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         )
 
     except Exception as e:
-        # Mark as failed with internal error
-        job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
-        await job_manager.update_job(job)
+        # Re-fetch job in case it wasn't retrieved earlier
+        job_for_cleanup = await job_manager.get_job(job_id)
+
+        # Determine engine label before potential cleanup
+        engine_label = job_for_cleanup.engine.value if job_for_cleanup else "unknown"
+
+        if job_for_cleanup:
+            # Mark as failed with internal error
+            job_for_cleanup.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
+            await job_manager.update_job(job_for_cleanup)
+
+            # Clean up temp file
+            await file_handler.delete_temp_file(job_for_cleanup.upload.temp_file_path)
 
         # Track metrics with engine label
-        engine_label = job.engine.value if job else "unknown"
         metrics.jobs_failed_total.labels(
             error_code=ErrorCode.INTERNAL_ERROR.value, engine=engine_label
         ).inc()
         metrics.active_jobs.dec()
 
         logger.error("ocr_processing_exception", job_id=job_id, engine=engine_label, error=str(e))
-
-        # Clean up temp file
-        if job:
-            await file_handler.delete_temp_file(job.upload.temp_file_path)

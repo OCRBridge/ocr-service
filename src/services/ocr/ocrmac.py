@@ -10,7 +10,8 @@ from pdf2image import convert_from_path
 from PIL import Image
 
 from src.config import settings
-from src.models.ocr_params import OcrmacParams, RecognitionLevel
+from src.models import TesseractParams
+from src.models.ocr_params import EasyOCRParams, OcrmacParams, RecognitionLevel
 from src.models.upload import FileFormat
 from src.services.ocr.base import OCREngine
 
@@ -90,7 +91,9 @@ class OcrmacEngine(OCREngine):
             recognition_level=recognition_level,
         )
 
-    def process(self, file_path: Path, params: OcrmacParams | None = None) -> str:
+    def process(
+        self, file_path: Path, params: TesseractParams | OcrmacParams | EasyOCRParams | None = None
+    ) -> str:
         """
         Process a document using ocrmac and return HOCR XML output.
 
@@ -113,8 +116,16 @@ class OcrmacEngine(OCREngine):
             raise RuntimeError("ocrmac is only available on macOS systems")
 
         # Extract parameters
-        languages = params.languages if params and params.languages else None
-        recognition_level = params.recognition_level if params else RecognitionLevel.BALANCED
+        languages = (
+            params.languages
+            if params and isinstance(params, OcrmacParams) and params.languages
+            else None
+        )
+        recognition_level = (
+            params.recognition_level
+            if params and isinstance(params, OcrmacParams)
+            else RecognitionLevel.BALANCED
+        )
 
         # Map RecognitionLevel enum to ocrmac string values
         recognition_level_str = recognition_level.value  # "fast", "balanced", or "accurate"
@@ -186,7 +197,7 @@ class OcrmacEngine(OCREngine):
 
         # Import ocrmac (will fail if not installed)
         try:
-            from ocrmac import ocrmac
+            from ocrmac import ocrmac  # type: ignore[import-untyped]
         except ImportError:
             logger.error("ocrmac_not_installed")
             raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac")
@@ -326,7 +337,7 @@ class OcrmacEngine(OCREngine):
 
         # Import ocrmac (will fail if not installed)
         try:
-            from ocrmac import ocrmac
+            from ocrmac import ocrmac  # type: ignore[import-untyped]
         except ImportError:
             logger.error("ocrmac_not_installed")
             raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac")

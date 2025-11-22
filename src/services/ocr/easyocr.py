@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-import numpy as np
 import structlog
 from pdf2image import convert_from_path
 
 from src.config import settings
-from src.models.ocr_params import EasyOCRParams
+from src.models import TesseractParams
+from src.models.ocr_params import EasyOCRParams, OcrmacParams
 from src.models.upload import FileFormat
 from src.services.ocr.base import OCREngine
 from src.utils.gpu import get_easyocr_device
@@ -51,7 +51,7 @@ class EasyOCREngine(OCREngine):
             easyocr.Reader instance
         """
         try:
-            import easyocr
+            import easyocr  # type: ignore[import-untyped]
         except ImportError as e:
             raise RuntimeError("EasyOCR not installed. Install with: pip install easyocr") from e
 
@@ -66,7 +66,7 @@ class EasyOCREngine(OCREngine):
         )
 
         # Create reader with language list and GPU setting
-        reader = easyocr.Reader(
+        reader = easyocr.Reader(  # type: ignore[attr-defined]
             lang_list=self.params.languages,
             gpu=use_gpu,
         )
@@ -101,7 +101,9 @@ class EasyOCREngine(OCREngine):
 
         return format_map[suffix]
 
-    def process(self, file_path: Path, params: EasyOCRParams | None = None) -> str:
+    def process(
+        self, file_path: Path, params: TesseractParams | OcrmacParams | EasyOCRParams | None = None
+    ) -> str:
         """
         Process document with EasyOCR and return HOCR XML.
 
@@ -117,7 +119,7 @@ class EasyOCREngine(OCREngine):
             ValueError: If file format not supported
             TimeoutError: If processing exceeds timeout
         """
-        if params:
+        if params and isinstance(params, EasyOCRParams):
             self.params = params
 
         # Validate file exists
@@ -212,6 +214,13 @@ class EasyOCREngine(OCREngine):
 
             # Convert PIL Image to numpy array for EasyOCR
             # EasyOCR accepts: file path (string), bytes, or numpy array
+            try:
+                import numpy as np  # type: ignore[import-untyped]
+            except ImportError as e:
+                raise RuntimeError(
+                    "NumPy is required for EasyOCR. Install with: pip install numpy"
+                ) from e
+
             img_array = np.array(image)
 
             # Run EasyOCR on page image

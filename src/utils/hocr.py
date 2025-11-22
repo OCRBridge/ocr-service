@@ -102,7 +102,8 @@ def extract_bbox(element_title: str) -> tuple[int, int, int, int] | None:
     """
     match = re.search(r"bbox (\d+) (\d+) (\d+) (\d+)", element_title)
     if match:
-        return tuple(map(int, match.groups()))
+        groups = match.groups()
+        return (int(groups[0]), int(groups[1]), int(groups[2]), int(groups[3]))
     return None
 
 
