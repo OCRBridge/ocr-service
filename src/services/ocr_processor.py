@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytesseract  # type: ignore[import-untyped]
 import structlog
 from pdf2image import convert_from_path
 
@@ -67,6 +66,8 @@ class OCRProcessor:
         Raises:
             OCRProcessorError: If processing fails
         """
+        import pytesseract  # type: ignore[import-untyped]
+
         try:
             # Handle PDF separately
             if file_format == FileFormat.PDF:
@@ -91,6 +92,8 @@ class OCRProcessor:
         Returns:
             HOCR XML string
         """
+        import pytesseract  # type: ignore[import-untyped]
+
         logger.info("processing_image", file=str(image_path))
 
         # Run Tesseract with HOCR output
@@ -127,6 +130,8 @@ class OCRProcessor:
         logger.info("pdf_converted", file=str(pdf_path), pages=len(images))
 
         # Process each page
+        import pytesseract  # type: ignore[import-untyped]
+
         page_hocr_list = []
         for i, image in enumerate(images, start=1):
             logger.debug("processing_page", page=i, total=len(images))
@@ -158,6 +163,8 @@ class OCRProcessor:
         Returns:
             Combined HOCR XML string
         """
+        import pytesseract  # type: ignore[import-untyped]
+
         # For now, concatenate pages within a single HTML document
         # In production, would properly merge XML structures
 

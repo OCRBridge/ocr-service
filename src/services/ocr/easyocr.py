@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import numpy as np  # type: ignore[import-untyped]
 import structlog
 from pdf2image import convert_from_path
 
@@ -212,6 +211,8 @@ class EasyOCREngine(OCREngine):
 
             # Convert PIL Image to numpy array for EasyOCR
             # EasyOCR accepts: file path (string), bytes, or numpy array
+            import numpy as np  # type: ignore[import-untyped]
+
             img_array = np.array(image)
 
             # Run EasyOCR on page image
