@@ -165,7 +165,7 @@ def get_installed_languages() -> set[str]:
         if result.returncode == 0:
             # Parse output, skip header line "List of available languages (N):"
             langs = result.stdout.strip().split("\n")[1:]
-            installed = set(lang.strip() for lang in langs if lang.strip())
+            installed = {lang.strip() for lang in langs if lang.strip()}
 
             tesseract_logger.info(
                 "tesseract_languages_detected",

@@ -7,6 +7,9 @@
 [![codecov](https://codecov.io/gh/OCRBridge/ocr-service/branch/main/graph/badge.svg)](https://codecov.io/gh/OCRBridge/ocr-service)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checker: Pyright](https://img.shields.io/badge/type%20checker-pyright-blue.svg)](https://github.com/microsoft/pyright)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
+[![Tests](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml)
+[![CI](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml)
 
 A high-performance RESTful API service for document OCR processing with HOCR (HTML-based OCR) output format.
 
