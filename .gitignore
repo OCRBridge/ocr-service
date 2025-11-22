@@ -40,17 +40,23 @@ appendonly.aof
 
 # Test coverage
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
 coverage.xml
 *.cover
 
+# Linting and type checking cache
+.ruff_cache/
+.mypy_cache/
+.pytype/
+
 # Temporary upload/result directories
 /tmp/uploads/
 /tmp/results/
 
-# Sample PDFs (large files)
-samples/mietvertrag.pdf
+# Sample PDFs for local testing
+samples.local/
 
 # EasyOCR model files (large models, downloaded at runtime)
 .EasyOCR/
