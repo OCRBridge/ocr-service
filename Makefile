@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs docker-build-lite docker-build-full docker-build-all clean run setup-test-env commit release release-dry-run changelog version
+.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs docker-build-lite docker-build-full docker-build-all docker-compose-lite-up docker-compose-lite-down docker-compose-full-up docker-compose-full-down clean run setup-test-env commit release release-dry-run changelog version
 
 # Default target
 help:
@@ -20,9 +20,13 @@ help:
 	@echo "  make docker-up        - Start Docker services (API + Redis)"
 	@echo "  make docker-down      - Stop Docker services"
 	@echo "  make docker-logs      - View Docker logs"
-	@echo "  make docker-build-lite - Build Tesseract-only Docker image"
-	@echo "  make docker-build-full - Build full Docker image with EasyOCR"
+	@echo "  make docker-build-lite - Build Tesseract-only Docker image (using --target lite)"
+	@echo "  make docker-build-full - Build full Docker image with EasyOCR (using --target full)"
 	@echo "  make docker-build-all  - Build both lite and full Docker images"
+	@echo "  make docker-compose-lite-up   - Start lite flavor with docker-compose"
+	@echo "  make docker-compose-lite-down - Stop lite flavor"
+	@echo "  make docker-compose-full-up   - Start full flavor with docker-compose (default)"
+	@echo "  make docker-compose-full-down - Stop full flavor"
 	@echo "  make setup-test-env   - Set up test environment (create samples)"
 	@echo "  make clean            - Remove cache and temporary files"
 	@echo "  make commit           - Create a conventional commit using commitizen"
@@ -115,36 +119,51 @@ pre-commit-install:
 pre-commit-update:
 	uv run pre-commit autoupdate
 
-# Docker
+# Docker (uses full flavor by default)
 docker-up:
-	docker compose up -d
+	docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
 
 docker-down:
-	docker compose down
+	docker compose -f docker-compose.base.yml -f docker-compose.yml down
 
 docker-logs:
-	docker compose logs -f api
+	docker compose -f docker-compose.base.yml -f docker-compose.yml logs -f api
 
 docker-build:
-	docker compose build
+	docker compose -f docker-compose.base.yml -f docker-compose.yml build
 
 docker-restart:
-	docker compose restart
+	docker compose -f docker-compose.base.yml -f docker-compose.yml restart
 
-# Docker multi-flavor builds
+# Docker multi-flavor builds (using multi-stage build targets)
 docker-build-lite:
 	@echo "Building lightweight Tesseract-only image..."
-	docker build -f Dockerfile.lite -t ocr-service:lite .
+	docker build --target lite -t ocr-service:lite .
 
 docker-build-full:
 	@echo "Building full image with EasyOCR support..."
-	docker build -f Dockerfile -t ocr-service:full -t ocr-service:latest .
+	docker build --target full -t ocr-service:full -t ocr-service:latest .
 
 docker-build-all: docker-build-lite docker-build-full
 	@echo "All Docker images built successfully!"
-	@echo "  - ocr-service:lite  (Tesseract only)"
-	@echo "  - ocr-service:full  (Tesseract + EasyOCR)"
+	@echo "  - ocr-service:lite  (Tesseract only, ~500MB)"
+	@echo "  - ocr-service:full  (Tesseract + EasyOCR, ~2.5GB)"
 	@echo "  - ocr-service:latest (alias to full)"
+
+# Docker Compose commands for different flavors
+docker-compose-lite-up:
+	@echo "Starting lite flavor with docker-compose..."
+	docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
+
+docker-compose-lite-down:
+	docker compose -f docker-compose.base.yml -f docker-compose.lite.yml down
+
+docker-compose-full-up:
+	@echo "Starting full flavor with docker-compose..."
+	docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
+
+docker-compose-full-down:
+	docker compose -f docker-compose.base.yml -f docker-compose.yml down
 
 
 # Cleanup

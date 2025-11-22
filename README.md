@@ -16,10 +16,10 @@ A high-performance RESTful API service for document OCR processing with HOCR (HT
 
 This service supports multiple OCR engines with different capabilities and resource requirements. Choose the right flavor for your deployment:
 
-| Flavor | Engines | Docker Image | Installation | Best For |
-|--------|---------|--------------|--------------|----------|
-| **Lite** | Tesseract only | `Dockerfile.lite` | `pip install .` | CPU-only, resource-constrained, edge devices |
-| **Full** | Tesseract + EasyOCR | `Dockerfile` | `pip install .[easyocr]` | GPU-enabled servers, high-accuracy OCR |
+| Flavor | Engines | Docker Build Target | Installation | Best For |
+|--------|---------|---------------------|--------------|----------|
+| **Lite** | Tesseract only | `--target lite` | `pip install .` | CPU-only, resource-constrained, edge devices |
+| **Full** | Tesseract + EasyOCR | `--target full` | `pip install .[easyocr]` | GPU-enabled servers, high-accuracy OCR |
 | **macOS Native** | All (Tesseract + EasyOCR + ocrmac) | N/A (no Docker) | `pip install .[full]` | Local macOS development, native Vision framework |
 
 ### Engine Comparison
@@ -37,14 +37,16 @@ This service supports multiple OCR engines with different capabilities and resou
 **Best for**: Production deployments, CPU-only environments, smallest image size
 
 ```bash
-# Build and run lite image
-make docker-build-lite
+# Build lite image using multi-stage build target
+docker build --target lite -t ocr-service:lite .
+
+# Run lite image
 docker run -d -p 8000:8000 --name ocr-service \
   -e REDIS_URL=redis://redis:6379/0 \
   ocr-service:lite
 
-# Or use docker-compose
-docker compose -f docker-compose.lite.yml up -d
+# Or use docker-compose (uses docker-compose.base.yml + docker-compose.lite.yml)
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
 ```
 
 **Image size**: ~500MB
@@ -54,26 +56,33 @@ docker compose -f docker-compose.lite.yml up -d
 **Best for**: GPU-enabled servers, high-accuracy requirements
 
 ```bash
-# Build and run full image
-make docker-build-full
+# Build full image using multi-stage build target
+docker build --target full -t ocr-service:full .
+
+# Run full image
 docker run -d -p 8000:8000 --name ocr-service \
   -e REDIS_URL=redis://redis:6379/0 \
   --gpus all \  # Optional: Enable GPU support
   ocr-service:full
 
-# Or use docker-compose (default - uses full flavor)
-docker compose up -d
+# Or use docker-compose (merges base + full compose files)
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
 
 # With GPU support (uncomment GPU section in docker-compose.yml first)
-docker compose up -d
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
 ```
 
 **Image size**: ~2.5GB
 
-### Option 3: Local Development (macOS)
+**Note**: Both flavors are built from a single `Dockerfile` using multi-stage builds. The base layers are shared between targets, improving build efficiency.
 
-**Best for**: macOS developers who want native Vision framework support
+### Option 3: Local Development
 
+**Best for**: Development and testing
+
+> **For Contributors**: See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development setup guide, including Makefile commands, testing instructions, and workflow details.
+
+**macOS (with native Vision framework support)**:
 ```bash
 # Install with all engines (including ocrmac)
 pip install -e .[full]
@@ -230,12 +239,55 @@ All configuration is via environment variables (see `.env.example`):
 ## Architecture
 
 - **Web Framework**: FastAPI with async/await
-- **OCR Engine**: Tesseract 5.3+ via pytesseract
+- **OCR Engines**:
+  - Tesseract 5.3+ (base, always available)
+  - EasyOCR 1.7+ (optional, deep learning)
+  - ocrmac (optional, macOS only)
 - **Job Store**: Redis with 48h TTL
 - **PDF Processing**: pdf2image (poppler wrapper)
 - **Rate Limiting**: slowapi with Redis backend
 - **Logging**: structlog (JSON format)
 - **Metrics**: Prometheus client
+
+### Docker Architecture
+
+The project uses **multi-stage Dockerfile** with build targets for different flavors:
+
+```
+Dockerfile (multi-stage)
+├── base (stage 1): Common setup (Python, uv, pyproject.toml)
+├── lite (stage 2): Tesseract-only build target
+└── full (stage 3): Tesseract + EasyOCR build target
+```
+
+**Benefits**:
+- Single Dockerfile for all flavors
+- Shared base layers reduce build time
+- Efficient layer caching
+- DRY principle (no duplication)
+
+The Docker Compose configuration uses **file merging** with the `-f` flag:
+
+```
+docker-compose.base.yml  (shared: Redis + common API config)
+├── docker-compose.yml  (merged via -f flag for full flavor)
+└── docker-compose.lite.yml  (merged via -f flag for lite flavor)
+```
+
+**Usage**:
+```bash
+# Full flavor
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
+
+# Lite flavor
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
+```
+
+**Benefits**:
+- No duplication of Redis or common API config
+- Easy to maintain and update
+- Clear separation of concerns
+- Standard Docker Compose merge behavior
 
 ## Platform Notes
 
@@ -366,8 +418,10 @@ Minimum per instance:
 
 Interested in contributing? Check out our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
 - Setting up your development environment
+- Using Makefile commands for development tasks
 - Running tests and code quality checks
 - Following our Test-Driven Development workflow
+- Understanding the CI/CD build strategy
 - Submitting bug fixes and features
 
 ## License

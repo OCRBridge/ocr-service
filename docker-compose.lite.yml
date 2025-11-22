@@ -1,51 +1,20 @@
 # Docker Compose configuration for LITE flavor (Tesseract only)
-# This uses the lightweight Dockerfile.lite for minimal resource usage
-# Usage: docker compose -f docker-compose.lite.yml up -d
+# This extends docker-compose.base.yml and adds lite-specific configuration
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
+#
+# This flavor uses minimal resources and only includes Tesseract OCR
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: ocr-redis-lite
-    ports:
-      - "7879:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.lite
+      target: lite  # Build the 'lite' stage from multi-stage Dockerfile
     image: ocr-service:lite
     container_name: ocr-api-lite
-    ports:
-      - "8080:8000"
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - API_WORKERS=4
-      - LOG_LEVEL=INFO
-      - LOG_FORMAT=json
-      - DEFAULT_OCR_ENGINE=tesseract
-    volumes:
-      - ./src:/app/src  # Development: hot-reload source code
-      - upload-tmp:/tmp/uploads
-      - results-tmp:/tmp/results
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    # Resource limits for lite flavor
+      - DEFAULT_OCR_ENGINE=tesseract  # Only tesseract is available in lite
+    # Resource limits for lite flavor (lower than full)
     deploy:
       resources:
         limits:
@@ -54,8 +23,3 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-
-volumes:
-  redis-data:
-  upload-tmp:
-  results-tmp:

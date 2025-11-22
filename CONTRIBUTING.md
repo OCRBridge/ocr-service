@@ -6,11 +6,13 @@ Thank you for your interest in contributing to RESTful OCR API! This document pr
 
 - [Getting Started](#getting-started)
 - [Development Environment Setup](#development-environment-setup)
+  - [Makefile Commands Reference](#makefile-commands-reference)
 - [Project Structure](#project-structure)
 - [Development Workflow](#development-workflow)
 - [Testing](#testing)
 - [Code Quality](#code-quality)
 - [Submitting Changes](#submitting-changes)
+  - [CI/CD Build Strategy](#cicd-build-strategy)
 - [Bug Reports](#bug-reports)
 - [Feature Requests](#feature-requests)
 
@@ -50,7 +52,17 @@ sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils redis-serv
 # Create virtual environment and install dependencies
 uv venv
 source .venv/bin/activate
+
+# Install base dependencies (Tesseract only - fastest)
 uv sync --group dev
+
+# OR install with EasyOCR support (if you need to test deep learning OCR)
+uv sync --group dev --all-extras
+
+# OR install specific extras
+# uv pip install -e .[easyocr]  # EasyOCR only
+# uv pip install -e .[ocrmac]   # macOS Vision framework (macOS only)
+# uv pip install -e .[full]     # All OCR engines
 
 # Create required directories
 mkdir -p /tmp/uploads /tmp/results
@@ -65,10 +77,46 @@ sudo systemctl start redis
 
 ### Running the Development Server
 
+**Option 1: Local Development** (fastest iteration)
 ```bash
 # Development mode with auto-reload
 uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+**Option 2: Docker Development** (matches production environment)
+```bash
+# Lite flavor (fastest Docker builds, Tesseract only)
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
+# Or use: make docker-compose-lite-up
+
+# Full flavor (includes EasyOCR, slower builds)
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
+# Or use: make docker-compose-full-up
+
+# View logs
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml logs -f api
+
+# Rebuild after code changes
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d --build
+```
+
+**Building Docker Images Locally**:
+```bash
+# Build lite image (fast, ~2-3 min)
+docker build --target lite -t ocr-service:lite .
+# Or: make docker-build-lite
+
+# Build full image (slow, ~10-15 min due to PyTorch)
+docker build --target full -t ocr-service:full .
+# Or: make docker-build-full
+
+# Build both flavors
+make docker-build-all
+```
+
+### Makefile Commands Reference
+
+The project includes a comprehensive Makefile for common development tasks. Run `make help` to see all available commands.
 
 ## Project Structure
 
@@ -92,8 +140,10 @@ restful-ocr/
 │   └── performance/       # Performance benchmarks
 ├── samples/               # Test fixtures and sample documents
 ├── pyproject.toml         # Project metadata and dependencies
-├── docker-compose.yml     # Docker stack configuration
-└── Dockerfile             # API container image
+├── Dockerfile             # Multi-stage build (lite & full targets)
+├── docker-compose.base.yml    # Shared Docker config (Redis, common API)
+├── docker-compose.yml         # Full flavor (Tesseract + EasyOCR)
+└── docker-compose.lite.yml    # Lite flavor (Tesseract only)
 ```
 
 ### Key Directories
@@ -359,6 +409,41 @@ uv run pyright --watch
    - Select your branch
    - Fill out the PR template
 
+### CI/CD Build Strategy
+
+Understanding our CI/CD workflow helps you know what to expect when submitting PRs:
+
+**Automatic Builds on Your PR**:
+- ✅ **Lite flavor**: Builds automatically on every PR (~2-3 min)
+  - Validates core functionality with Tesseract OCR
+  - Fast feedback for most code changes
+- ⏭️ **Full flavor**: Skipped on PRs to save CI resources
+  - Large PyTorch/EasyOCR dependencies (~10-15 min build)
+  - Not needed for most PRs
+
+**When Full Flavor Builds Run**:
+- 🏷️ **Release tags** (`v*.*.*`) - Automatic on version releases
+- 🔀 **Main branch** pushes - Automatic after PR merge
+- 🖱️ **Manual dispatch** - Maintainers can trigger via GitHub Actions UI
+
+**Why This Strategy?**
+- Faster PR feedback (3 min vs 15 min)
+- Reduced CI costs and resource usage
+- Most code changes don't require GPU dependencies
+- Full validation happens before releases
+
+**For Maintainers**: To manually build the full flavor for a specific PR:
+1. Go to Actions → Docker Image CI → Run workflow
+2. Select the PR branch
+3. Check "Build full flavor"
+4. Run workflow
+
+**What This Means for Contributors**:
+- Your PR will show a passing check if lite builds successfully
+- If your changes specifically affect EasyOCR functionality, mention it in the PR
+- Maintainers may trigger a full build if needed
+- All flavors are validated before merging to main
+
 ### Pull Request Checklist
 
 Before submitting a PR, ensure:
@@ -374,10 +459,14 @@ Before submitting a PR, ensure:
 
 ### PR Review Process
 
-1. Automated checks will run (tests, linting, coverage)
-2. Maintainers will review your code
-3. Address any feedback or requested changes
-4. Once approved, your PR will be merged
+1. **Automated checks will run**:
+   - Lite Docker image build (~2-3 min)
+   - Tests, linting, and coverage checks
+2. **Maintainers will review your code**
+3. **Address any feedback or requested changes**
+4. **Once approved, your PR will be merged**
+   - Full flavor build will run automatically on main branch
+   - All flavors validated before release tags
 
 ## Bug Reports
 
