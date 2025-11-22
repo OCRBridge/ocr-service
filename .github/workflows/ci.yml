@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
 
 jobs:
   lint:
-    name: Lint & Format Check
+    name: Lint & Format
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -26,13 +26,13 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: make install
+        run: uv sync --group dev
 
-      - name: Run linter
-        run: make lint
+      - name: Lint with Ruff
+        run: uv run ruff check src/ tests/
 
-      - name: Check code formatting
-        run: make format-check
+      - name: Format check with Ruff
+        run: uv run ruff format src/ tests/ --check
 
   typecheck:
     name: Type Check
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -50,57 +50,93 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: make install
+        run: uv sync --group dev
 
-      - name: Run type checker
-        run: make typecheck
+      - name: Run Pyright
+        run: uv run pyright
 
   test:
-    name: Test Suite
+    name: Tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Install dependencies
-        run: make install
+          python-version: ${{ matrix.python-version }}
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y redis-server tesseract-ocr
+          sudo apt-get install -y tesseract-ocr poppler-utils
 
-      - name: Start Redis
-        run: make redis-start
+      - name: Install uv
+        run: pip install uv
 
-      - name: Run tests
-        run: make test
+      - name: Install dependencies
+        run: uv sync --group dev
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        if: success()
+      - name: Run tests with coverage
+        env:
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          uv run pytest --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.11'
         with:
-          files: ./coverage.xml
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
           fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive coverage report
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 7
 
   docker-build:
-    name: Docker Build
+    name: Docker Build Test
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Docker image
-        run: docker build . --file Dockerfile --tag ocr-service:test
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ocr-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test Docker image
         run: |
-          docker run --rm ocr-service:test python -c "import src.main; print('OK')"
+          docker build -t ocr-service:test .
+          docker run --rm ocr-service:test python -c "import src.main; print('Import successful')"
