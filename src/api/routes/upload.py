@@ -594,7 +594,7 @@ async def upload_document_easyocr(
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use process_ocr_task_v2)
-        background_tasks.add_task(process_ocr_task_v2, job.job_id, redis)
+        background_tasks.add_task(process_ocr_task_v2, job.job_id, redis)  # type: ignore
 
         logger.info(
             "upload_accepted",
