@@ -2,13 +2,15 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 [![CI](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml)
+[![Tests](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
 [![Docker Publish](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml)
 [![codecov](https://codecov.io/gh/OCRBridge/ocr-service/branch/main/graph/badge.svg)](https://codecov.io/gh/OCRBridge/ocr-service)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checker: Pyright](https://img.shields.io/badge/type%20checker-pyright-blue.svg)](https://github.com/microsoft/pyright)
-[![Tests](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml)
 
 A high-performance RESTful API service for document OCR processing with HOCR (HTML-based OCR) output format.
 
