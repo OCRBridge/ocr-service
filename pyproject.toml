@@ -34,11 +34,11 @@ classifiers = [
 ]
 
 dependencies = [
+    # Core API dependencies
     "fastapi>=0.104.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     "uvicorn[standard]>=0.24.0",
-    "pytesseract>=0.3.0",
     "pdf2image>=1.16.0",
     "redis>=5.0.0",
     "slowapi>=0.1.0",
@@ -49,10 +49,24 @@ dependencies = [
     # ocrmac: macOS-only (requires Apple Vision framework, unavailable in Docker)
     # Note: Docker runs Linux VM even on Mac, so ocrmac won't work in containers
     "ocrmac>=0.1.0; sys_platform == 'darwin'",
+]
+
+[project.optional-dependencies]
+tesseract = [
+    "pytesseract>=0.3.0",
+]
+easyocr = [
     "easyocr>=1.7.0",
     "torch>=2.0.0",
     # Pin opencv-python-headless to avoid broken 4.11.0.86 release
     # See: https://github.com/opencv/opencv-python/issues (version 4.11.0.86 has missing attributes)
+    "opencv-python-headless>=4.8.0,<4.11.0",
+]
+# Combined installation includes all OCR engines
+all = [
+    "pytesseract>=0.3.0",
+    "easyocr>=1.7.0",
+    "torch>=2.0.0",
     "opencv-python-headless>=4.8.0,<4.11.0",
 ]
 

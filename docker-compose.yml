@@ -15,7 +15,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ${DOCKERFILE:-Dockerfile}
     container_name: ocr-api
     ports:
       - "8080:8000"
