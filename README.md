@@ -3,13 +3,12 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![CI](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
 [![Docker Publish](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml)
 [![codecov](https://codecov.io/gh/OCRBridge/ocr-service/branch/main/graph/badge.svg)](https://codecov.io/gh/OCRBridge/ocr-service)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checker: Pyright](https://img.shields.io/badge/type%20checker-pyright-blue.svg)](https://github.com/microsoft/pyright)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
 [![Tests](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml)
-[![CI](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml)
 
 A high-performance RESTful API service for document OCR processing with HOCR (HTML-based OCR) output format.
 
@@ -266,16 +265,6 @@ This API includes support for macOS's native Vision and LiveText OCR frameworks 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for more details on platform-specific limitations.
 
 ## Deployment
-
-For comprehensive deployment instructions, see **[DEPLOYMENT.md](DEPLOYMENT.md)** which covers:
-
-- 🐳 **Docker Image Publishing** - Pre-built images on GHCR and Docker Hub
-- ☁️ **Cloud Platforms** - Deploy to Railway, Render, Fly.io, AWS, GCP, Azure
-- ⚙️ **Kubernetes** - Complete K8s manifests and scaling strategies
-- 📊 **Monitoring** - Prometheus metrics and health checks
-- 🔒 **Security** - Production hardening checklist
-- 🔄 **Updates & Rollbacks** - Version management strategies
-- 💾 **Backup & Recovery** - Data persistence and disaster recovery
 
 ### Quick Production Deploy
 
