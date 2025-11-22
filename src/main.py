@@ -73,7 +73,10 @@ async def lifespan(app: FastAPI):
 
     # Verify Redis connection
     try:
-        await redis_client.ping()
+        # Type ignore needed due to redis-py type stubs inconsistency
+        result = redis_client.ping()  # type: ignore[misc]
+        if hasattr(result, "__await__"):
+            await result  # type: ignore[misc]
         logger.info("redis_connected", url=settings.redis_url)
     except Exception as e:
         logger.error("redis_connection_failed", error=str(e))

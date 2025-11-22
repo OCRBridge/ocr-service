@@ -19,10 +19,7 @@ from src.models import TesseractParams
 from src.models.ocr_params import EasyOCRParams, OcrmacParams
 from src.models.responses import SyncOCRResponse
 from src.services.file_handler import FileHandler
-from src.services.ocr.easyocr import EasyOCREngine
-from src.services.ocr.ocrmac import OcrmacEngine
 from src.services.ocr.registry import EngineRegistry, EngineType
-from src.services.ocr_processor import OCRProcessor
 from src.utils.hocr import parse_hocr
 from src.utils.metrics import (
     sync_ocr_duration_seconds,
@@ -193,6 +190,8 @@ async def sync_tesseract(
         async with temporary_upload(file) as (file_path, file_format):
             try:
                 # Create OCR processor instance
+                from src.services.ocr_processor import OCRProcessor
+
                 processor = OCRProcessor(tesseract_params=params)
 
                 # Process with timeout enforcement
@@ -405,6 +404,8 @@ async def sync_easyocr(
         async with temporary_upload(file) as (file_path, _):
             try:
                 # Create EasyOCR engine instance
+                from src.services.ocr.easyocr import EasyOCREngine
+
                 engine = EasyOCREngine()
 
                 # Process with timeout enforcement
@@ -617,6 +618,8 @@ async def sync_ocrmac(
         async with temporary_upload(file) as (file_path, _):
             try:
                 # Create ocrmac engine instance
+                from src.services.ocr.ocrmac import OcrmacEngine
+
                 engine = OcrmacEngine()
 
                 # Process with timeout enforcement

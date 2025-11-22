@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import numpy as np
 import structlog
 from pdf2image import convert_from_path
 
@@ -66,7 +65,7 @@ class EasyOCREngine(OCREngine):
         )
 
         # Create reader with language list and GPU setting
-        reader = easyocr.Reader(
+        reader = easyocr.Reader(  # type: ignore[attr-defined]
             lang_list=self.params.languages,
             gpu=use_gpu,
         )
@@ -101,7 +100,7 @@ class EasyOCREngine(OCREngine):
 
         return format_map[suffix]
 
-    def process(self, file_path: Path, params: EasyOCRParams | None = None) -> str:
+    def process(self, file_path: Path, params: EasyOCRParams | None = None) -> str:  # type: ignore[override]
         """
         Process document with EasyOCR and return HOCR XML.
 
@@ -212,6 +211,8 @@ class EasyOCREngine(OCREngine):
 
             # Convert PIL Image to numpy array for EasyOCR
             # EasyOCR accepts: file path (string), bytes, or numpy array
+            import numpy as np  # type: ignore[import-untyped]
+
             img_array = np.array(image)
 
             # Run EasyOCR on page image
