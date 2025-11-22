@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs clean run redis-start redis-stop redis-cli redis-monitor redis-flush redis-check setup-test-env
+.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs clean run redis-start redis-stop redis-cli redis-monitor redis-flush redis-check setup-test-env commit release release-dry-run changelog version
 
 # Default target
 help:
@@ -28,6 +28,11 @@ help:
 	@echo "  make redis-flush      - Flush Redis test data"
 	@echo "  make setup-test-env   - Set up test environment (start Redis, create samples)"
 	@echo "  make clean            - Remove cache and temporary files"
+	@echo "  make commit           - Create a conventional commit using commitizen"
+	@echo "  make release          - Create a new release (updates version, changelog, creates tag)"
+	@echo "  make release-dry-run  - Preview what the next release would be"
+	@echo "  make changelog        - Generate/update changelog"
+	@echo "  make version          - Display current version"
 
 # Development
 install:
@@ -176,3 +181,20 @@ check: lint format-check typecheck test
 
 # CI simulation (what runs in CI)
 ci: install redis-start check
+
+# Semantic Release and Conventional Commits
+commit:
+	uv run cz commit
+
+release:
+	uv run semantic-release version
+	uv run semantic-release publish
+
+release-dry-run:
+	uv run semantic-release version --print
+
+changelog:
+	uv run semantic-release changelog
+
+version:
+	@uv run semantic-release version --print

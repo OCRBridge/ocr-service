@@ -33,3 +33,10 @@ repos:
         types: [python]
         pass_filenames: false
         stages: [pre-commit]
+
+  # Commitizen - validate commit messages
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.32.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

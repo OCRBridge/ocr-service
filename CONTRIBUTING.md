@@ -138,26 +138,46 @@ Use descriptive branch names that indicate the type of change:
 
 ### Commit Message Guidelines
 
-Write clear, descriptive commit messages:
+This project follows the **[Conventional Commits](https://www.conventionalcommits.org/)** specification for commit messages. This enables automatic version bumping and changelog generation through semantic-release.
+
+#### Commit Message Format
 
 ```
-<type>: <short summary>
+<type>[optional scope]: <description>
 
-<optional detailed description>
+[optional body]
 
-<optional footer>
+[optional footer(s)]
 ```
 
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `docs`: Documentation changes
-- `chore`: Maintenance tasks
+#### Commit Types
 
-Example:
+- **`feat`**: A new feature (triggers a MINOR version bump)
+- **`fix`**: A bug fix (triggers a PATCH version bump)
+- **`docs`**: Documentation only changes
+- **`style`**: Changes that don't affect code meaning (formatting, missing semicolons, etc.)
+- **`refactor`**: Code change that neither fixes a bug nor adds a feature
+- **`perf`**: Performance improvements (triggers a PATCH version bump)
+- **`test`**: Adding or updating tests
+- **`build`**: Changes to build system or dependencies
+- **`ci`**: Changes to CI configuration files
+- **`chore`**: Other changes that don't modify src or test files
+
+#### Breaking Changes
+
+To trigger a MAJOR version bump, add `BREAKING CHANGE:` in the commit body or append `!` after the type/scope:
+
 ```
+feat!: remove deprecated OCR engine support
+
+BREAKING CHANGE: The legacy OCR engine has been removed.
+Use Tesseract or EasyOCR instead.
+```
+
+#### Examples
+
+```bash
+# Feature commit (MINOR version bump: 1.1.0 -> 1.2.0)
 feat: add support for TIFF multi-page documents
 
 Implemented TIFF processing using PIL to extract and process
@@ -165,7 +185,39 @@ multiple pages from TIFF files. Each page is converted to JPEG
 before OCR processing.
 
 Closes #123
+
+# Bug fix commit (PATCH version bump: 1.1.0 -> 1.1.1)
+fix: resolve rate limiting bypass vulnerability
+
+Fixed race condition in rate limiter that allowed requests
+to bypass rate limits under high concurrency.
+
+Fixes #456
+
+# Breaking change (MAJOR version bump: 1.1.0 -> 2.0.0)
+feat!: redesign API response format
+
+BREAKING CHANGE: API responses now use a standardized envelope format.
+All clients must be updated to parse the new response structure.
 ```
+
+#### Using Commitizen
+
+To ensure your commits follow the conventional format, use the provided commitizen tool:
+
+```bash
+# Interactive commit helper
+make commit
+
+# Or directly with commitizen
+uv run cz commit
+```
+
+This will guide you through creating a properly formatted commit message.
+
+#### Commit Validation
+
+Pre-commit hooks automatically validate commit messages. If your commit message doesn't follow the conventional format, the commit will be rejected with a helpful error message.
 
 ## Testing
 
@@ -378,6 +430,66 @@ Before submitting a PR, ensure:
 2. Maintainers will review your code
 3. Address any feedback or requested changes
 4. Once approved, your PR will be merged
+
+## Semantic Versioning and Releases
+
+This project uses **[Semantic Versioning](https://semver.org/)** (SemVer) and automated release management through **[Python Semantic Release](https://python-semantic-release.readthedocs.io/)**.
+
+### Version Format
+
+Versions follow the format: `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
+
+- **MAJOR**: Incremented for breaking changes (incompatible API changes)
+- **MINOR**: Incremented for new features (backward-compatible)
+- **PATCH**: Incremented for bug fixes (backward-compatible)
+
+### Automatic Releases
+
+When commits are merged to the `main` branch:
+
+1. **Semantic Release analyzes commits** to determine the next version
+2. **Version is bumped** in `pyproject.toml`
+3. **CHANGELOG.md is updated** with new changes
+4. **Git tag is created** (e.g., `v1.2.0`)
+5. **GitHub Release is published** with release notes
+
+### Triggering Version Bumps
+
+Your commit messages directly control version bumps:
+
+| Commit Type | Version Bump | Example |
+|-------------|--------------|---------|
+| `feat:` | MINOR (1.1.0 → 1.2.0) | `feat: add TIFF support` |
+| `fix:` | PATCH (1.1.0 → 1.1.1) | `fix: resolve memory leak` |
+| `perf:` | PATCH (1.1.0 → 1.1.1) | `perf: optimize image processing` |
+| `feat!:` or `BREAKING CHANGE:` | MAJOR (1.1.0 → 2.0.0) | `feat!: remove deprecated API` |
+| `docs:`, `chore:`, etc. | No bump | `docs: update README` |
+
+### Testing Releases Locally
+
+Before merging, you can test what version would be released:
+
+```bash
+# Preview the next version without making changes
+make release-dry-run
+
+# View current version
+make version
+
+# Generate changelog preview
+make changelog
+```
+
+### Release Workflow (Maintainers)
+
+Releases are fully automated via GitHub Actions. When a PR is merged to `main`:
+
+1. The `release.yml` workflow triggers automatically
+2. Semantic Release analyzes commits since the last release
+3. If releasable commits exist, a new version is published
+4. GitHub Release is created with auto-generated release notes
+
+No manual intervention is required for releases.
 
 ## Bug Reports
 
