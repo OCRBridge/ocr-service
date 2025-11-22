@@ -1,0 +1,10 @@
+# Tesseract-only flavor - Lightweight OCR service
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.tesseract.yml up
+# Or: DOCKERFILE=Dockerfile.tesseract docker-compose up
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.tesseract
+    container_name: ocr-api-tesseract

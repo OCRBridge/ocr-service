@@ -103,10 +103,36 @@ docker pull datenzar/restful-ocr:latest
 ```
 
 Available tags:
-- `latest` - Latest stable release from main branch
+- `latest` - Latest stable release from main branch (combined flavor)
+- `tesseract` - Tesseract-only flavor (~500MB, lightweight)
+- `easyocr` - EasyOCR-only flavor (~2.5GB, deep learning)
 - `v1.1.0` - Specific version tags
 - `1.1` - Major.minor version
 - `1` - Major version
+
+### Docker Image Flavors
+
+The service provides three Docker image flavors optimized for different use cases:
+
+| Flavor | Size | OCR Engines | Use Case |
+|--------|------|-------------|----------|
+| **Combined** (default) | ~2.6GB | Tesseract + EasyOCR | Maximum flexibility, production |
+| **Tesseract** | ~500MB | Tesseract only | Lightweight, traditional OCR |
+| **EasyOCR** | ~2.5GB | EasyOCR only | Deep learning, multi-language |
+
+**Pull specific flavors:**
+```bash
+# Tesseract-only (lightweight)
+docker pull ghcr.io/ocrbridge/ocr-service:tesseract
+
+# EasyOCR-only (deep learning)
+docker pull ghcr.io/ocrbridge/ocr-service:easyocr
+
+# Combined (default)
+docker pull ghcr.io/ocrbridge/ocr-service:latest
+```
+
+For detailed information about flavors, building custom images, and GPU support, see [DOCKER.md](DOCKER.md).
 
 **Quick run with Docker:**
 ```bash
@@ -134,8 +160,15 @@ docker compose -f docker-compose.prod.yml down
 
 **Option 2: Development (local build):**
 ```bash
-# Builds image locally from source
+# Builds combined image (default) locally from source
 docker compose up -d
+
+# Or build specific flavor:
+# Tesseract-only
+docker compose -f docker-compose.yml -f docker-compose.tesseract.yml up -d
+
+# EasyOCR-only
+docker compose -f docker-compose.yml -f docker-compose.easyocr.yml up -d
 
 # View logs
 docker compose logs -f api

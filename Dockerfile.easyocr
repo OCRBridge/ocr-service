@@ -1,13 +1,12 @@
-# Combined OCR service with all engines (Tesseract + EasyOCR)
-# This is the default/combined image that includes all OCR engines
-# For lighter images, see Dockerfile.tesseract or Dockerfile.easyocr
+# EasyOCR-only OCR service
+# This image only includes EasyOCR engine with deep learning support (no Tesseract)
+# Includes PyTorch and GPU support (CUDA runtime not included in base image)
+# Suitable for users who prefer deep learning-based OCR
 
 FROM python:3.14-slim AS base
 
-# Install system dependencies for all OCR engines and PDF processing
+# Install system dependencies for PDF processing and EasyOCR requirements
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
-    tesseract-ocr-eng \
     poppler-utils \
     build-essential \
     libffi-dev \
@@ -25,8 +24,8 @@ RUN pip install --no-cache-dir uv
 # Copy dependency files
 COPY pyproject.toml uv.lock* ./
 
-# Install Python dependencies (all OCR engines)
-RUN uv pip install --system -e .[all]
+# Install Python dependencies (core + easyocr only)
+RUN uv pip install --system -e .[easyocr]
 
 # Copy application source
 COPY src ./src
