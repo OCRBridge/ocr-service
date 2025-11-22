@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs clean run redis-start redis-stop redis-cli redis-monitor redis-flush redis-check setup-test-env commit release release-dry-run changelog version
+.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs clean run setup-test-env commit release release-dry-run changelog version
 
 # Default target
 help:
@@ -20,13 +20,7 @@ help:
 	@echo "  make docker-up        - Start Docker services (API + Redis)"
 	@echo "  make docker-down      - Stop Docker services"
 	@echo "  make docker-logs      - View Docker logs"
-	@echo "  make redis-start      - Start Redis server"
-	@echo "  make redis-stop       - Stop Redis server"
-	@echo "  make redis-check      - Check if Redis is running"
-	@echo "  make redis-cli        - Open Redis CLI"
-	@echo "  make redis-monitor    - Monitor Redis operations"
-	@echo "  make redis-flush      - Flush Redis test data"
-	@echo "  make setup-test-env   - Set up test environment (start Redis, create samples)"
+	@echo "  make setup-test-env   - Set up test environment (create samples)"
 	@echo "  make clean            - Remove cache and temporary files"
 	@echo "  make commit           - Create a conventional commit using commitizen"
 	@echo "  make release          - Create a new release (updates version, changelog, creates tag)"
@@ -44,8 +38,18 @@ dev:
 run: dev
 
 # Testing
-setup-test-env: redis-start
+setup-test-env:
 	@echo "Setting up test environment..."
+	@docker compose up -d redis
+	@echo "Waiting for Redis to be ready..."
+	@for i in 1 2 3 4 5; do \
+		if docker compose exec -T redis redis-cli ping > /dev/null 2>&1; then \
+			echo "Redis is ready"; \
+			break; \
+		fi; \
+		echo "Waiting for Redis... ($$i/5)"; \
+		sleep 1; \
+	done
 	@uv run python3 -c "from PIL import Image, ImageDraw, ImageFont; import os; os.makedirs('samples', exist_ok=True); \
 	img1 = Image.new('L', (800, 600), color=255) if not os.path.exists('samples/numbers_gs150.jpg') else None; \
 	draw1 = ImageDraw.Draw(img1) if img1 else None; \
@@ -61,23 +65,23 @@ setup-test-env: redis-start
 	print('Created samples/stock_gs200.jpg') if img2 else print('samples/stock_gs200.jpg exists')" 2>/dev/null || echo "Warning: Could not create sample files"
 	@echo "Test environment ready"
 
-test: redis-check
-	uv run pytest -m "not slow"
+test: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "not slow"
 
-test-slow: redis-check
-	uv run pytest --run-slow
+test-slow: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest --run-slow
 
 test-unit:
 	uv run pytest tests/unit/
 
-test-integration: redis-check
-	uv run pytest tests/integration/
+test-integration: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest tests/integration/
 
-test-contract: redis-check
-	uv run pytest tests/contract/
+test-contract: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest tests/contract/
 
-test-coverage: redis-check
-	uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
+test-coverage: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
 
 # Code quality
 lint:
@@ -124,48 +128,6 @@ docker-build:
 docker-restart:
 	docker compose restart
 
-# Redis
-redis-start:
-	@if ! redis-cli ping >/dev/null 2>&1; then \
-		echo "Starting Redis server..."; \
-		redis-server --daemonize yes; \
-		sleep 1; \
-		if redis-cli ping >/dev/null 2>&1; then \
-			echo "Redis started successfully"; \
-		else \
-			echo "Failed to start Redis"; \
-			exit 1; \
-		fi; \
-	else \
-		echo "Redis is already running"; \
-	fi
-
-redis-stop:
-	@if redis-cli ping >/dev/null 2>&1; then \
-		echo "Stopping Redis server..."; \
-		redis-cli shutdown; \
-		echo "Redis stopped"; \
-	else \
-		echo "Redis is not running"; \
-	fi
-
-redis-check:
-	@if ! redis-cli ping >/dev/null 2>&1; then \
-		echo "Error: Redis is not running. Start it with 'make redis-start'"; \
-		exit 1; \
-	fi
-
-redis-cli:
-	redis-cli
-
-redis-monitor:
-	redis-cli monitor
-
-redis-flush:
-	redis-cli flushdb
-
-redis-ping:
-	redis-cli ping
 
 # Cleanup
 clean:
@@ -180,7 +142,7 @@ clean:
 check: lint format-check typecheck test
 
 # CI simulation (what runs in CI)
-ci: install redis-start check
+ci: install check
 
 # Semantic Release and Conventional Commits
 commit:

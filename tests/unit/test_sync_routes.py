@@ -51,16 +51,18 @@ async def test_sync_tesseract_timeout_metrics(client: TestClient, sample_jpeg):
         mock_processor_class.return_value = mock_processor
 
         # Patch metrics
-        with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
-            with patch("src.api.routes.sync.sync_ocr_requests_total"):
-                # Make request
-                with open(sample_jpeg, "rb") as f:
-                    response = client.post("/sync/tesseract", files={"file": f})
+        with (
+            patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric,
+            patch("src.api.routes.sync.sync_ocr_requests_total"),
+            open(sample_jpeg, "rb") as f,
+        ):
+            # Make request
+            response = client.post("/sync/tesseract", files={"file": f})
 
-                # Verify timeout metric was incremented
-                assert response.status_code == 408
-                mock_timeout_metric.labels.assert_called_with(engine="tesseract")
-                mock_timeout_metric.labels.return_value.inc.assert_called_once()
+            # Verify timeout metric was incremented
+            assert response.status_code == 408
+            mock_timeout_metric.labels.assert_called_with(engine="tesseract")
+            mock_timeout_metric.labels.return_value.inc.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -192,22 +194,24 @@ async def test_temporary_upload_cleanup_on_timeout():
 @pytest.mark.asyncio
 async def test_sync_tesseract_success_metrics(client: TestClient, sample_jpeg):
     """Test that successful processing increments success metrics."""
-    with patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric:
-        with patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric:
-            # Make successful request
-            with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/tesseract", files={"file": f})
+    with (
+        patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric,
+        patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric,
+    ):
+        # Make successful request
+        with open(sample_jpeg, "rb") as f:
+            response = client.post("/sync/tesseract", files={"file": f})
 
-            assert response.status_code == 200
+        assert response.status_code == 200
 
-            # Verify success metric was incremented
-            calls = [call for call in mock_requests_metric.labels.call_args_list]
-            success_call = [call for call in calls if "success" in str(call)]
-            assert len(success_call) > 0
+        # Verify success metric was incremented
+        calls = list(mock_requests_metric.labels.call_args_list)
+        success_call = [call for call in calls if "success" in str(call)]
+        assert len(success_call) > 0
 
-            # Verify duration was recorded
-            mock_duration_metric.labels.assert_called_with(engine="tesseract")
-            mock_duration_metric.labels.return_value.observe.assert_called()
+        # Verify duration was recorded
+        mock_duration_metric.labels.assert_called_with(engine="tesseract")
+        mock_duration_metric.labels.return_value.observe.assert_called()
 
 
 # T020: Unit test for EasyOCR timeout handling
@@ -253,16 +257,18 @@ async def test_sync_easyocr_timeout_metrics(client: TestClient, sample_jpeg):
         mock_processor_class.return_value = mock_processor
 
         # Patch metrics
-        with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
-            with patch("src.api.routes.sync.sync_ocr_requests_total"):
-                # Make request
-                with open(sample_jpeg, "rb") as f:
-                    response = client.post("/sync/easyocr", files={"file": f})
+        with (
+            patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric,
+            patch("src.api.routes.sync.sync_ocr_requests_total"),
+        ):
+            # Make request
+            with open(sample_jpeg, "rb") as f:
+                response = client.post("/sync/easyocr", files={"file": f})
 
-                # Verify timeout metric was incremented for easyocr
-                assert response.status_code == 408
-                mock_timeout_metric.labels.assert_called_with(engine="easyocr")
-                mock_timeout_metric.labels.return_value.inc.assert_called_once()
+            # Verify timeout metric was incremented for easyocr
+            assert response.status_code == 408
+            mock_timeout_metric.labels.assert_called_with(engine="easyocr")
+            mock_timeout_metric.labels.return_value.inc.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -290,22 +296,24 @@ async def test_sync_easyocr_processing_error_handling(client: TestClient, sample
 @pytest.mark.asyncio
 async def test_sync_easyocr_success_metrics(client: TestClient, sample_jpeg):
     """Test that successful EasyOCR processing increments success metrics."""
-    with patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric:
-        with patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric:
-            # Make successful request
-            with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/easyocr", files={"file": f})
+    with (
+        patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric,
+        patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric,
+    ):
+        # Make successful request
+        with open(sample_jpeg, "rb") as f:
+            response = client.post("/sync/easyocr", files={"file": f})
 
-            assert response.status_code == 200
+        assert response.status_code == 200
 
-            # Verify success metric was incremented
-            calls = [call for call in mock_requests_metric.labels.call_args_list]
-            success_call = [call for call in calls if "success" in str(call)]
-            assert len(success_call) > 0
+        # Verify success metric was incremented
+        calls = list(mock_requests_metric.labels.call_args_list)
+        success_call = [call for call in calls if "success" in str(call)]
+        assert len(success_call) > 0
 
-            # Verify duration was recorded for easyocr
-            mock_duration_metric.labels.assert_called_with(engine="easyocr")
-            mock_duration_metric.labels.return_value.observe.assert_called()
+        # Verify duration was recorded for easyocr
+        mock_duration_metric.labels.assert_called_with(engine="easyocr")
+        mock_duration_metric.labels.return_value.observe.assert_called()
 
 
 # T030: Unit test for ocrmac timeout handling
@@ -363,16 +371,18 @@ async def test_sync_ocrmac_timeout_metrics(client: TestClient, sample_jpeg):
             mock_registry_class.return_value = mock_registry
 
             # Patch metrics
-            with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
-                with patch("src.api.routes.sync.sync_ocr_requests_total"):
-                    # Make request
-                    with open(sample_jpeg, "rb") as f:
-                        response = client.post("/sync/ocrmac", files={"file": f})
+            with (
+                patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric,
+                patch("src.api.routes.sync.sync_ocr_requests_total"),
+                open(sample_jpeg, "rb") as f,
+            ):
+                # Make request
+                response = client.post("/sync/ocrmac", files={"file": f})
 
-                    # Verify timeout metric was incremented for ocrmac
-                    assert response.status_code == 408
-                    mock_timeout_metric.labels.assert_called_with(engine="ocrmac")
-                    mock_timeout_metric.labels.return_value.inc.assert_called_once()
+                # Verify timeout metric was incremented for ocrmac
+                assert response.status_code == 408
+                mock_timeout_metric.labels.assert_called_with(engine="ocrmac")
+                mock_timeout_metric.labels.return_value.inc.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -413,19 +423,21 @@ async def test_sync_ocrmac_success_metrics(client: TestClient, sample_jpeg):
     if not registry.is_available(EngineType.OCRMAC):
         pytest.skip("ocrmac not available on this platform")
 
-    with patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric:
-        with patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric:
-            # Make successful request
-            with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/ocrmac", files={"file": f})
+    with (
+        patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric,
+        patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric,
+    ):
+        # Make successful request
+        with open(sample_jpeg, "rb") as f:
+            response = client.post("/sync/ocrmac", files={"file": f})
 
-            assert response.status_code == 200
+        assert response.status_code == 200
 
-            # Verify success metric was incremented
-            calls = [call for call in mock_requests_metric.labels.call_args_list]
-            success_call = [call for call in calls if "success" in str(call)]
-            assert len(success_call) > 0
+        # Verify success metric was incremented
+        calls = list(mock_requests_metric.labels.call_args_list)
+        success_call = [call for call in calls if "success" in str(call)]
+        assert len(success_call) > 0
 
-            # Verify duration was recorded for ocrmac
-            mock_duration_metric.labels.assert_called_with(engine="ocrmac")
-            mock_duration_metric.labels.return_value.observe.assert_called()
+        # Verify duration was recorded for ocrmac
+        mock_duration_metric.labels.assert_called_with(engine="ocrmac")
+        mock_duration_metric.labels.return_value.observe.assert_called()
