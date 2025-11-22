@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     job_expiration_hours: int = 48
 
     # OCR Configuration
+    default_ocr_engine: str = Field(
+        default="tesseract",
+        description="Default OCR engine to use (tesseract, easyocr, or ocrmac)",
+    )
     tesseract_lang: str = "eng"
     tesseract_psm: int = 3  # Auto page segmentation
     tesseract_oem: int = 1  # LSTM only

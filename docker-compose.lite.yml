@@ -1,12 +1,11 @@
-# Docker Compose configuration for FULL flavor (Tesseract + EasyOCR)
-# This uses the full Dockerfile with deep learning OCR support
-# Usage: docker compose up -d
-# For GPU support: docker compose up -d (requires nvidia-docker)
+# Docker Compose configuration for LITE flavor (Tesseract only)
+# This uses the lightweight Dockerfile.lite for minimal resource usage
+# Usage: docker compose -f docker-compose.lite.yml up -d
 
 services:
   redis:
     image: redis:7-alpine
-    container_name: ocr-redis
+    container_name: ocr-redis-lite
     ports:
       - "7879:6379"
     volumes:
@@ -20,9 +19,9 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: ocr-service:full
-    container_name: ocr-api
+      dockerfile: Dockerfile.lite
+    image: ocr-service:lite
+    container_name: ocr-api-lite
     ports:
       - "8080:8000"
     environment:
@@ -32,7 +31,7 @@ services:
       - API_WORKERS=4
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
-      - DEFAULT_OCR_ENGINE=tesseract  # Options: tesseract, easyocr
+      - DEFAULT_OCR_ENGINE=tesseract
     volumes:
       - ./src:/app/src  # Development: hot-reload source code
       - upload-tmp:/tmp/uploads
@@ -46,24 +45,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Optional: Enable GPU support (requires nvidia-docker)
-    # Uncomment the following lines to enable GPU acceleration for EasyOCR
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-    # Resource limits for full flavor
+    # Resource limits for lite flavor
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
           cpus: '1.0'
-          memory: 2G
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
 volumes:
   redis-data:

@@ -61,10 +61,30 @@ async def lifespan(app: FastAPI):
     # Initialize EngineRegistry (detect OCR engines at startup)
     registry = EngineRegistry()
     app.state.engine_registry = registry
+
+    # Log available OCR engines with version information
+    tesseract_caps = registry.get_capabilities(EngineType.TESSERACT)
+    easyocr_caps = registry.get_capabilities(EngineType.EASYOCR)
+    ocrmac_caps = registry.get_capabilities(EngineType.OCRMAC)
+
+    available_engines = []
+    if tesseract_caps.available:
+        available_engines.append(f"tesseract {tesseract_caps.version}")
+    if easyocr_caps.available:
+        available_engines.append(f"easyocr {easyocr_caps.version}")
+    if ocrmac_caps.available:
+        available_engines.append(f"ocrmac {ocrmac_caps.version}")
+
     logger.info(
-        "engine_registry_initialized",
-        tesseract_available=registry.is_available(EngineType.TESSERACT),
-        ocrmac_available=registry.is_available(EngineType.OCRMAC),
+        "ocr_engines_detected",
+        available_engines=available_engines,
+        default_engine=settings.default_ocr_engine,
+        tesseract_available=tesseract_caps.available,
+        tesseract_version=tesseract_caps.version,
+        easyocr_available=easyocr_caps.available,
+        easyocr_version=easyocr_caps.version,
+        ocrmac_available=ocrmac_caps.available,
+        ocrmac_version=ocrmac_caps.version,
     )
 
     # Initialize Redis connection

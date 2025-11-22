@@ -4,6 +4,7 @@ version = "1.1.0"
 description = "RESTful OCR API service for document processing with HOCR output"
 readme = "README.md"
 requires-python = ">=3.11"
+# Base dependencies: Core API + Tesseract OCR (lightweight flavor)
 dependencies = [
     "fastapi>=0.104.0",
     "pydantic>=2.5.0",
@@ -17,17 +18,39 @@ dependencies = [
     "prometheus-client>=0.19.0",
     "aiofiles>=23.2.0",
     "python-multipart>=0.0.6",
-    # ocrmac: macOS-only (requires Apple Vision framework, unavailable in Docker)
-    # Note: Docker runs Linux VM even on Mac, so ocrmac won't work in containers
-    "ocrmac>=0.1.0; sys_platform == 'darwin'",
-    "easyocr>=1.7.0",
-    "torch>=2.0.0",
     # Pin opencv-python-headless to avoid broken 4.11.0.86 release
     # See: https://github.com/opencv/opencv-python/issues (version 4.11.0.86 has missing attributes)
     "opencv-python-headless>=4.8.0,<4.11.0",
 ]
 
+[project.optional-dependencies]
+# EasyOCR: Deep learning OCR with GPU support
+# Install: pip install -e .[easyocr]
+# Docker: Use full image (not lite)
+easyocr = [
+    "easyocr>=1.7.0",
+    "torch>=2.0.0",
+]
+
+# ocrmac: macOS-only Vision framework OCR
+# Install: pip install -e .[ocrmac]  (macOS only)
+# Docker: Not compatible (Docker uses Linux even on Mac)
+ocrmac = [
+    "ocrmac>=0.1.0; sys_platform == 'darwin'",
+]
+
+# Full: All OCR engines
+# Install: pip install -e .[full]
+# Docker: Use full image
+full = [
+    "easyocr>=1.7.0",
+    "torch>=2.0.0",
+    "ocrmac>=0.1.0; sys_platform == 'darwin'",
+]
+
 [dependency-groups]
+# Development dependencies
+# Install: uv sync --group dev
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",

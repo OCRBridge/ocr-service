@@ -12,32 +12,143 @@ A high-performance RESTful API service for document OCR processing with HOCR (HT
 - **No Authentication**: Public API for easy integration
 - **High Performance**: <30s processing time for typical documents
 
+## OCR Engine Flavors
+
+This service supports multiple OCR engines with different capabilities and resource requirements. Choose the right flavor for your deployment:
+
+| Flavor | Engines | Docker Image | Installation | Best For |
+|--------|---------|--------------|--------------|----------|
+| **Lite** | Tesseract only | `Dockerfile.lite` | `pip install .` | CPU-only, resource-constrained, edge devices |
+| **Full** | Tesseract + EasyOCR | `Dockerfile` | `pip install .[easyocr]` | GPU-enabled servers, high-accuracy OCR |
+| **macOS Native** | All (Tesseract + EasyOCR + ocrmac) | N/A (no Docker) | `pip install .[full]` | Local macOS development, native Vision framework |
+
+### Engine Comparison
+
+| Engine | Accuracy | Speed | GPU Support | Languages | Size Impact |
+|--------|----------|-------|-------------|-----------|-------------|
+| **Tesseract** | Good | Fast | No | 100+ | ~500MB (base) |
+| **EasyOCR** | Excellent | Medium | Yes | 80+ | +2GB (PyTorch) |
+| **ocrmac** | Excellent | Very Fast | Yes (Apple Neural Engine) | 30+ | +10MB (macOS only) |
+
 ## Quick Start
 
-### Running with Docker Compose (Recommended)
+### Option 1: Docker (Lite - Tesseract Only)
+
+**Best for**: Production deployments, CPU-only environments, smallest image size
 
 ```bash
-# Start all services (API + Redis)
+# Build and run lite image
+make docker-build-lite
+docker run -d -p 8000:8000 --name ocr-service \
+  -e REDIS_URL=redis://redis:6379/0 \
+  ocr-service:lite
+
+# Or use docker-compose
+docker compose -f docker-compose.lite.yml up -d
+```
+
+**Image size**: ~500MB
+
+### Option 2: Docker (Full - Tesseract + EasyOCR)
+
+**Best for**: GPU-enabled servers, high-accuracy requirements
+
+```bash
+# Build and run full image
+make docker-build-full
+docker run -d -p 8000:8000 --name ocr-service \
+  -e REDIS_URL=redis://redis:6379/0 \
+  --gpus all \  # Optional: Enable GPU support
+  ocr-service:full
+
+# Or use docker-compose (default - uses full flavor)
 docker compose up -d
 
-# View logs
-docker compose logs -f api
-
-# Stop services
-docker compose down
+# With GPU support (uncomment GPU section in docker-compose.yml first)
+docker compose up -d
 ```
 
-The API will be available at `http://localhost:8000`. Check the health endpoint to verify:
+**Image size**: ~2.5GB
+
+### Option 3: Local Development (macOS)
+
+**Best for**: macOS developers who want native Vision framework support
+
 ```bash
-curl http://localhost:8000/health
+# Install with all engines (including ocrmac)
+pip install -e .[full]
+
+# Or install specific flavors:
+pip install -e .[easyocr]  # Tesseract + EasyOCR only
+pip install -e .[ocrmac]   # Tesseract + ocrmac only
+
+# Start Redis
+brew install redis
+brew services start redis
+
+# Run the service
+uvicorn src.main:app --reload
 ```
 
-### Development Setup
+### Option 4: Local Development (Linux/Windows)
 
-For local development without Docker, or to contribute to the project, see the [Contributing Guide](CONTRIBUTING.md) for detailed setup instructions including:
-- Installing dependencies (Python, Redis, Tesseract, etc.)
-- Setting up your development environment
-- Running tests and code quality tools
+**Best for**: Non-macOS development environments
+
+```bash
+# Install base (Tesseract only)
+pip install -e .
+
+# Or install with EasyOCR
+pip install -e .[easyocr]
+
+# Install system dependencies
+# Ubuntu/Debian:
+sudo apt-get install tesseract-ocr redis-server poppler-utils
+
+# Fedora/RHEL:
+sudo dnf install tesseract redis poppler-utils
+
+# Run the service
+uvicorn src.main:app --reload
+```
+
+### Verify Installation
+
+The API will be available at `http://localhost:8000`. Check available engines:
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Check logs for detected engines
+# You should see: "ocr_engines_detected" with available_engines list
+```
+
+### Selecting an OCR Engine
+
+You can specify the engine when uploading documents:
+
+```bash
+# Use Tesseract (default)
+curl -X POST http://localhost:8000/upload \
+  -F "file=@document.pdf" \
+  -F "engine=tesseract"
+
+# Use EasyOCR (if installed)
+curl -X POST http://localhost:8000/upload \
+  -F "file=@document.pdf" \
+  -F "engine=easyocr"
+
+# Use ocrmac (macOS only, not in Docker)
+curl -X POST http://localhost:8000/upload \
+  -F "file=@document.pdf" \
+  -F "engine=ocrmac"
+```
+
+Or set a default engine via environment variable:
+```bash
+DEFAULT_OCR_ENGINE=easyocr
+```
 
 ## API Usage
 
