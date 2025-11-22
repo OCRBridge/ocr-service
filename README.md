@@ -2,11 +2,11 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![CI](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml)
+[![Docker Publish](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml)
+[![codecov](https://codecov.io/gh/OCRBridge/ocr-service/branch/main/graph/badge.svg)](https://codecov.io/gh/OCRBridge/ocr-service)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checker: Pyright](https://img.shields.io/badge/type%20checker-pyright-blue.svg)](https://github.com/microsoft/pyright)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
-[![Tests](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml)
-[![Ruff](https://github.com/OCRBridge/ocr-service/actions/workflows/ruff.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ruff.yml)
 
 A high-performance RESTful API service for document OCR processing with HOCR (HTML-based OCR) output format.
 
@@ -86,10 +86,53 @@ graph TB
 
 ## Quick Start
 
+### Using Pre-built Docker Images
+
+Pre-built Docker images are automatically published to GitHub Container Registry and Docker Hub on every release:
+
+**GitHub Container Registry (GHCR):**
+```bash
+docker pull ghcr.io/ocrbridge/ocr-service:latest
+```
+
+**Docker Hub:**
+```bash
+docker pull datenzar/restful-ocr:latest
+```
+
+Available tags:
+- `latest` - Latest stable release from main branch
+- `v1.1.0` - Specific version tags
+- `1.1` - Major.minor version
+- `1` - Major version
+
+**Quick run with Docker:**
+```bash
+# Pull and run (requires Redis)
+docker run -d --name redis redis:7-alpine
+docker run -d -p 8000:8000 \
+  -e REDIS_URL=redis://redis:6379/0 \
+  --link redis:redis \
+  ghcr.io/ocrbridge/ocr-service:latest
+```
+
 ### Running with Docker Compose (Recommended)
 
+**Option 1: Production (pre-built image):**
 ```bash
-# Start all services (API + Redis)
+# Uses pre-built image from GHCR
+docker compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f api
+
+# Stop services
+docker compose -f docker-compose.prod.yml down
+```
+
+**Option 2: Development (local build):**
+```bash
+# Builds image locally from source
 docker compose up -d
 
 # View logs
@@ -221,117 +264,38 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more details on platform-specific lim
 
 ## Deployment
 
-### Production Deployment with Docker
+For comprehensive deployment instructions, see **[DEPLOYMENT.md](DEPLOYMENT.md)** which covers:
 
-#### Prerequisites
-- Docker Engine 20.10+
-- Docker Compose v2+
-- At least 2GB RAM available
-- Persistent storage for results
+- 🐳 **Docker Image Publishing** - Pre-built images on GHCR and Docker Hub
+- ☁️ **Cloud Platforms** - Deploy to Railway, Render, Fly.io, AWS, GCP, Azure
+- ⚙️ **Kubernetes** - Complete K8s manifests and scaling strategies
+- 📊 **Monitoring** - Prometheus metrics and health checks
+- 🔒 **Security** - Production hardening checklist
+- 🔄 **Updates & Rollbacks** - Version management strategies
+- 💾 **Backup & Recovery** - Data persistence and disaster recovery
 
-#### Docker Compose Production Setup
+### Quick Production Deploy
 
-1. **Clone and configure**:
+Using pre-built Docker images:
+
 ```bash
-git clone <repository-url>
-cd restful-ocr
-git checkout 001-ocr-hocr-upload
+# Pull latest image
+docker pull ghcr.io/ocrbridge/ocr-service:latest
 
-# Copy and edit production environment
-cp .env.example .env
-# Edit .env with production values (Redis URL, directories, etc.)
-```
-
-2. **Build and start services**:
-```bash
-# Build the Docker image
-docker compose build
-
-# Start services in detached mode
-docker compose up -d
-
-# View logs
-docker compose logs -f api
+# Run with Docker Compose
+docker compose -f docker-compose.prod.yml up -d
 
 # Check health
 curl http://localhost:8000/health
 ```
 
-3. **Production configuration** (edit `docker compose.yml`):
-- Increase worker count: `command: uvicorn src.main:app --host 0.0.0.0 --workers 4`
-- Add volume mounts for persistent results storage
-- Configure Redis persistence
-- Set resource limits (memory, CPU)
+### Resource Requirements
 
-#### Kubernetes Deployment
-
-For Kubernetes deployments, see example manifests in `k8s/` (to be added):
-- Deployment with horizontal pod autoscaling
-- Service (LoadBalancer or Ingress)
-- ConfigMap for environment variables
-- PersistentVolumeClaim for results storage
-- Redis StatefulSet
-
-#### Environment Variables for Production
-
-Required environment variables:
-```bash
-# Redis Configuration
-REDIS_URL=redis://redis:6379/0
-
-# Storage Configuration
-UPLOAD_DIR=/tmp/uploads
-RESULTS_DIR=/tmp/results
-
-# API Configuration
-MAX_UPLOAD_SIZE_MB=25
-RATE_LIMIT_REQUESTS=100
-JOB_EXPIRATION_HOURS=48
-
-# OCR Configuration
-TESSERACT_LANG=eng
-TESSERACT_DPI=300
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FORMAT=json
-```
-
-#### Health Monitoring
-
-- **Liveness probe**: `GET /health` (returns 200 if Redis is reachable)
-- **Readiness probe**: `GET /health` (checks Redis connectivity)
-- **Metrics**: `GET /metrics` (Prometheus format)
-
-#### Scaling Considerations
-
-- **Horizontal scaling**: Add more Uvicorn workers or pods
-- **Redis**: Use Redis Cluster for high availability
-- **Storage**: Mount shared NFS/S3 for results directory across pods
-- **Rate limiting**: Shared Redis ensures consistent rate limits across instances
-
-#### Security Hardening
-
-- Run containers as non-root user
-- Use read-only root filesystem where possible
-- Enable TLS/HTTPS via reverse proxy (nginx, traefik)
-- Configure network policies to isolate Redis
-- Implement request timeout limits
-- Monitor for suspicious file uploads
-
-#### Backup and Recovery
-
-- **Results**: Backup `/tmp/results` directory daily (though files auto-expire in 48h)
-- **Redis**: Use Redis RDB/AOF persistence and backup snapshots
-- **Logs**: Forward to centralized logging (ELK, Loki, etc.)
-
-#### Resource Requirements
-
-Minimum per instance:
-- **CPU**: 1 core (2+ recommended)
-- **Memory**: 2GB RAM (4GB+ recommended)
-- **Storage**: 10GB for temp files + results
-- **Redis**: 512MB RAM minimum
+**Minimum per instance:**
+- CPU: 1 core (2+ recommended)
+- Memory: 2GB RAM (4GB+ recommended)
+- Storage: 10GB for temp files + results
+- Redis: 512MB RAM minimum
 
 ## Contributing
 
