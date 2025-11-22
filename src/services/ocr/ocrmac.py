@@ -90,7 +90,7 @@ class OcrmacEngine(OCREngine):
             recognition_level=recognition_level,
         )
 
-    def process(self, file_path: Path, params: OcrmacParams | None = None) -> str:
+    def process(self, file_path: Path, params: OcrmacParams | None = None) -> str:  # type: ignore[override]
         """
         Process a document using ocrmac and return HOCR XML output.
 
@@ -186,7 +186,7 @@ class OcrmacEngine(OCREngine):
 
         # Import ocrmac (will fail if not installed)
         try:
-            from ocrmac import ocrmac
+            from ocrmac import ocrmac  # type: ignore[attr-defined]
         except ImportError:
             logger.error("ocrmac_not_installed")
             raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac")
@@ -326,7 +326,7 @@ class OcrmacEngine(OCREngine):
 
         # Import ocrmac (will fail if not installed)
         try:
-            from ocrmac import ocrmac
+            from ocrmac import ocrmac  # type: ignore[attr-defined]
         except ImportError:
             logger.error("ocrmac_not_installed")
             raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac")

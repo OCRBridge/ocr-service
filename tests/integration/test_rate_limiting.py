@@ -41,7 +41,7 @@ async def test_rate_limit_enforcement_upload_endpoint(
     assert response.status_code == 429, (
         f"Expected 429 Too Many Requests, got {response.status_code}"
     )
-    assert "Retry-After" in response.headers or "retry-after" in response.headers.lower()
+    assert "Retry-After" in response.headers or "retry-after" in str(response.headers).lower()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -179,7 +179,7 @@ async def test_rate_limit_error_response_format(
 
 
 # Mark the slow test
-pytest.mark.slow = pytest.mark.skipif(
+pytest.mark.slow = pytest.mark.skipif(  # type: ignore
     "not config.getoption('--run-slow')",
     reason="Slow test - requires 61 second wait",
 )

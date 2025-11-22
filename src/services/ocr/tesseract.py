@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import pytesseract
+import pytesseract  # type: ignore[import-untyped]
 import structlog
 from pdf2image import convert_from_path
 
@@ -28,7 +28,7 @@ class TesseractEngineError(Exception):
 class TesseractEngine(OCREngine):
     """Tesseract OCR engine implementation."""
 
-    def process(self, file_path: Path, params: TesseractParams | None = None) -> str:
+    def process(self, file_path: Path, params: TesseractParams | None = None) -> str:  # type: ignore[override]
         """
         Process a document using Tesseract and return HOCR XML output.
 

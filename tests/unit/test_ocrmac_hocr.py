@@ -173,7 +173,7 @@ class TestOcrmacHocrStructure:
 
         # Find ocr_page
         body = root.find(".//{http://www.w3.org/1999/xhtml}body")
-        page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')
+        page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')  # type: ignore
         assert page is not None, "ocr_page element not found"
 
         # Find ocr_line elements (direct children of page)
@@ -208,7 +208,7 @@ class TestOcrmacHocrStructure:
 
         # Check attributes
         assert line.get("id") is not None
-        assert line.get("id").startswith("line_1_")
+        assert line.get("id").startswith("line_1_")  # type: ignore
         assert line.get("title") is not None
         assert "bbox" in line.get("title")
 

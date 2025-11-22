@@ -46,7 +46,7 @@ class EngineRegistry:
     def _detect_tesseract(self):
         """Detect Tesseract availability and capabilities."""
         try:
-            import pytesseract
+            import pytesseract  # type: ignore[import-untyped]
 
             version = pytesseract.get_tesseract_version()
             languages = pytesseract.get_languages()
@@ -145,8 +145,8 @@ class EngineRegistry:
     def _detect_easyocr(self):
         """Detect EasyOCR availability and capabilities."""
         try:
-            import easyocr  # noqa: F401
-            import torch  # noqa: F401
+            import easyocr  # type: ignore[import-untyped]  # noqa: F401
+            import torch  # type: ignore[import-untyped]  # noqa: F401
 
             # EasyOCR supported languages (80+ languages)
             # Reference: https://github.com/JaidedAI/EasyOCR#supported-languages

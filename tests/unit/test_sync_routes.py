@@ -92,7 +92,7 @@ async def test_sync_tesseract_validation_error_handling(client: TestClient, samp
     """Test that validation errors return 4xx status code."""
     # Invalid PSM parameter
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": 999})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": "999"})
 
     # FastAPI Form validation returns 400, Pydantic validation returns 422
     assert response.status_code in [400, 422]
@@ -153,7 +153,7 @@ async def test_temporary_upload_cleanup_on_error():
 
         # Use context manager with error
         with pytest.raises(RuntimeError):
-            async with temporary_upload(mock_file) as (file_path, file_format):
+            async with temporary_upload(mock_file) as (_file_path, _file_format):
                 raise RuntimeError("Test error")
 
         # Verify cleanup was still called
@@ -184,7 +184,7 @@ async def test_temporary_upload_cleanup_on_timeout():
 
         # Use context manager with timeout
         with pytest.raises(asyncio.TimeoutError):
-            async with temporary_upload(mock_file) as (file_path, file_format):
+            async with temporary_upload(mock_file) as (_file_path, _file_format):
                 raise TimeoutError()
 
         # Verify cleanup was still called

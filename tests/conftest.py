@@ -68,7 +68,9 @@ async def redis_client() -> AsyncGenerator[aioredis.Redis, None]:
     """Create Redis client for testing."""
     client = aioredis.from_url(settings.redis_url, decode_responses=True)
     try:
-        await client.ping()
+        result = client.ping()  # type: ignore[misc]
+        if hasattr(result, "__await__"):
+            await result  # type: ignore[misc]
         yield client
     finally:
         await client.flushdb()  # Clean up test data

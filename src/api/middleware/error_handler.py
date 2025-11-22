@@ -44,5 +44,5 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 def add_exception_handlers(app: FastAPI) -> None:
     """Register all exception handlers to the FastAPI app."""
-    app.add_exception_handler(RequestValidationError, validation_exception_handler)
-    app.add_exception_handler(Exception, generic_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, generic_exception_handler)  # type: ignore[arg-type]

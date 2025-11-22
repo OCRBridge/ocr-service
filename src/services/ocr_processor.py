@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import pytesseract
+import pytesseract  # type: ignore[import-untyped]
 import structlog
 from pdf2image import convert_from_path
 

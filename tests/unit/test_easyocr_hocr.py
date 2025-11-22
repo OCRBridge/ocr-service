@@ -27,7 +27,7 @@ class TestEasyOCRHocrStructure:
 
         # Find ocr_page
         body = root.find(".//{http://www.w3.org/1999/xhtml}body")
-        page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')
+        page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')  # type: ignore
         assert page is not None, "ocr_page element not found"
 
         # Find ocr_line elements
@@ -89,7 +89,7 @@ class TestEasyOCRHocrStructure:
 
         # Find first ocr_line
         line = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocr_line"]')
-        words = line.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
+        words = line.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')  # type: ignore
 
         # Extract word text
         word_texts = [word.text for word in words]
@@ -145,7 +145,7 @@ class TestEasyOCRHocrStructure:
 
         # Find line
         line = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocr_line"]')
-        line_title = line.get("title")
+        line_title = line.get("title")  # type: ignore
 
         # Extract line bbox
         import re
@@ -174,7 +174,7 @@ class TestEasyOCRHocrStructure:
 
         # Find word
         word = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
-        word_title = word.get("title")
+        word_title = word.get("title")  # type: ignore
 
         # Check confidence
         import re
@@ -215,4 +215,4 @@ class TestEasyOCRHocrStructure:
         xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
         word = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
-        assert word.text == "<Test&>", "Parsed text should match original"
+        assert word.text == "<Test&>", "Parsed text should match original"  # type: ignore
