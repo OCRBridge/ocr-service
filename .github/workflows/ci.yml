@@ -140,3 +140,20 @@ jobs:
         run: |
           docker build -t ocr-service:test .
           docker run --rm ocr-service:test python -c "import src.main; print('Import successful')"
+
+  check:
+    name: Check (All Checks)
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    if: always()
+
+    steps:
+      - name: Determine if checks passed
+        run: |
+          if [[ "${{ needs.lint.result }}" == "success" && "${{ needs.typecheck.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
+            echo "All checks passed"
+            exit 0
+          else
+            echo "Some checks failed"
+            exit 1
+          fi
