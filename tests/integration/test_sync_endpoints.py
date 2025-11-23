@@ -315,6 +315,7 @@ def test_sync_easyocr_processing_duration_reasonable(client: TestClient, sample_
 # ============================================================================
 
 
+@pytest.mark.macos
 @pytest.mark.skipif(
     not pytest.importorskip("ocrmac", reason="ocrmac only available on macOS"),
     reason="ocrmac only available on macOS",
@@ -349,6 +350,7 @@ def test_sync_ocrmac_jpeg_end_to_end(client: TestClient, sample_jpeg):
     assert data["processing_duration_seconds"] < 30  # Within timeout limit
 
 
+@pytest.mark.macos
 @pytest.mark.skipif(
     not pytest.importorskip("ocrmac", reason="ocrmac only available on macOS"),
     reason="ocrmac only available on macOS",
@@ -371,6 +373,7 @@ def test_sync_ocrmac_png_end_to_end(client: TestClient, sample_png):
     assert data["pages"] >= 1
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_with_languages_parameter(client: TestClient, sample_jpeg):
     """Test synchronous ocrmac with languages parameter."""
     # Test single language
@@ -391,6 +394,7 @@ def test_sync_ocrmac_with_languages_parameter(client: TestClient, sample_jpeg):
     assert response.status_code == 200
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_with_recognition_level_parameter(client: TestClient, sample_jpeg):
     """Test synchronous ocrmac with recognition_level parameter."""
     # Test fast recognition
@@ -413,6 +417,7 @@ def test_sync_ocrmac_with_recognition_level_parameter(client: TestClient, sample
     assert response.status_code == 200
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_processing_duration_reasonable(client: TestClient, sample_jpeg):
     """Test that ocrmac processing completes within reasonable time (macOS only)."""
     with open(sample_jpeg, "rb") as f:
@@ -435,6 +440,7 @@ def test_sync_ocrmac_processing_duration_reasonable(client: TestClient, sample_j
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_unavailable_non_macos_400(client: TestClient, sample_jpeg, monkeypatch):
     """Test that ocrmac returns 400 on non-macOS platforms."""
     # Mock the engine registry to simulate non-macOS platform
@@ -461,6 +467,7 @@ def test_sync_ocrmac_unavailable_non_macos_400(client: TestClient, sample_jpeg, 
 # ============================================================================
 
 
+@pytest.mark.macos
 @pytest.mark.skipif(
     not pytest.importorskip("ocrmac", reason="ocrmac only available on macOS"),
     reason="ocrmac only available on macOS",
@@ -519,6 +526,7 @@ def test_sync_ocrmac_livetext_end_to_end(client: TestClient, sample_jpeg, monkey
     assert data["processing_duration_seconds"] < 5.0
 
 
+@pytest.mark.macos
 @pytest.mark.skipif(
     not pytest.importorskip("ocrmac", reason="ocrmac only available on macOS"),
     reason="ocrmac only available on macOS",

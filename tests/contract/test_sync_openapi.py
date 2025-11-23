@@ -1,5 +1,6 @@
 """Contract tests for synchronous OCR endpoint OpenAPI compliance."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 # ============================================================================
@@ -210,6 +211,7 @@ def test_sync_easyocr_openapi_response_schema(client: TestClient):
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_openapi_endpoint_exists(client: TestClient):
     """Test that /sync/ocrmac endpoint is registered in OpenAPI schema."""
     response = client.get("/openapi.json")
@@ -220,6 +222,7 @@ def test_sync_ocrmac_openapi_endpoint_exists(client: TestClient):
     assert "post" in openapi_schema["paths"]["/sync/ocrmac"]
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_openapi_request_parameters(client: TestClient):
     """Test that /sync/ocrmac has correct request parameters in OpenAPI schema."""
     response = client.get("/openapi.json")
@@ -239,6 +242,7 @@ def test_sync_ocrmac_openapi_request_parameters(client: TestClient):
     assert "recognition_level" in request_body["properties"]
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_openapi_response_schema(client: TestClient):
     """Test that /sync/ocrmac has correct response schema in OpenAPI."""
     response = client.get("/openapi.json")
@@ -274,6 +278,7 @@ def test_sync_ocrmac_openapi_response_schema(client: TestClient):
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_openapi_recognition_level_includes_livetext(client: TestClient):
     """Test that OpenAPI schema includes 'livetext' in recognition_level pattern."""
     response = client.get("/openapi.json")

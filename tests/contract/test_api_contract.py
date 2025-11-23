@@ -134,6 +134,7 @@ def test_upload_without_dpi_uses_default(client: TestClient, sample_jpeg):
     data = response.json()
     assert "job_id" in data
 
+
 # ============================================================================
 # Engine Selection
 # ============================================================================
@@ -152,6 +153,7 @@ def test_upload_tesseract_endpoint_with_valid_parameters(client: TestClient, sam
     assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_endpoint_with_valid_parameters(client: TestClient, sample_jpeg):
     """Test POST /upload/ocrmac endpoint with valid parameters (macOS only)."""
     with open(sample_jpeg, "rb") as f:
@@ -182,6 +184,7 @@ def test_upload_with_invalid_engine_name_returns_400(client: TestClient, sample_
     assert response.status_code == 404  # FastAPI returns 404 for unknown routes
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_on_non_macos_returns_400(client: TestClient, sample_jpeg):
     """Test that ocrmac on non-macOS returns HTTP 400 with clear error message."""
     import platform
@@ -243,6 +246,7 @@ def test_upload_tesseract_with_invalid_parameters_returns_400(client: TestClient
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_german_language(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with languages=de."""
     with open(sample_jpeg, "rb") as f:
@@ -256,6 +260,7 @@ def test_upload_ocrmac_with_german_language(client: TestClient, sample_jpeg):
         assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_multiple_languages(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with multiple languages (en,fr)."""
     with open(sample_jpeg, "rb") as f:
@@ -271,6 +276,7 @@ def test_upload_ocrmac_with_multiple_languages(client: TestClient, sample_jpeg):
         assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_without_languages_uses_auto_detection(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac without languages uses auto-detection."""
     with open(sample_jpeg, "rb") as f:
@@ -284,6 +290,7 @@ def test_upload_ocrmac_without_languages_uses_auto_detection(client: TestClient,
         assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_unsupported_language_returns_400(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with unsupported language returns HTTP 400."""
     with open(sample_jpeg, "rb") as f:
@@ -297,6 +304,7 @@ def test_upload_ocrmac_with_unsupported_language_returns_400(client: TestClient,
     assert response.status_code == 400
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_too_many_languages_returns_400(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with more than 5 languages returns HTTP 400."""
     with open(sample_jpeg, "rb") as f:
@@ -315,6 +323,7 @@ def test_upload_ocrmac_with_too_many_languages_returns_400(client: TestClient, s
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_recognition_level_fast(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with recognition_level=fast."""
     with open(sample_jpeg, "rb") as f:
@@ -330,6 +339,7 @@ def test_upload_ocrmac_with_recognition_level_fast(client: TestClient, sample_jp
         assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_recognition_level_accurate(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with recognition_level=accurate."""
     with open(sample_jpeg, "rb") as f:
@@ -345,6 +355,7 @@ def test_upload_ocrmac_with_recognition_level_accurate(client: TestClient, sampl
         assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_invalid_recognition_level_returns_400(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with invalid recognition_level returns HTTP 400."""
     with open(sample_jpeg, "rb") as f:
@@ -356,6 +367,7 @@ def test_upload_ocrmac_with_invalid_recognition_level_returns_400(client: TestCl
     assert response.status_code == 400
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_without_recognition_level_defaults_to_balanced(
     client: TestClient, sample_jpeg
 ):
@@ -371,6 +383,7 @@ def test_upload_ocrmac_without_recognition_level_defaults_to_balanced(
         assert data["status"] == "pending"
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_pdf_file(client: TestClient, sample_pdf):
     """Test /upload/ocrmac with PDF file (verifies PDF conversion works)."""
     from pathlib import Path
@@ -401,6 +414,7 @@ def test_upload_ocrmac_with_pdf_file(client: TestClient, sample_pdf):
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_with_tesseract_only_parameters_returns_400(client: TestClient, sample_jpeg):
     """Test /upload/ocrmac with Tesseract-only parameters (psm, oem, dpi) returns HTTP 400."""
     # Test with psm (Tesseract-only parameter)
@@ -438,6 +452,7 @@ def test_upload_tesseract_with_ocrmac_only_parameters_returns_400(client: TestCl
 # ============================================================================
 
 
+@pytest.mark.macos
 def test_upload_ocrmac_livetext_parameter_validation_accepts_valid(client: TestClient, sample_jpeg):
     """Test that 'livetext' is accepted as valid recognition_level value."""
     with open(sample_jpeg, "rb") as f:
@@ -456,6 +471,7 @@ def test_upload_ocrmac_livetext_parameter_validation_accepts_valid(client: TestC
         assert "Sonoma" in detail or "macOS" in detail or "platform" in detail.lower()
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_livetext_parameter_validation_accepts_valid(client: TestClient, sample_jpeg):
     """Test that 'livetext' is accepted as valid recognition_level in sync endpoint."""
     with open(sample_jpeg, "rb") as f:
@@ -474,6 +490,7 @@ def test_sync_ocrmac_livetext_parameter_validation_accepts_valid(client: TestCli
         assert "Sonoma" in detail or "macOS" in detail or "platform" in detail.lower()
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_livetext_platform_incompatibility_error(client: TestClient, sample_jpeg):
     """Test HTTP 400 platform incompatibility error for LiveText on pre-Sonoma."""
     import platform
@@ -504,6 +521,7 @@ def test_sync_ocrmac_livetext_platform_incompatibility_error(client: TestClient,
         assert "Sonoma" in detail or "14.0" in detail or "macOS" in detail
 
 
+@pytest.mark.macos
 def test_sync_ocrmac_livetext_library_incompatibility_error(client: TestClient, sample_jpeg):
     """Test HTTP 500 library incompatibility error for unsupported ocrmac version."""
     # This test verifies the error handling pattern

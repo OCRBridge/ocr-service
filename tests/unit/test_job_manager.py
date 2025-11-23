@@ -93,6 +93,7 @@ async def test_job_manager_sets_ttl(redis_client):
     pass
 
 
+@pytest.mark.macos
 @pytest.mark.asyncio
 async def test_job_manager_serializes_ocrmac_params(redis_client, sample_jpeg):
     """Test that ocrmac engine parameters are properly saved and loaded from Redis."""

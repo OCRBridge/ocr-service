@@ -1,5 +1,6 @@
 """Unit tests for ocrmac engine platform validation and framework handling (T029-T031)."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,7 +8,12 @@ from fastapi import HTTPException
 
 from src.services.ocr.ocrmac import OcrmacEngine
 
+# Skip entire test file on non-macOS platforms
+if sys.platform != "darwin":
+    pytest.skip("OCRMac tests require macOS platform", allow_module_level=True)
 
+
+@pytest.mark.macos
 class TestMacOSVersionDetection:
     """Test macOS version detection for LiveText support (T029-T030)."""
 
@@ -153,6 +159,7 @@ class TestMacOSVersionDetection:
                 engine._check_sonoma_requirement("livetext")
 
 
+@pytest.mark.macos
 class TestFrameworkParameterHandling:
     """Test framework parameter TypeError handling (T031)."""
 

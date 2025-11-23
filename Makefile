@@ -1,16 +1,18 @@
-.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow lint format typecheck pre-commit docker-up docker-down docker-logs docker-build-lite docker-build-full docker-build-all docker-compose-lite-up docker-compose-lite-down docker-compose-full-up docker-compose-full-down clean run setup-test-env commit release release-dry-run changelog version
+.PHONY: help install dev test test-unit test-integration test-contract test-coverage test-slow test-macos test-all lint format typecheck pre-commit docker-up docker-down docker-logs docker-build-lite docker-build-full docker-build-all docker-compose-lite-up docker-compose-lite-down docker-compose-full-up docker-compose-full-down clean run setup-test-env check check-ci ci commit release release-dry-run changelog version
 
 # Default target
 help:
 	@echo "Available targets:"
 	@echo "  make install          - Install dependencies"
 	@echo "  make dev              - Run development server"
-	@echo "  make test             - Run all tests (excluding slow tests)"
+	@echo "  make test             - Run tests excluding macOS-only tests (for Linux CI)"
 	@echo "  make test-slow        - Run all tests including slow tests"
 	@echo "  make test-unit        - Run unit tests only"
 	@echo "  make test-integration - Run integration tests only"
 	@echo "  make test-contract    - Run contract tests only"
 	@echo "  make test-coverage    - Run tests with coverage report"
+	@echo "  make test-macos       - Run only macOS-specific tests (OCRMac)"
+	@echo "  make test-all         - Run all tests including slow and macOS tests"
 	@echo "  make lint             - Check code with ruff"
 	@echo "  make format           - Format code with ruff"
 	@echo "  make typecheck        - Run pyright type checker"
@@ -59,7 +61,7 @@ setup-test-env:
 	done
 
 test: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "not slow"
+	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "not macos and not slow" -v
 
 test-slow: setup-test-env
 	REDIS_URL=redis://localhost:7879/0 uv run pytest --run-slow
@@ -75,6 +77,12 @@ test-contract: setup-test-env
 
 test-coverage: setup-test-env
 	REDIS_URL=redis://localhost:7879/0 uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
+
+test-macos: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "macos" -v
+
+test-all: setup-test-env
+	REDIS_URL=redis://localhost:7879/0 uv run pytest -v
 
 # Code quality
 lint:
@@ -164,8 +172,11 @@ clean:
 # Quality check (run all checks)
 check: lint format-check typecheck test
 
+# Quality check for CI (skip macOS-only tests)
+check-ci: lint format-check typecheck test
+
 # CI simulation (what runs in CI)
-ci: install check
+ci: install check-ci
 
 # Semantic Release and Conventional Commits
 commit:

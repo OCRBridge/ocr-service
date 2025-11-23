@@ -86,6 +86,7 @@ class TestEngineRegistry:
         assert caps.available is False
         assert caps.version is None
 
+    @pytest.mark.macos
     @patch("platform.system")
     @patch("pytesseract.get_tesseract_version")
     @patch("pytesseract.get_languages")
@@ -101,6 +102,7 @@ class TestEngineRegistry:
         assert caps.available is False
         assert caps.platform_requirement == "darwin"
 
+    @pytest.mark.macos
     @patch("platform.system")
     @patch("pytesseract.get_tesseract_version")
     @patch("pytesseract.get_languages")
@@ -125,6 +127,7 @@ class TestEngineRegistry:
         and __import__("importlib.util").util.find_spec("ocrmac") is not None,
         reason="Skipping on macOS with ocrmac installed - can't mock ImportError easily",
     )
+    @pytest.mark.macos
     @patch("platform.system")
     @patch("pytesseract.get_tesseract_version")
     @patch("pytesseract.get_languages")

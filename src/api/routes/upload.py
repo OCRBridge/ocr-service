@@ -62,6 +62,7 @@ async def process_ocr_task(
         metrics.active_jobs.inc()
 
         # Track queue duration
+        assert job.start_time is not None  # Set by mark_processing()
         queue_duration = (job.start_time - job.upload.upload_timestamp).total_seconds()
         metrics.job_queue_duration_seconds.observe(queue_duration)
 
@@ -85,6 +86,7 @@ async def process_ocr_task(
         metrics.active_jobs.dec()
 
         # Track processing duration
+        assert job.completion_time is not None and job.start_time is not None  # Set by mark_completed() and mark_processing()
         processing_duration = (job.completion_time - job.start_time).total_seconds()
         metrics.job_processing_duration_seconds.observe(processing_duration)
 
@@ -103,34 +105,36 @@ async def process_ocr_task(
         )
 
     except OCRProcessorError as e:
-        # Mark as failed
-        job.mark_failed(e.error_code, str(e))
-        await job_manager.update_job(job)
+        # Mark as failed (job is guaranteed to exist here since we returned early if None)
+        if job:
+            job.mark_failed(e.error_code, str(e))
+            await job_manager.update_job(job)
 
-        # Track metrics (US3 - T099) - default to tesseract for backward compatibility
-        metrics.jobs_failed_total.labels(error_code=e.error_code.value, engine="tesseract").inc()
-        metrics.active_jobs.dec()
+            # Track metrics (US3 - T099) - default to tesseract for backward compatibility
+            metrics.jobs_failed_total.labels(error_code=e.error_code.value, engine="tesseract").inc()
+            metrics.active_jobs.dec()
 
-        logger.error("ocr_processing_failed", job_id=job_id, error=str(e))
+            logger.error("ocr_processing_failed", job_id=job_id, error=str(e))
 
-        # Clean up temp file
-        await file_handler.delete_temp_file(job.upload.temp_file_path)
+            # Clean up temp file
+            await file_handler.delete_temp_file(job.upload.temp_file_path)
 
     except Exception as e:
-        # Mark as failed with internal error
-        job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
-        await job_manager.update_job(job)
+        # Mark as failed with internal error (job is guaranteed to exist here since we returned early if None)
+        if job:
+            job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
+            await job_manager.update_job(job)
 
-        # Track metrics (US3 - T099) - default to tesseract for backward compatibility
-        metrics.jobs_failed_total.labels(
-            error_code=ErrorCode.INTERNAL_ERROR.value, engine="tesseract"
-        ).inc()
-        metrics.active_jobs.dec()
+            # Track metrics (US3 - T099) - default to tesseract for backward compatibility
+            metrics.jobs_failed_total.labels(
+                error_code=ErrorCode.INTERNAL_ERROR.value, engine="tesseract"
+            ).inc()
+            metrics.active_jobs.dec()
 
-        logger.error("ocr_processing_exception", job_id=job_id, error=str(e), engine="tesseract")
+            logger.error("ocr_processing_exception", job_id=job_id, error=str(e), engine="tesseract")
 
-        # Clean up temp file
-        await file_handler.delete_temp_file(job.upload.temp_file_path)
+            # Clean up temp file
+            await file_handler.delete_temp_file(job.upload.temp_file_path)
 
 
 @router.post(
