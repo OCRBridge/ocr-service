@@ -142,8 +142,8 @@ async def test_job_manager_serializes_tesseract_params(redis_client, sample_jpeg
     """Test that Tesseract engine parameters are properly saved and loaded from Redis."""
     from datetime import datetime
 
-    from src.models import TesseractParams
     from src.models.job import EngineType, OCRJob
+    from src.models.ocr_params import TesseractParams
     from src.models.upload import DocumentUpload, FileFormat
     from src.services.job_manager import JobManager
 

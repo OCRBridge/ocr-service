@@ -6,8 +6,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
-from src.models import TesseractParams
-from src.models.ocr_params import EasyOCRParams, OcrmacParams
+from src.models.ocr_params import EasyOCRParams, OcrmacParams, TesseractParams
 from src.models.upload import DocumentUpload
 
 

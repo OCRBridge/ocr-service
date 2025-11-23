@@ -6,9 +6,8 @@ from datetime import datetime
 import structlog
 from redis import asyncio as aioredis
 
-from src.models import TesseractParams
 from src.models.job import EngineType, ErrorCode, JobStatus, OCRJob
-from src.models.ocr_params import OcrmacParams
+from src.models.ocr_params import OcrmacParams, TesseractParams
 from src.models.upload import DocumentUpload, FileFormat
 
 logger = structlog.get_logger()

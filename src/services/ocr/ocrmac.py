@@ -90,7 +90,11 @@ class OcrmacEngine(OCREngine):
             recognition_level=recognition_level,
         )
 
-    def process(self, file_path: Path, params: OcrmacParams | None = None) -> str:
+    def process(
+        self,
+        file_path: Path,
+        params: OcrmacParams | None = None,
+    ) -> str:
         """
         Process a document using ocrmac and return HOCR XML output.
 

@@ -15,8 +15,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
 from src.config import settings
-from src.models import TesseractParams
-from src.models.ocr_params import EasyOCRParams, OcrmacParams
+from src.models.ocr_params import EasyOCRParams, OcrmacParams, TesseractParams
 from src.models.responses import SyncOCRResponse
 from src.services.file_handler import FileHandler
 from src.services.ocr.easyocr import EasyOCREngine

@@ -19,8 +19,8 @@ from redis import asyncio as aioredis
 
 from src.api.dependencies import get_redis
 from src.api.middleware.rate_limit import limiter
-from src.models import TesseractParams
 from src.models.job import ErrorCode, OCRJob
+from src.models.ocr_params import EasyOCRParams, OcrmacParams, TesseractParams
 from src.models.responses import ErrorResponse, UploadResponse
 from src.services.file_handler import FileHandler
 from src.services.job_manager import JobManager
@@ -86,7 +86,9 @@ async def process_ocr_task(
         metrics.active_jobs.dec()
 
         # Track processing duration
-        assert job.completion_time is not None and job.start_time is not None  # Set by mark_completed() and mark_processing()
+        assert (
+            job.completion_time is not None and job.start_time is not None
+        )  # Set by mark_completed() and mark_processing()
         processing_duration = (job.completion_time - job.start_time).total_seconds()
         metrics.job_processing_duration_seconds.observe(processing_duration)
 
@@ -111,7 +113,9 @@ async def process_ocr_task(
             await job_manager.update_job(job)
 
             # Track metrics (US3 - T099) - default to tesseract for backward compatibility
-            metrics.jobs_failed_total.labels(error_code=e.error_code.value, engine="tesseract").inc()
+            metrics.jobs_failed_total.labels(
+                error_code=e.error_code.value, engine="tesseract"
+            ).inc()
             metrics.active_jobs.dec()
 
             logger.error("ocr_processing_failed", job_id=job_id, error=str(e))
@@ -131,7 +135,9 @@ async def process_ocr_task(
             ).inc()
             metrics.active_jobs.dec()
 
-            logger.error("ocr_processing_exception", job_id=job_id, error=str(e), engine="tesseract")
+            logger.error(
+                "ocr_processing_exception", job_id=job_id, error=str(e), engine="tesseract"
+            )
 
             # Clean up temp file
             await file_handler.delete_temp_file(job.upload.temp_file_path)
@@ -665,6 +671,7 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         metrics.active_jobs.inc()
 
         # Track queue duration
+        assert job.start_time is not None  # Set by mark_processing()
         queue_duration = (job.start_time - job.upload.upload_timestamp).total_seconds()
         metrics.job_queue_duration_seconds.observe(queue_duration)
 
@@ -675,18 +682,24 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
             queue_duration=queue_duration,
         )
 
-        # Select appropriate engine
+        # Select appropriate engine and process with engine-specific parameters
         if job.engine == EngineType.TESSERACT:
             engine = TesseractEngine()
+            # Type narrowing: engine_params should be TesseractParams for Tesseract engine
+            params = job.engine_params if isinstance(job.engine_params, TesseractParams) else None
+            hocr_content = engine.process(job.upload.temp_file_path, params)
         elif job.engine == EngineType.OCRMAC:
             engine = OcrmacEngine()
+            # Type narrowing: engine_params should be OcrmacParams for ocrmac engine
+            params = job.engine_params if isinstance(job.engine_params, OcrmacParams) else None
+            hocr_content = engine.process(job.upload.temp_file_path, params)  # type: ignore[arg-type]
         elif job.engine == EngineType.EASYOCR:
             engine = EasyOCREngine()
+            # Type narrowing: engine_params should be EasyOCRParams for EasyOCR engine
+            params = job.engine_params if isinstance(job.engine_params, EasyOCRParams) else None
+            hocr_content = engine.process(job.upload.temp_file_path, params)  # type: ignore[arg-type]
         else:
             raise ValueError(f"Unknown engine type: {job.engine}")
-
-        # Process document with engine-specific parameters
-        hocr_content = engine.process(job.upload.temp_file_path, job.engine_params)
 
         # Save result
         result_path = await file_handler.save_result(job_id, hocr_content)
@@ -701,6 +714,9 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         metrics.active_jobs.dec()
 
         # Track processing duration
+        assert (
+            job.completion_time is not None and job.start_time is not None
+        )  # Set by mark_completed() and mark_processing()
         processing_duration = (job.completion_time - job.start_time).total_seconds()
         metrics.job_processing_duration_seconds.observe(processing_duration)
 
@@ -720,19 +736,21 @@ async def process_ocr_task_v2(job_id: str, redis: aioredis.Redis):
         )
 
     except Exception as e:
-        # Mark as failed with internal error
-        job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
-        await job_manager.update_job(job)
-
-        # Track metrics with engine label
-        engine_label = job.engine.value if job else "unknown"
-        metrics.jobs_failed_total.labels(
-            error_code=ErrorCode.INTERNAL_ERROR.value, engine=engine_label
-        ).inc()
-        metrics.active_jobs.dec()
-
-        logger.error("ocr_processing_exception", job_id=job_id, engine=engine_label, error=str(e))
-
-        # Clean up temp file
+        # Mark as failed with internal error (job is guaranteed to exist here since we returned early if None)
         if job:
+            job.mark_failed(ErrorCode.INTERNAL_ERROR, str(e))
+            await job_manager.update_job(job)
+
+            # Track metrics with engine label
+            engine_label = job.engine.value
+            metrics.jobs_failed_total.labels(
+                error_code=ErrorCode.INTERNAL_ERROR.value, engine=engine_label
+            ).inc()
+            metrics.active_jobs.dec()
+
+            logger.error(
+                "ocr_processing_exception", job_id=job_id, engine=engine_label, error=str(e)
+            )
+
+            # Clean up temp file
             await file_handler.delete_temp_file(job.upload.temp_file_path)

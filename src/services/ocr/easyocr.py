@@ -101,7 +101,11 @@ class EasyOCREngine(OCREngine):
 
         return format_map[suffix]
 
-    def process(self, file_path: Path, params: EasyOCRParams | None = None) -> str:
+    def process(
+        self,
+        file_path: Path,
+        params: EasyOCRParams | None = None,
+    ) -> str:
         """
         Process document with EasyOCR and return HOCR XML.
 
@@ -117,7 +121,7 @@ class EasyOCREngine(OCREngine):
             ValueError: If file format not supported
             TimeoutError: If processing exceeds timeout
         """
-        if params:
+        if params and isinstance(params, EasyOCRParams):
             self.params = params
 
         # Validate file exists

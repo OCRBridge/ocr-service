@@ -7,7 +7,7 @@ import structlog
 from pdf2image import convert_from_path
 
 from src.config import settings
-from src.models import TesseractParams
+from src.models.ocr_params import TesseractParams
 from src.models.responses import ErrorCode
 from src.models.upload import FileFormat
 from src.services.ocr.base import OCREngine
@@ -28,7 +28,11 @@ class TesseractEngineError(Exception):
 class TesseractEngine(OCREngine):
     """Tesseract OCR engine implementation."""
 
-    def process(self, file_path: Path, params: TesseractParams | None = None) -> str:
+    def process(
+        self,
+        file_path: Path,
+        params: TesseractParams | None = None,
+    ) -> str:
         """
         Process a document using Tesseract and return HOCR XML output.
 
@@ -45,7 +49,7 @@ class TesseractEngine(OCREngine):
             TimeoutError: If processing exceeds timeout
         """
         # Build configuration from parameters or defaults
-        if params:
+        if params and isinstance(params, TesseractParams):
             config = build_tesseract_config(
                 lang=params.lang,
                 psm=params.psm,

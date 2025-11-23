@@ -7,8 +7,8 @@ import structlog
 from pdf2image import convert_from_path
 
 from src.config import settings
-from src.models import TesseractParams
 from src.models.job import ErrorCode
+from src.models.ocr_params import TesseractParams
 from src.models.upload import FileFormat
 from src.utils.validators import build_tesseract_config
 
