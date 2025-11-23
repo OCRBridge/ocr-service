@@ -66,7 +66,7 @@ def test_concurrent_uploads(client: TestClient, sample_jpeg):
 
 
 def test_ocr_pdf_end_to_end(client: TestClient, sample_pdf):
-    """Test end-to-end PDF upload with mietvertrag.pdf (multi-page)."""
+    """Test end-to-end PDF upload with contract_en_scan.pdf (multi-page)."""
     # Upload PDF
     with open(sample_pdf, "rb") as f:
         upload_response = client.post("/upload/tesseract", files={"file": f})
@@ -99,7 +99,7 @@ def test_ocr_pdf_end_to_end(client: TestClient, sample_pdf):
     assert "ocr_page" in hocr_content
     assert "bbox" in hocr_content  # Bounding boxes present
 
-    # Verify multi-page handling (mietvertrag.pdf has multiple pages)
+    # Verify multi-page handling (contract_en_scan.pdf has multiple pages)
     # Count number of ocr_page divs (could be class="ocr_page" or class='ocr_page')
     page_count = hocr_content.count('class="ocr_page"') + hocr_content.count("class='ocr_page'")
     assert page_count >= 1, f"HOCR should contain at least one page, found {page_count}"

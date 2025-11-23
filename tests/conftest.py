@@ -90,7 +90,7 @@ def sample_png(samples_dir: Path) -> Path:
 @pytest.fixture
 def sample_pdf(samples_dir: Path) -> Path:
     """Get path to sample PDF file."""
-    return samples_dir / "mietvertrag.pdf"
+    return samples_dir / "contract_en_scan.pdf"
 
 
 @pytest.fixture

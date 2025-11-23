@@ -47,30 +47,16 @@ run: dev
 # Testing
 setup-test-env:
 	@echo "Setting up test environment..."
-	@docker compose up -d redis
+	@docker compose -f docker-compose.base.yml up -d redis
 	@echo "Waiting for Redis to be ready..."
 	@for i in 1 2 3 4 5; do \
-		if docker compose exec -T redis redis-cli ping > /dev/null 2>&1; then \
+		if docker compose -f docker-compose.base.yml exec -T redis redis-cli ping > /dev/null 2>&1; then \
 			echo "Redis is ready"; \
 			break; \
 		fi; \
 		echo "Waiting for Redis... ($$i/5)"; \
 		sleep 1; \
 	done
-	@uv run python3 -c "from PIL import Image, ImageDraw, ImageFont; import os; os.makedirs('samples', exist_ok=True); \
-	img1 = Image.new('L', (800, 600), color=255) if not os.path.exists('samples/numbers_gs150.jpg') else None; \
-	draw1 = ImageDraw.Draw(img1) if img1 else None; \
-	draw1.text((100, 200), '0123456789', fill=0) if draw1 else None; \
-	draw1.text((100, 300), 'Test Numbers', fill=0) if draw1 else None; \
-	img1.save('samples/numbers_gs150.jpg', dpi=(150, 150)) if img1 else None; \
-	print('Created samples/numbers_gs150.jpg') if img1 else print('samples/numbers_gs150.jpg exists'); \
-	img2 = Image.new('L', (1024, 768), color=255) if not os.path.exists('samples/stock_gs200.jpg') else None; \
-	draw2 = ImageDraw.Draw(img2) if img2 else None; \
-	draw2.text((100, 200), 'Sample Text', fill=0) if draw2 else None; \
-	draw2.text((100, 300), 'OCR Test Document', fill=0) if draw2 else None; \
-	img2.save('samples/stock_gs200.jpg', dpi=(200, 200)) if img2 else None; \
-	print('Created samples/stock_gs200.jpg') if img2 else print('samples/stock_gs200.jpg exists')" 2>/dev/null || echo "Warning: Could not create sample files"
-	@echo "Test environment ready"
 
 test: setup-test-env
 	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "not slow"
