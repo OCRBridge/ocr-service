@@ -2,7 +2,6 @@
 
 import re
 from enum import Enum
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -12,15 +11,21 @@ from src.utils.validators import EASYOCR_SUPPORTED_LANGUAGES
 class TesseractParams(BaseModel):
     """OCR configuration parameters with validation."""
 
+    _LANGUAGE_SEGMENT_PATTERN = re.compile(r"^[a-z_]{3,7}$")
+    _MAX_LANGUAGES = 5
+
     lang: str | None = Field(
         default=None,
-        pattern=r"^[a-z]{3}(\+[a-z]{3})*$",
+        pattern=r"^[a-z_]{3,7}(\+[a-z_]{3,7})*$",
         description="Language code(s): 'eng', 'fra', 'eng+fra' (max 5)",
         examples=["eng", "eng+fra", "eng+fra+deu"],
     )
 
-    psm: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] | None = Field(
-        default=None, description="Page segmentation mode (0-13)"
+    psm: int | None = Field(
+        default=None,
+        ge=0,
+        le=13,
+        description="Page segmentation mode (0-13)",
     )
 
     oem: int | None = Field(
@@ -34,20 +39,37 @@ class TesseractParams(BaseModel):
         default=None, ge=70, le=2400, description="Image DPI (70-2400, typical: 300)"
     )
 
-    @field_validator("lang", mode="after")
+    @field_validator("lang", mode="before")
     @classmethod
-    def validate_language(cls, v: str | None) -> str | None:
-        """Validate language count and availability."""
+    def normalize_language(cls, v: str | None) -> str | None:
+        """Normalize language codes to lowercase and trim whitespace."""
         if v is None:
             return v
 
-        # Max 5 languages
-        langs = v.split("+")
-        if len(langs) > 5:
-            raise ValueError(f"Maximum 5 languages allowed, got {len(langs)}")
+        return v.strip().lower()
 
-        # Check installed (cached)
+    @field_validator("lang", mode="after")
+    @classmethod
+    def validate_language(cls, v: str | None) -> str | None:
+        """Validate language count, format, and availability."""
+        if v is None:
+            return v
+
+        langs = v.split("+")
+
+        if len(langs) > cls._MAX_LANGUAGES:
+            raise ValueError(f"Maximum {cls._MAX_LANGUAGES} languages allowed, got {len(langs)}")
+
         from src.utils.validators import get_installed_languages
+
+        invalid_format = [
+            lang for lang in langs if not cls._LANGUAGE_SEGMENT_PATTERN.fullmatch(lang)
+        ]
+        if invalid_format:
+            raise ValueError(
+                f"Invalid language format: {', '.join(invalid_format)}. "
+                "Use 3-7 lowercase letters or underscores (e.g., 'eng', 'chi_sim')."
+            )
 
         installed = get_installed_languages()
         invalid = [lang for lang in langs if lang not in installed]
@@ -85,7 +107,7 @@ class OcrmacParams(BaseModel):
     """ocrmac OCR engine parameters."""
 
     languages: list[str] | None = Field(
-        None,
+        default=None,
         description="Language codes in IETF BCP 47 format (e.g., en-US, fr-FR, zh-Hans). Max 5.",
         min_length=1,
         max_length=5,
@@ -93,7 +115,7 @@ class OcrmacParams(BaseModel):
     )
 
     recognition_level: RecognitionLevel = Field(
-        RecognitionLevel.BALANCED,
+        default=RecognitionLevel.BALANCED,
         description="Recognition level: fast (~131ms), balanced (default, ~150ms), accurate (~207ms), livetext (~174ms, requires macOS Sonoma 14.0+)",
     )
 

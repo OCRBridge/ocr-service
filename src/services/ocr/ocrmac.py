@@ -1,8 +1,10 @@
 """ocrmac OCR engine implementation."""
 
+import importlib
 import platform
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 
 import structlog
 from fastapi import HTTPException
@@ -12,7 +14,7 @@ from PIL import Image
 from src.config import settings
 from src.models.ocr_params import OcrmacParams, RecognitionLevel
 from src.models.upload import FileFormat
-from src.services.ocr.base import OCREngine
+from src.services.ocr.base import OCREngine, OCREngineParams
 
 logger = structlog.get_logger(__name__)
 
@@ -27,6 +29,13 @@ class OcrmacEngineError(Exception):
 
 class OcrmacEngine(OCREngine):
     """ocrmac OCR engine implementation."""
+
+    def _load_ocrmac_module(self) -> Any:
+        try:
+            return importlib.import_module("ocrmac")
+        except ImportError as exc:
+            logger.error("ocrmac_not_installed")
+            raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac") from exc
 
     def _check_sonoma_requirement(self, recognition_level: str) -> None:
         """
@@ -90,10 +99,14 @@ class OcrmacEngine(OCREngine):
             recognition_level=recognition_level,
         )
 
+    def check_sonoma_requirement(self, recognition_level: str) -> None:
+        """Public wrapper for Sonoma validation used in tests."""
+        return self._check_sonoma_requirement(recognition_level)
+
     def process(
         self,
         file_path: Path,
-        params: OcrmacParams | None = None,
+        params: OCREngineParams | None = None,
     ) -> str:
         """
         Process a document using ocrmac and return HOCR XML output.
@@ -117,8 +130,14 @@ class OcrmacEngine(OCREngine):
             raise RuntimeError("ocrmac is only available on macOS systems")
 
         # Extract parameters
-        languages = params.languages if params and params.languages else None
-        recognition_level = params.recognition_level if params else RecognitionLevel.BALANCED
+        languages = (
+            params.languages if isinstance(params, OcrmacParams) and params.languages else None
+        )
+        recognition_level = (
+            params.recognition_level
+            if isinstance(params, OcrmacParams)
+            else RecognitionLevel.BALANCED
+        )
 
         # Map RecognitionLevel enum to ocrmac string values
         recognition_level_str = recognition_level.value  # "fast", "balanced", or "accurate"
@@ -188,12 +207,7 @@ class OcrmacEngine(OCREngine):
         # Validate platform requirements for livetext
         self._check_sonoma_requirement(recognition_level_str)
 
-        # Import ocrmac (will fail if not installed)
-        try:
-            from ocrmac import ocrmac
-        except ImportError:
-            logger.error("ocrmac_not_installed")
-            raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac")
+        ocrmac_module = self._load_ocrmac_module()
 
         # Determine framework parameter
         framework_type = "livetext" if recognition_level_str == "livetext" else "vision"
@@ -213,20 +227,20 @@ class OcrmacEngine(OCREngine):
         try:
             if recognition_level_str == "livetext":
                 # LiveText framework doesn't accept recognition_level parameter
-                ocr_instance = ocrmac.OCR(
+                ocr_instance = ocrmac_module.OCR(
                     str(image_path),
                     language_preference=languages,
                     framework=framework_type,
                 )
             elif recognition_level_str == "balanced":
                 # "balanced" is API-level default - don't pass recognition_level to use ocrmac's default
-                ocr_instance = ocrmac.OCR(
+                ocr_instance = ocrmac_module.OCR(
                     str(image_path),
                     language_preference=languages,
                 )
             else:
                 # "fast" or "accurate" - pass to ocrmac as-is
-                ocr_instance = ocrmac.OCR(
+                ocr_instance = ocrmac_module.OCR(
                     str(image_path),
                     language_preference=languages,
                     recognition_level=recognition_level_str,
@@ -302,6 +316,12 @@ class OcrmacEngine(OCREngine):
 
         return hocr_content
 
+    def process_image(
+        self, image_path: Path, languages: list[str] | None, recognition_level_str: str
+    ) -> str:
+        """Public wrapper around image processing for tests."""
+        return self._process_image(image_path, languages, recognition_level_str)
+
     def _process_pdf(
         self,
         pdf_path: Path,
@@ -328,12 +348,7 @@ class OcrmacEngine(OCREngine):
         # Validate platform requirements for livetext
         self._check_sonoma_requirement(recognition_level_str)
 
-        # Import ocrmac (will fail if not installed)
-        try:
-            from ocrmac import ocrmac
-        except ImportError:
-            logger.error("ocrmac_not_installed")
-            raise RuntimeError("ocrmac is not installed. Install with: pip install ocrmac")
+        ocrmac_module = self._load_ocrmac_module()
 
         # Determine framework parameter
         framework_type = "livetext" if recognition_level_str == "livetext" else "vision"
@@ -372,51 +387,30 @@ class OcrmacEngine(OCREngine):
                 image.save(temp_path, format="PNG")
 
             try:
-                # Create ocrmac OCR instance with parameters
-                # Note: ocrmac library only accepts "fast" and "accurate" as recognition_level values
-                # "balanced" is an API-level abstraction that maps to ocrmac's default behavior
-                try:
-                    if recognition_level_str == "livetext":
-                        # LiveText framework doesn't accept recognition_level parameter
-                        ocr_instance = ocrmac.OCR(
-                            str(temp_path),
-                            language_preference=languages,
-                            framework=framework_type,
-                        )
-                    elif recognition_level_str == "balanced":
-                        # "balanced" is API-level default - don't pass recognition_level to use ocrmac's default
-                        ocr_instance = ocrmac.OCR(
-                            str(temp_path),
-                            language_preference=languages,
-                        )
-                    else:
-                        # "fast" or "accurate" - pass to ocrmac as-is
-                        ocr_instance = ocrmac.OCR(
-                            str(temp_path),
-                            language_preference=languages,
-                            recognition_level=recognition_level_str,
-                        )
-                except (TypeError, AttributeError) as e:
-                    if "framework" in str(e):
-                        logger.error(
-                            "ocrmac_library_incompatible",
-                            error=str(e),
-                            recognition_level=recognition_level_str,
-                        )
-                        raise RuntimeError(
-                            "ocrmac library version does not support LiveText framework. "
-                            "Please upgrade to a newer version of ocrmac that supports the framework parameter."
-                        )
-                    raise
+                if recognition_level_str == "livetext":
+                    ocr_instance = ocrmac_module.OCR(
+                        str(temp_path),
+                        language_preference=languages,
+                        framework=framework_type,
+                    )
+                elif recognition_level_str == "balanced":
+                    ocr_instance = ocrmac_module.OCR(
+                        str(temp_path),
+                        language_preference=languages,
+                    )
+                else:
+                    ocr_instance = ocrmac_module.OCR(
+                        str(temp_path),
+                        language_preference=languages,
+                        recognition_level=recognition_level_str,
+                    )
 
-                # Perform OCR recognition
                 annotations = ocr_instance.recognize()
 
-                # Validate annotation format before conversion
                 try:
                     for annotation in annotations:
                         if not isinstance(annotation, tuple) or len(annotation) != 3:
-                            error_sample = str(annotations[:3])[:500]  # First 500 chars
+                            error_sample = str(annotations[:3])[:500]
                             logger.error(
                                 "unexpected_annotation_format",
                                 framework=framework_type,
@@ -429,7 +423,7 @@ class OcrmacEngine(OCREngine):
                             )
                         _, _, bbox = annotation
                         if not isinstance(bbox, list) or len(bbox) != 4:
-                            error_sample = str(annotations[:3])[:500]  # First 500 chars
+                            error_sample = str(annotations[:3])[:500]
                             logger.error(
                                 "unexpected_bbox_format",
                                 framework=framework_type,
@@ -441,7 +435,7 @@ class OcrmacEngine(OCREngine):
                                 f"LiveText processing returned unexpected bbox format: expected 4-element list, got {bbox}"
                             )
                 except (IndexError, ValueError, TypeError) as e:
-                    error_sample = str(annotations[:3])[:500]  # First 500 chars
+                    error_sample = str(annotations[:3])[:500]
                     logger.error(
                         "annotation_validation_failed",
                         error=str(e),
@@ -452,12 +446,23 @@ class OcrmacEngine(OCREngine):
                     )
                     raise RuntimeError(f"Annotation validation failed: {str(e)}")
 
-                # Convert ocrmac output to HOCR format
                 hocr_content = self._convert_to_hocr(
                     annotations, image_width, image_height, languages, recognition_level_str
                 )
 
                 page_hocr_list.append(hocr_content)
+            except (TypeError, AttributeError) as e:
+                if "framework" in str(e):
+                    logger.error(
+                        "ocrmac_library_incompatible",
+                        error=str(e),
+                        recognition_level=recognition_level_str,
+                    )
+                    raise RuntimeError(
+                        "ocrmac library version does not support LiveText framework. "
+                        "Please upgrade to a newer version of ocrmac that supports the framework parameter."
+                    )
+                raise
             finally:
                 # Clean up temporary file
                 temp_path.unlink(missing_ok=True)
@@ -635,6 +640,12 @@ class OcrmacEngine(OCREngine):
 
         return result_lines
 
+    def group_words_into_lines(
+        self, annotations: list, image_width: int, image_height: int
+    ) -> list[dict]:
+        """Public wrapper for grouping words into lines."""
+        return self._group_words_into_lines(annotations, image_width, image_height)
+
     def _convert_to_hocr(
         self,
         annotations: list,
@@ -747,3 +758,16 @@ class OcrmacEngine(OCREngine):
         hocr_document = f"{xml_declaration}\n{hocr_doctype}\n{html_content}"
 
         return hocr_document
+
+    def convert_to_hocr(
+        self,
+        annotations: list,
+        image_width: int,
+        image_height: int,
+        languages: list[str] | None,
+        recognition_level: str,
+    ) -> str:
+        """Public wrapper for converting annotations to HOCR."""
+        return self._convert_to_hocr(
+            annotations, image_width, image_height, languages, recognition_level
+        )

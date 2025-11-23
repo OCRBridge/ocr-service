@@ -27,21 +27,21 @@ class TestMacOSVersionDetection:
             patch("platform.mac_ver", return_value=("14.0.0", ("", "", ""), "arm64")),
         ):
             # Should not raise exception
-            engine._check_sonoma_requirement("livetext")
+            engine.check_sonoma_requirement("livetext")
 
         # Test Sonoma 14.2.1 (current version)
         with (
             patch("platform.system", return_value="Darwin"),
             patch("platform.mac_ver", return_value=("14.2.1", ("", "", ""), "arm64")),
         ):
-            engine._check_sonoma_requirement("livetext")
+            engine.check_sonoma_requirement("livetext")
 
         # Test future versions (15.0+)
         with (
             patch("platform.system", return_value="Darwin"),
             patch("platform.mac_ver", return_value=("15.0.0", ("", "", ""), "arm64")),
         ):
-            engine._check_sonoma_requirement("livetext")
+            engine.check_sonoma_requirement("livetext")
 
         # Verify non-livetext recognition levels don't trigger validation
         with (
@@ -49,9 +49,9 @@ class TestMacOSVersionDetection:
             patch("platform.mac_ver", return_value=("13.0.0", ("", "", ""), "arm64")),
         ):
             # Pre-Sonoma version, but fast/balanced/accurate should still work
-            engine._check_sonoma_requirement("fast")
-            engine._check_sonoma_requirement("balanced")
-            engine._check_sonoma_requirement("accurate")
+            engine.check_sonoma_requirement("fast")
+            engine.check_sonoma_requirement("balanced")
+            engine.check_sonoma_requirement("accurate")
 
     def test_pre_sonoma_versions_raise_http_400(self):
         """Test pre-Sonoma macOS versions raise HTTP 400 error (T030)."""
@@ -71,7 +71,7 @@ class TestMacOSVersionDetection:
                 patch("platform.mac_ver", return_value=(version, ("", "", ""), "x86_64")),
                 pytest.raises(HTTPException) as exc_info,
             ):
-                engine._check_sonoma_requirement("livetext")
+                engine.check_sonoma_requirement("livetext")
 
             # Verify HTTP 400 status code
             assert exc_info.value.status_code == 400
@@ -92,7 +92,7 @@ class TestMacOSVersionDetection:
         for platform_name in platforms:
             with patch("platform.system", return_value=platform_name):
                 with pytest.raises(HTTPException) as exc_info:
-                    engine._check_sonoma_requirement("livetext")
+                    engine.check_sonoma_requirement("livetext")
 
                 # Verify HTTP 400 status code
                 assert exc_info.value.status_code == 400
@@ -111,7 +111,7 @@ class TestMacOSVersionDetection:
             patch("platform.mac_ver", return_value=("", ("", "", ""), "arm64")),
             pytest.raises(HTTPException) as exc_info,
         ):
-            engine._check_sonoma_requirement("livetext")
+            engine.check_sonoma_requirement("livetext")
 
         assert exc_info.value.status_code == 400
         detail = exc_info.value.detail
@@ -135,7 +135,7 @@ class TestMacOSVersionDetection:
                 patch("platform.mac_ver", return_value=(invalid_version, ("", "", ""), "arm64")),
             ):
                 with pytest.raises(HTTPException) as exc_info:
-                    engine._check_sonoma_requirement("livetext")
+                    engine.check_sonoma_requirement("livetext")
 
                 assert exc_info.value.status_code == 400
                 detail = exc_info.value.detail
@@ -156,7 +156,7 @@ class TestMacOSVersionDetection:
                 patch("platform.mac_ver", return_value=(valid_version, ("", "", ""), "arm64")),
             ):
                 # Should not raise exception (major version >= 14)
-                engine._check_sonoma_requirement("livetext")
+                engine.check_sonoma_requirement("livetext")
 
 
 @pytest.mark.macos
@@ -198,7 +198,7 @@ class TestFrameworkParameterHandling:
                 # This should catch the TypeError and raise a RuntimeError with clear message
                 with pytest.raises(RuntimeError) as exc_info:
                     # Call _process_image with livetext (which tries to pass framework parameter)
-                    engine._process_image(image_file, ["en-US"], "livetext")
+                    engine.process_image(image_file, ["en-US"], "livetext")
 
                 # Verify error message mentions framework parameter
                 error_message = str(exc_info.value)
@@ -240,7 +240,7 @@ class TestFrameworkParameterHandling:
                 # This should be caught and handled with clear error
                 with pytest.raises(RuntimeError) as exc_info:
                     # Call _process_image with livetext (which tries to pass framework parameter)
-                    engine._process_image(image_file, ["en-US"], "livetext")
+                    engine.process_image(image_file, ["en-US"], "livetext")
 
                 error_message = str(exc_info.value)
                 assert "framework" in error_message.lower()

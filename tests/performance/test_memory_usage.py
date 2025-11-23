@@ -15,7 +15,7 @@ async def test_upload_endpoint_memory_usage(async_client: AsyncClient, sample_jp
 
     # Start memory tracking
     tracemalloc.start()
-    baseline_current, baseline_peak = tracemalloc.get_traced_memory()
+    _baseline_current, baseline_peak = tracemalloc.get_traced_memory()
 
     # Make upload request
     response = await async_client.post(
@@ -24,7 +24,7 @@ async def test_upload_endpoint_memory_usage(async_client: AsyncClient, sample_jp
     )
 
     # Get memory usage
-    current, peak = tracemalloc.get_traced_memory()
+    _current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     # Calculate memory used by this request
@@ -54,13 +54,13 @@ async def test_status_endpoint_memory_usage(async_client: AsyncClient, sample_jp
 
     # Start memory tracking
     tracemalloc.start()
-    baseline_current, baseline_peak = tracemalloc.get_traced_memory()
+    _baseline_current, baseline_peak = tracemalloc.get_traced_memory()
 
     # Make status request
     response = await async_client.get(f"/jobs/{job_id}/status")
 
     # Get memory usage
-    current, peak = tracemalloc.get_traced_memory()
+    _current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     # Calculate memory used by this request
@@ -104,13 +104,13 @@ async def test_result_endpoint_memory_usage(async_client: AsyncClient, sample_jp
 
     # Start memory tracking
     tracemalloc.start()
-    baseline_current, baseline_peak = tracemalloc.get_traced_memory()
+    _baseline_current, baseline_peak = tracemalloc.get_traced_memory()
 
     # Make result request
     response = await async_client.get(f"/jobs/{job_id}/result")
 
     # Get memory usage
-    current, peak = tracemalloc.get_traced_memory()
+    _current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     # Calculate memory used by this request
@@ -136,7 +136,7 @@ async def test_large_pdf_memory_usage(async_client: AsyncClient, sample_pdf: Pat
 
     # Start memory tracking
     tracemalloc.start()
-    baseline_current, baseline_peak = tracemalloc.get_traced_memory()
+    _baseline_current, baseline_peak = tracemalloc.get_traced_memory()
 
     # Make upload request
     response = await async_client.post(
@@ -145,7 +145,7 @@ async def test_large_pdf_memory_usage(async_client: AsyncClient, sample_pdf: Pat
     )
 
     # Get memory usage
-    current, peak = tracemalloc.get_traced_memory()
+    _current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     # Calculate memory used by this request
@@ -172,7 +172,7 @@ async def test_concurrent_requests_memory_isolation(
 
     # Start memory tracking
     tracemalloc.start()
-    baseline_current, baseline_peak = tracemalloc.get_traced_memory()
+    _baseline_current, baseline_peak = tracemalloc.get_traced_memory()
 
     # Make 10 concurrent upload requests
     async def upload_file():
@@ -185,7 +185,7 @@ async def test_concurrent_requests_memory_isolation(
     responses = await asyncio.gather(*tasks)
 
     # Get memory usage
-    current, peak = tracemalloc.get_traced_memory()
+    _current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     # Calculate memory used

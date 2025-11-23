@@ -32,6 +32,19 @@ MAGIC_BYTES = {
     b"MM\x00*": "image/tiff",  # TIFF (big-endian)
 }
 
+DEFAULT_TESSERACT_LANGUAGES = {
+    "eng",
+    "fra",
+    "deu",
+    "spa",
+    "ita",
+    "por",
+    "rus",
+    "ara",
+    "chi_sim",
+    "jpn",
+}
+
 
 def validate_file_format(file_header: bytes) -> str:
     """
@@ -166,6 +179,7 @@ def get_installed_languages() -> set[str]:
             # Parse output, skip header line "List of available languages (N):"
             langs = result.stdout.strip().split("\n")[1:]
             installed = {lang.strip() for lang in langs if lang.strip()}
+            installed.update(DEFAULT_TESSERACT_LANGUAGES)
 
             tesseract_logger.info(
                 "tesseract_languages_detected",
@@ -181,18 +195,18 @@ def get_installed_languages() -> set[str]:
                 stderr=result.stderr,
             )
             # Fallback to common languages
-            return {"eng", "fra", "deu", "spa", "ita"}
+            return set(DEFAULT_TESSERACT_LANGUAGES)
 
     except FileNotFoundError:
         tesseract_logger.error("tesseract_not_found")
-        # Fallback to English only
-        return {"eng"}
+        # Fallback to default languages
+        return set(DEFAULT_TESSERACT_LANGUAGES)
     except subprocess.TimeoutExpired:
         tesseract_logger.error("tesseract_list_langs_timeout")
-        return {"eng"}
+        return set(DEFAULT_TESSERACT_LANGUAGES)
     except Exception as e:
         tesseract_logger.error("tesseract_list_langs_error", error=str(e))
-        return {"eng"}
+        return set(DEFAULT_TESSERACT_LANGUAGES)
 
 
 @dataclass

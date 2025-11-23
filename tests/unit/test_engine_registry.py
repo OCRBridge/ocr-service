@@ -40,8 +40,7 @@ class TestEngineRegistry:
 
     def teardown_method(self):
         """Reset singleton instance between tests."""
-        EngineRegistry._instance = None
-        EngineRegistry._initialized = False
+        EngineRegistry.reset()
 
     @patch("platform.system")
     @patch("pytesseract.get_tesseract_version")
@@ -186,6 +185,7 @@ class TestEngineRegistry:
         is_valid, error = registry.validate_platform(EngineType.OCRMAC)
 
         assert is_valid is False
+        assert error is not None
         assert "darwin" in error
         assert "linux" in error
 
@@ -217,6 +217,7 @@ class TestEngineRegistry:
         is_valid, error = registry.validate_languages(EngineType.TESSERACT, ["eng", "deu"])
 
         assert is_valid is False
+        assert error is not None
         assert "deu" in error
         assert "eng" in error  # Should list supported languages
 
@@ -233,4 +234,5 @@ class TestEngineRegistry:
         is_valid, error = registry.validate_languages(EngineType.OCRMAC, ["en-US"])
 
         assert is_valid is False
+        assert error is not None
         assert "not available" in error

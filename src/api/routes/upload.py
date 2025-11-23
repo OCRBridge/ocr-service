@@ -1,6 +1,8 @@
 """Upload endpoint for document submission."""
 
 import json
+from collections.abc import Awaitable, Callable
+from typing import TypeVar, cast
 
 import structlog
 from fastapi import (
@@ -30,6 +32,12 @@ from src.utils.validators import FileTooLargeError, UnsupportedFormatError
 
 router = APIRouter()
 logger = structlog.get_logger()
+
+RouteFuncT = TypeVar("RouteFuncT", bound=Callable[..., Awaitable[UploadResponse]])
+
+
+def rate_limit(func: RouteFuncT) -> RouteFuncT:
+    return cast(RouteFuncT, limiter.limit("100/minute")(func))
 
 
 async def process_ocr_task(
@@ -154,7 +162,7 @@ async def process_ocr_task(
         429: {"description": "Rate limit exceeded"},
     },
 )
-@limiter.limit(f"{100}/minute")
+@rate_limit
 async def upload_document_tesseract(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -170,7 +178,6 @@ async def upload_document_tesseract(
             "Examples: 'eng', 'eng+fra', 'eng+fra+deu'. "
             "Default: eng"
         ),
-        pattern=r"^[a-z_]{3,7}(\+[a-z_]{3,7}){0,4}$",
         examples=["eng", "eng+fra", "fra"],
     ),
     psm: int | None = Form(
@@ -262,7 +269,13 @@ async def upload_document_tesseract(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with Tesseract engine
-        job = OCRJob(upload=upload, engine=EngineType.TESSERACT, engine_params=tesseract_params)
+        job = OCRJob(
+            upload=upload,
+            engine=EngineType.TESSERACT,
+            engine_params=tesseract_params,
+            tesseract_params=tesseract_params,
+            error_message=None,
+        )
         await job_manager.create_job(job)
 
         # Schedule background OCR processing
@@ -320,7 +333,7 @@ async def upload_document_tesseract(
         429: {"description": "Rate limit exceeded"},
     },
 )
-@limiter.limit(f"{100}/minute")
+@limiter.limit(f"{100}/minute")  # type: ignore[reportUntypedFunctionDecorator]
 async def upload_document_ocrmac(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -424,7 +437,13 @@ async def upload_document_ocrmac(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with ocrmac engine
-        job = OCRJob(upload=upload, engine=EngineType.OCRMAC, engine_params=ocrmac_params)
+        job = OCRJob(
+            upload=upload,
+            engine=EngineType.OCRMAC,
+            engine_params=ocrmac_params,
+            tesseract_params=None,
+            error_message=None,
+        )
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use new process_ocr_task_v2)
@@ -484,7 +503,7 @@ async def upload_document_ocrmac(
         429: {"description": "Rate limit exceeded"},
     },
 )
-@limiter.limit(f"{100}/minute")
+@limiter.limit(f"{100}/minute")  # type: ignore[reportUntypedFunctionDecorator]
 async def upload_document_easyocr(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -591,7 +610,13 @@ async def upload_document_easyocr(
         metrics.document_size_bytes.observe(upload.file_size)
 
         # Create job with EasyOCR engine
-        job = OCRJob(upload=upload, engine=EngineType.EASYOCR, engine_params=easyocr_params)
+        job = OCRJob(
+            upload=upload,
+            engine=EngineType.EASYOCR,
+            engine_params=easyocr_params,
+            tesseract_params=None,
+            error_message=None,
+        )
         await job_manager.create_job(job)
 
         # Schedule background OCR processing (will use process_ocr_task_v2)

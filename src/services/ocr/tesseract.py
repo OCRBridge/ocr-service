@@ -10,7 +10,7 @@ from src.config import settings
 from src.models.ocr_params import TesseractParams
 from src.models.responses import ErrorCode
 from src.models.upload import FileFormat
-from src.services.ocr.base import OCREngine
+from src.services.ocr.base import OCREngine, OCREngineParams
 from src.utils.validators import build_tesseract_config
 
 logger = structlog.get_logger(__name__)
@@ -31,7 +31,7 @@ class TesseractEngine(OCREngine):
     def process(
         self,
         file_path: Path,
-        params: TesseractParams | None = None,
+        params: OCREngineParams | None = None,
     ) -> str:
         """
         Process a document using Tesseract and return HOCR XML output.
@@ -133,7 +133,9 @@ class TesseractEngine(OCREngine):
         )
 
         # Decode bytes to string
-        hocr_content = hocr_output.decode("utf-8")
+        hocr_content = (
+            hocr_output.decode("utf-8") if isinstance(hocr_output, bytes) else hocr_output
+        )
 
         logger.info("image_processed", file=str(image_path), engine="tesseract")
 
@@ -173,7 +175,10 @@ class TesseractEngine(OCREngine):
                 image, lang=lang, config=config_string, extension="hocr"
             )
 
-            page_hocr_list.append(hocr_output.decode("utf-8"))
+            page_hocr = (
+                hocr_output.decode("utf-8") if isinstance(hocr_output, bytes) else hocr_output
+            )
+            page_hocr_list.append(page_hocr)
 
         # Combine pages (for multi-page PDF)
         if len(page_hocr_list) == 1:

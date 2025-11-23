@@ -88,13 +88,13 @@ def test_sync_tesseract_parameter_validation_psm(client: TestClient, sample_jpeg
     # Valid PSM values (skip 0 as it may not be supported by all Tesseract versions)
     for psm in [3, 6, 13]:
         with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f}, data={"psm": psm})
+            response = client.post("/sync/tesseract", files={"file": f}, data={"psm": str(psm)})
         assert response.status_code == 200, f"PSM {psm} should be valid"
 
     # Invalid PSM values
     for psm in [-1, 14, 100]:
         with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f}, data={"psm": psm})
+            response = client.post("/sync/tesseract", files={"file": f}, data={"psm": str(psm)})
         assert response.status_code in [400, 422], f"PSM {psm} should be invalid"
 
 
@@ -103,13 +103,13 @@ def test_sync_tesseract_parameter_validation_oem(client: TestClient, sample_jpeg
     # Valid OEM values (test only 1=LSTM and 3=Default which are commonly available)
     for oem in [1, 3]:
         with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f}, data={"oem": oem})
+            response = client.post("/sync/tesseract", files={"file": f}, data={"oem": str(oem)})
         assert response.status_code == 200, f"OEM {oem} should be valid"
 
     # Invalid OEM values
     for oem in [-1, 4, 10]:
         with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f}, data={"oem": oem})
+            response = client.post("/sync/tesseract", files={"file": f}, data={"oem": str(oem)})
         assert response.status_code in [400, 422], f"OEM {oem} should be invalid"
 
 
@@ -118,13 +118,13 @@ def test_sync_tesseract_parameter_validation_dpi(client: TestClient, sample_jpeg
     # Valid DPI values
     for dpi in [70, 150, 300, 600, 2400]:
         with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": dpi})
+            response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": str(dpi)})
         assert response.status_code == 200, f"DPI {dpi} should be valid"
 
     # Invalid DPI values
     for dpi in [69, 2401, 5000]:
         with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": dpi})
+            response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": str(dpi)})
         assert response.status_code in [400, 422], f"DPI {dpi} should be invalid"
 
 

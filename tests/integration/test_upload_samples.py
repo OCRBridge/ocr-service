@@ -48,10 +48,6 @@ def test_ocr_png_end_to_end(client: TestClient, sample_png):
         upload_response = client.post("/upload/tesseract", files={"file": f})
 
     assert upload_response.status_code == 202
-    job_id = upload_response.json()["job_id"]
-
-    # This test will initially fail (TDD)
-    # Poll for completion and verify HOCR output
 
 
 @pytest.mark.slow

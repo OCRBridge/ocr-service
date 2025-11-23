@@ -30,7 +30,7 @@ def test_413_file_too_large_error_schema(client: TestClient, tmp_path):
         f.write(b"0" * (26 * 1024 * 1024))
 
     with open(large_file, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f})
+        _response = client.post("/upload/tesseract", files={"file": f})
 
     # This test will initially fail (TDD)
     # When implemented:
@@ -46,7 +46,7 @@ def test_415_unsupported_format_error_schema(client: TestClient, tmp_path):
     text_file.write_text("This is not an image")
 
     with open(text_file, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f})
+        _response = client.post("/upload/tesseract", files={"file": f})
 
     # This test will initially fail (TDD)
     # When implemented:

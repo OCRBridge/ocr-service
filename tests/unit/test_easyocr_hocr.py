@@ -27,6 +27,7 @@ class TestEasyOCRHocrStructure:
 
         # Find ocr_page
         body = root.find(".//{http://www.w3.org/1999/xhtml}body")
+        assert body is not None, "Body element should exist"
         page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')
         assert page is not None, "ocr_page element not found"
 
@@ -89,6 +90,7 @@ class TestEasyOCRHocrStructure:
 
         # Find first ocr_line
         line = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocr_line"]')
+        assert line is not None, "Expected an ocr_line element"
         words = line.findall('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
 
         # Extract word text
@@ -145,7 +147,9 @@ class TestEasyOCRHocrStructure:
 
         # Find line
         line = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocr_line"]')
+        assert line is not None, "ocr_line element not found"
         line_title = line.get("title")
+        assert line_title is not None, "ocr_line should have title attribute"
 
         # Extract line bbox
         import re
@@ -174,7 +178,9 @@ class TestEasyOCRHocrStructure:
 
         # Find word
         word = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
+        assert word is not None, "ocrx_word element not found"
         word_title = word.get("title")
+        assert word_title is not None, "ocrx_word should have title attribute"
 
         # Check confidence
         import re
@@ -215,4 +221,7 @@ class TestEasyOCRHocrStructure:
         xml_content = hocr_xml.split("\n", 2)[2]
         root = ET.fromstring(xml_content)
         word = root.find('.//{http://www.w3.org/1999/xhtml}span[@class="ocrx_word"]')
-        assert word.text == "<Test&>", "Parsed text should match original"
+        assert word is not None, "ocrx_word element not found"
+        word_text = word.text
+        assert word_text is not None, "Parsed text must be present"
+        assert word_text == "<Test&>", "Parsed text should match original"

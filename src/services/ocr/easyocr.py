@@ -9,7 +9,7 @@ from pdf2image import convert_from_path
 from src.config import settings
 from src.models.ocr_params import EasyOCRParams
 from src.models.upload import FileFormat
-from src.services.ocr.base import OCREngine
+from src.services.ocr.base import OCREngine, OCREngineParams
 from src.utils.gpu import get_easyocr_device
 
 logger = structlog.get_logger()
@@ -104,7 +104,7 @@ class EasyOCREngine(OCREngine):
     def process(
         self,
         file_path: Path,
-        params: EasyOCRParams | None = None,
+        params: OCREngineParams | None = None,
     ) -> str:
         """
         Process document with EasyOCR and return HOCR XML.

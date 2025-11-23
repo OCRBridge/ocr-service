@@ -24,7 +24,7 @@ logger = structlog.get_logger()
         404: {"model": ErrorResponse, "description": "Job not found"},
     },
 )
-@limiter.limit(f"{100}/minute")
+@limiter.limit(f"{100}/minute")  # type: ignore[reportUntypedFunctionDecorator]
 async def get_job_status(
     request: Request,
     job_id: str,
@@ -68,7 +68,7 @@ async def get_job_status(
         404: {"model": ErrorResponse, "description": "Job or result not found"},
     },
 )
-@limiter.limit(f"{100}/minute")
+@limiter.limit(f"{100}/minute")  # type: ignore[reportUntypedFunctionDecorator]
 async def get_job_result(
     request: Request,
     job_id: str,

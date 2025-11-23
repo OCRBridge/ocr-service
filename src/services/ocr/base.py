@@ -2,17 +2,18 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import TypeAlias
 
 from src.models.ocr_params import EasyOCRParams, OcrmacParams, TesseractParams
+
+OCREngineParams: TypeAlias = TesseractParams | OcrmacParams | EasyOCRParams
 
 
 class OCREngine(ABC):
     """Abstract base class for OCR engines."""
 
     @abstractmethod
-    def process(
-        self, file_path: Path, params: TesseractParams | OcrmacParams | EasyOCRParams | None
-    ) -> str:
+    def process(self, file_path: Path, params: OCREngineParams | None = None) -> str:
         """
         Process a document and return HOCR XML output.
 

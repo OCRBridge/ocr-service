@@ -1,5 +1,7 @@
 """Unit tests for Redis job state CRUD operations."""
 
+from pathlib import Path
+
 import pytest
 
 
@@ -113,14 +115,20 @@ async def test_job_manager_serializes_ocrmac_params(redis_client, sample_jpeg):
         file_size=1024,
         content_type="image/jpeg",
         upload_timestamp=datetime.utcnow(),
-        temp_file_path="/tmp/uploads/test.jpg",  # Valid temp path
+        temp_file_path=Path("/tmp/uploads/test.jpg"),  # Valid temp path
     )
 
     ocrmac_params = OcrmacParams(
         languages=["de-DE", "fr-FR"], recognition_level=RecognitionLevel.ACCURATE
     )
 
-    job = OCRJob(upload=upload, engine=EngineType.OCRMAC, engine_params=ocrmac_params)
+    job = OCRJob(
+        upload=upload,
+        engine=EngineType.OCRMAC,
+        engine_params=ocrmac_params,
+        tesseract_params=None,
+        error_message=None,
+    )
 
     # Save job
     await manager.create_job(job)
@@ -156,12 +164,18 @@ async def test_job_manager_serializes_tesseract_params(redis_client, sample_jpeg
         file_size=1024,
         content_type="image/jpeg",
         upload_timestamp=datetime.utcnow(),
-        temp_file_path="/tmp/uploads/test.jpg",  # Valid temp path
+        temp_file_path=Path("/tmp/uploads/test.jpg"),  # Valid temp path
     )
 
     tesseract_params = TesseractParams(lang="deu+fra", psm=6, oem=1, dpi=300)
 
-    job = OCRJob(upload=upload, engine=EngineType.TESSERACT, engine_params=tesseract_params)
+    job = OCRJob(
+        upload=upload,
+        engine=EngineType.TESSERACT,
+        engine_params=tesseract_params,
+        tesseract_params=tesseract_params,
+        error_message=None,
+    )
 
     # Save job
     await manager.create_job(job)

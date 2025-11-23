@@ -1,5 +1,6 @@
 """OCR engine registry for capability detection and caching."""
 
+import importlib
 import platform
 from dataclasses import dataclass
 from typing import Optional
@@ -37,6 +38,12 @@ class EngineRegistry:
             self._detect_all_engines()
             self._initialized = True
 
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton state (for tests)."""
+        cls._instance = None
+        cls._initialized = False
+
     def _detect_all_engines(self):
         """Detect all supported engines at startup."""
         self._detect_tesseract()
@@ -46,7 +53,7 @@ class EngineRegistry:
     def _detect_tesseract(self):
         """Detect Tesseract availability and capabilities."""
         try:
-            import pytesseract
+            pytesseract = importlib.import_module("pytesseract")
 
             version = pytesseract.get_tesseract_version()
             languages = pytesseract.get_languages()
@@ -77,7 +84,7 @@ class EngineRegistry:
             return
 
         try:
-            import ocrmac  # noqa: F401
+            importlib.import_module("ocrmac")
 
             # ocrmac doesn't expose version or language list directly
             # Use Apple Vision framework supported languages (IETF BCP 47 format)
@@ -145,8 +152,8 @@ class EngineRegistry:
     def _detect_easyocr(self):
         """Detect EasyOCR availability and capabilities."""
         try:
-            import easyocr  # noqa: F401
-            import torch  # noqa: F401
+            importlib.import_module("easyocr")
+            importlib.import_module("torch")
 
             # EasyOCR supported languages (80+ languages)
             # Reference: https://github.com/JaidedAI/EasyOCR#supported-languages

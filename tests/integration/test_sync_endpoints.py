@@ -97,12 +97,12 @@ def test_sync_tesseract_with_psm_parameter(client: TestClient, sample_jpeg):
     """Test synchronous Tesseract with PSM parameter."""
     # Test PSM mode 3 (fully automatic)
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": 3})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": "3"})
     assert response.status_code == 200
 
     # Test PSM mode 6 (uniform block)
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": 6})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": "6"})
     assert response.status_code == 200
 
 
@@ -110,12 +110,12 @@ def test_sync_tesseract_with_oem_parameter(client: TestClient, sample_jpeg):
     """Test synchronous Tesseract with OEM parameter."""
     # Test OEM mode 1 (LSTM)
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"oem": 1})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"oem": "1"})
     assert response.status_code == 200
 
     # Test OEM mode 3 (default)
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"oem": 3})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"oem": "3"})
     assert response.status_code == 200
 
 
@@ -123,12 +123,12 @@ def test_sync_tesseract_with_dpi_parameter(client: TestClient, sample_jpeg):
     """Test synchronous Tesseract with DPI parameter."""
     # Test standard DPI
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": 300})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": "300"})
     assert response.status_code == 200
 
     # Test high DPI
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": 600})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": "600"})
     assert response.status_code == 200
 
 
@@ -138,7 +138,7 @@ def test_sync_tesseract_with_multiple_parameters(client: TestClient, sample_jpeg
         response = client.post(
             "/sync/tesseract",
             files={"file": f},
-            data={"lang": "eng", "psm": 6, "oem": 1, "dpi": 300},
+            data={"lang": "eng", "psm": "6", "oem": "1", "dpi": "300"},
         )
 
     assert response.status_code == 200

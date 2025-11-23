@@ -45,6 +45,7 @@ async def test_sync_engine_timeout_handling_and_metrics(
         with registry_context as mock_registry_class:
             # Configure registry mock if needed
             if needs_registry_mock:
+                assert mock_registry_class is not None
                 mock_registry = MagicMock()
                 mock_registry.is_available.return_value = True
                 mock_registry_class.return_value = mock_registry
@@ -101,6 +102,7 @@ async def test_sync_engine_processing_error_handling(
         with registry_context as mock_registry_class:
             # Configure registry mock if needed
             if needs_registry_mock:
+                assert mock_registry_class is not None
                 mock_registry = MagicMock()
                 mock_registry.is_available.return_value = True
                 mock_registry_class.return_value = mock_registry
@@ -119,7 +121,7 @@ async def test_sync_tesseract_validation_error_handling(client: TestClient, samp
     """Test that validation errors return 4xx status code."""
     # Invalid PSM parameter
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": 999})
+        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": "999"})
 
     # FastAPI Form validation returns 400, Pydantic validation returns 422
     assert response.status_code in [400, 422]

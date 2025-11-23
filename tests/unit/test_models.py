@@ -1,5 +1,8 @@
 """Unit tests for Pydantic model validation and state transitions."""
 
+from pathlib import Path
+from typing import cast
+
 import pytest
 from pydantic import ValidationError
 
@@ -29,7 +32,7 @@ def test_recognition_level_enum_includes_livetext():
 def test_pydantic_validation_accepts_livetext():
     """Test Pydantic validation accepts 'livetext' as valid recognition_level (T026)."""
     # Create OcrmacParams with livetext
-    params = OcrmacParams(recognition_level="livetext")
+    params = OcrmacParams(recognition_level=RecognitionLevel.LIVETEXT)
 
     assert params.recognition_level == RecognitionLevel.LIVETEXT
     assert params.recognition_level.value == "livetext"
@@ -40,15 +43,16 @@ def test_pydantic_validation_accepts_livetext():
 
     # Test all valid values
     for level in ["fast", "balanced", "accurate", "livetext"]:
-        params = OcrmacParams(recognition_level=level)
+        params = OcrmacParams(recognition_level=cast(RecognitionLevel, level))
         assert params.recognition_level.value == level
 
 
 def test_pydantic_validation_rejects_livetext_typo():
     """Test Pydantic validation rejects 'livetextt' typo and other invalid values (T027)."""
     # Test typo: extra 't'
+    invalid_typo: str = "livetextt"
     with pytest.raises(ValidationError) as exc_info:
-        OcrmacParams(recognition_level="livetextt")
+        OcrmacParams(recognition_level=cast(RecognitionLevel, invalid_typo))
 
     error = exc_info.value.errors()[0]
     assert error["loc"] == ("recognition_level",)
@@ -60,7 +64,7 @@ def test_pydantic_validation_rejects_livetext_typo():
 
     for invalid_value in invalid_values:
         with pytest.raises(ValidationError):
-            OcrmacParams(recognition_level=invalid_value)
+            OcrmacParams(recognition_level=cast(RecognitionLevel, invalid_value))
 
 
 def test_default_recognition_level_remains_balanced():
@@ -144,11 +148,11 @@ def test_ocr_job_state_transitions():
         file_size=1024,
         content_type="image/jpeg",
         upload_timestamp=datetime.utcnow(),
-        temp_file_path="/tmp/uploads/test.jpg",
+        temp_file_path=Path("/tmp/uploads/test.jpg"),
     )
 
     # Create job - should start in PENDING state
-    job = OCRJob(upload=upload)
+    job = OCRJob(upload=upload, engine_params=None, tesseract_params=None, error_message=None)
     assert job.status == JobStatus.PENDING
     assert job.start_time is None
     assert job.completion_time is None
@@ -188,18 +192,18 @@ def test_ocr_job_invalid_state_transition_raises_error():
         file_size=1024,
         content_type="image/jpeg",
         upload_timestamp=datetime.utcnow(),
-        temp_file_path="/tmp/uploads/test.jpg",
+        temp_file_path=Path("/tmp/uploads/test.jpg"),
     )
 
     # Test: Cannot complete from PENDING
-    job = OCRJob(upload=upload)
+    job = OCRJob(upload=upload, engine_params=None, tesseract_params=None, error_message=None)
     assert job.status == JobStatus.PENDING
 
     with pytest.raises(ValueError, match="Cannot complete from"):
         job.mark_completed()
 
     # Test: Cannot start processing from COMPLETED
-    job2 = OCRJob(upload=upload)
+    job2 = OCRJob(upload=upload, engine_params=None, tesseract_params=None, error_message=None)
     job2.mark_processing()
     job2.mark_completed()
 

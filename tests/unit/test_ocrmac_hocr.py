@@ -19,7 +19,7 @@ class TestOcrmacLineGrouping:
     def test_group_words_into_lines_empty_annotations(self):
         """Test grouping with empty annotations list."""
         engine = OcrmacEngine()
-        lines = engine._group_words_into_lines([], 800, 600)
+        lines = engine.group_words_into_lines([], 800, 600)
 
         assert lines == []
 
@@ -30,7 +30,7 @@ class TestOcrmacLineGrouping:
             ("Hello", 0.95, [0.1, 0.2, 0.1, 0.05])  # (text, confidence, [x, y, w, h])
         ]
 
-        lines = engine._group_words_into_lines(annotations, 800, 600)
+        lines = engine.group_words_into_lines(annotations, 800, 600)
 
         assert len(lines) == 1
         assert len(lines[0]["words"]) == 1
@@ -47,7 +47,7 @@ class TestOcrmacLineGrouping:
             ("Test", 0.90, [0.4, 0.2, 0.08, 0.05]),
         ]
 
-        lines = engine._group_words_into_lines(annotations, 800, 600)
+        lines = engine.group_words_into_lines(annotations, 800, 600)
 
         assert len(lines) == 1
         assert len(lines[0]["words"]) == 3
@@ -69,7 +69,7 @@ class TestOcrmacLineGrouping:
             ("Line", 0.94, [0.3, 0.4, 0.08, 0.05]),
         ]
 
-        lines = engine._group_words_into_lines(annotations, 800, 600)
+        lines = engine.group_words_into_lines(annotations, 800, 600)
 
         assert len(lines) == 2
         # First line (top of page, smallest y values after flip)
@@ -91,7 +91,7 @@ class TestOcrmacLineGrouping:
             ("World", 0.93, [0.25, 0.2, 0.12, 0.05]),  # bbox after flip: 200,450 -> 296,480
         ]
 
-        lines = engine._group_words_into_lines(annotations, 800, 600)
+        lines = engine.group_words_into_lines(annotations, 800, 600)
 
         assert len(lines) == 1
         line_bbox = lines[0]["bbox"]
@@ -110,7 +110,7 @@ class TestOcrmacLineGrouping:
             ("short", 0.93, [0.25, 0.2, 0.1, 0.04]),  # Shorter word, slightly lower
         ]
 
-        lines = engine._group_words_into_lines(annotations, 800, 600)
+        lines = engine.group_words_into_lines(annotations, 800, 600)
 
         # Both should be grouped in same line despite different heights
         assert len(lines) == 1
@@ -129,7 +129,7 @@ class TestOcrmacLineGrouping:
             ("BottomWord", 0.95, [0.1, 0.85, 0.1, 0.05]),
         ]
 
-        lines = engine._group_words_into_lines(annotations, 800, 600)
+        lines = engine.group_words_into_lines(annotations, 800, 600)
 
         # Should create 2 lines (too far apart vertically)
         assert len(lines) == 2
@@ -171,7 +171,7 @@ class TestOcrmacHocrStructure:
             ("World", 0.93, [0.25, 0.2, 0.12, 0.05]),
         ]
 
-        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+        hocr_xml = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
 
         # Parse XML
         # Remove DOCTYPE for easier parsing
@@ -180,6 +180,7 @@ class TestOcrmacHocrStructure:
 
         # Find ocr_page
         body = root.find(".//{http://www.w3.org/1999/xhtml}body")
+        assert body is not None, "Document body should exist"
         page = body.find('.//{http://www.w3.org/1999/xhtml}div[@class="ocr_page"]')
         assert page is not None, "ocr_page element not found"
 
@@ -203,7 +204,7 @@ class TestOcrmacHocrStructure:
         engine = OcrmacEngine()
         annotations = [("Test", 0.95, [0.1, 0.2, 0.1, 0.05])]
 
-        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+        hocr_xml = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
 
         # Parse XML
         xml_content = hocr_xml.split("\n", 2)[2]
@@ -214,17 +215,19 @@ class TestOcrmacHocrStructure:
         assert line is not None
 
         # Check attributes
-        assert line.get("id") is not None
-        assert line.get("id").startswith("line_1_")
-        assert line.get("title") is not None
-        assert "bbox" in line.get("title")
+        line_id = line.get("id")
+        assert line_id is not None
+        assert line_id.startswith("line_1_")
+        line_title = line.get("title")
+        assert line_title is not None
+        assert "bbox" in line_title
 
     def test_hocr_preserves_word_attributes(self):
         """Test that word attributes (bbox, confidence) are preserved."""
         engine = OcrmacEngine()
         annotations = [("Test", 0.95, [0.1, 0.2, 0.1, 0.05])]
 
-        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+        hocr_xml = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
 
         # Parse XML
         xml_content = hocr_xml.split("\n", 2)[2]
@@ -237,11 +240,12 @@ class TestOcrmacHocrStructure:
 
         # Check attributes
         assert word.get("id") is not None
-        assert word.get("title") is not None
-        assert "bbox" in word.get("title")
-        assert "x_wconf" in word.get("title")
+        word_title = word.get("title")
+        assert word_title is not None
+        assert "bbox" in word_title
+        assert "x_wconf" in word_title
         # Confidence 0.95 should be converted to 95
-        assert "x_wconf 95" in word.get("title")
+        assert "x_wconf 95" in word_title
 
     def test_hocr_multiple_lines_structure(self):
         """Test hOCR structure with multiple lines."""
@@ -255,7 +259,7 @@ class TestOcrmacHocrStructure:
             ("Line", 0.94, [0.3, 0.4, 0.08, 0.05]),
         ]
 
-        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+        hocr_xml = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
 
         # Parse XML
         xml_content = hocr_xml.split("\n", 2)[2]
@@ -278,7 +282,7 @@ class TestOcrmacHocrStructure:
         engine = OcrmacEngine()
         annotations = []
 
-        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+        hocr_xml = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
 
         # Parse XML
         xml_content = hocr_xml.split("\n", 2)[2]
@@ -310,7 +314,7 @@ class TestOcrmacHocrStructure:
             ("Text3", 0.3, [0.5, 0.2, 0.1, 0.05]),  # Fast mode: 30%
         ]
 
-        hocr_xml = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
+        hocr_xml = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "balanced")
 
         # Parse XML
         xml_content = hocr_xml.split("\n", 2)[2]
@@ -321,9 +325,20 @@ class TestOcrmacHocrStructure:
         assert len(words) == 3
 
         # Verify confidence conversion (float 0.0-1.0 → integer 0-100)
-        assert "x_wconf 100" in words[0].get("title"), "Confidence 1.0 should convert to 100"
-        assert "x_wconf 50" in words[1].get("title"), "Confidence 0.5 should convert to 50"
-        assert "x_wconf 30" in words[2].get("title"), "Confidence 0.3 should convert to 30"
+        titles = [word.get("title") for word in words]
+        assert all(title is not None for title in titles)
+
+        title_100 = titles[0]
+        assert title_100 is not None
+        assert "x_wconf 100" in title_100, "Confidence 1.0 should convert to 100"
+
+        title_50 = titles[1]
+        assert title_50 is not None
+        assert "x_wconf 50" in title_50, "Confidence 0.5 should convert to 50"
+
+        title_30 = titles[2]
+        assert title_30 is not None
+        assert "x_wconf 30" in title_30, "Confidence 0.3 should convert to 30"
 
         # Verify text is preserved
         assert words[0].text == "Text1"
@@ -336,7 +351,7 @@ class TestOcrmacHocrStructure:
         annotations = [("Test", 1.0, [0.1, 0.2, 0.1, 0.05])]
 
         # Test with livetext recognition level
-        hocr_xml_livetext = engine._convert_to_hocr(annotations, 800, 600, ["en-US"], "livetext")
+        hocr_xml_livetext = engine.convert_to_hocr(annotations, 800, 600, ["en-US"], "livetext")
 
         # Parse XML
         xml_content_livetext = hocr_xml_livetext.split("\n", 2)[2]
@@ -351,7 +366,7 @@ class TestOcrmacHocrStructure:
 
         # Compare with Vision framework (other recognition levels)
         for recognition_level in ["fast", "balanced", "accurate"]:
-            hocr_xml_vision = engine._convert_to_hocr(
+            hocr_xml_vision = engine.convert_to_hocr(
                 annotations, 800, 600, ["en-US"], recognition_level
             )
             xml_content_vision = hocr_xml_vision.split("\n", 2)[2]
@@ -374,7 +389,7 @@ class TestOcrmacHocrStructure:
             ("Word3", 1.0, [0.5, 0.2, 0.1, 0.05]),
         ]
 
-        hocr_xml = engine._convert_to_hocr(annotations_livetext, 800, 600, ["en-US"], "livetext")
+        hocr_xml = engine.convert_to_hocr(annotations_livetext, 800, 600, ["en-US"], "livetext")
 
         # Parse XML
         xml_content = hocr_xml.split("\n", 2)[2]
@@ -387,6 +402,7 @@ class TestOcrmacHocrStructure:
         # Verify all words have confidence 100
         for word in words:
             title = word.get("title")
+            assert title is not None
             assert "x_wconf 100" in title, (
                 f"LiveText should always have confidence 100, got: {title}"
             )
@@ -412,7 +428,7 @@ class TestAnnotationFormatValidation:
         ]
 
         # Should not raise exception
-        hocr_xml = engine._convert_to_hocr(valid_annotations, 800, 600, ["en-US"], "livetext")
+        hocr_xml = engine.convert_to_hocr(valid_annotations, 800, 600, ["en-US"], "livetext")
 
         # Verify hOCR was generated
         assert '<?xml version="1.0"' in hocr_xml
@@ -430,7 +446,7 @@ class TestAnnotationFormatValidation:
 
         # Should raise ValueError or IndexError when trying to unpack
         with pytest.raises((ValueError, IndexError)):
-            engine._convert_to_hocr(invalid_annotations, 800, 600, ["en-US"], "livetext")
+            engine.convert_to_hocr(invalid_annotations, 800, 600, ["en-US"], "livetext")
 
     def test_annotation_format_validation_detects_invalid_bbox_length(self):
         """Test that invalid bbox length is detected."""
@@ -443,7 +459,7 @@ class TestAnnotationFormatValidation:
 
         # Should raise ValueError or IndexError when accessing bbox elements
         with pytest.raises((ValueError, IndexError)):
-            engine._convert_to_hocr(invalid_annotations, 800, 600, ["en-US"], "livetext")
+            engine.convert_to_hocr(invalid_annotations, 800, 600, ["en-US"], "livetext")
 
     def test_annotation_format_validation_with_non_list_bbox(self):
         """Test that non-list bbox format is handled."""
@@ -455,7 +471,7 @@ class TestAnnotationFormatValidation:
         ]
 
         # Tuples should work the same as lists (both are sequences)
-        hocr_xml = engine._convert_to_hocr(
+        hocr_xml = engine.convert_to_hocr(
             annotations_with_tuple_bbox, 800, 600, ["en-US"], "livetext"
         )
 
@@ -472,7 +488,7 @@ class TestAnnotationFormatValidation:
         ]
 
         # Should still generate hOCR (empty words are valid in hOCR)
-        hocr_xml = engine._convert_to_hocr(annotations_empty_text, 800, 600, ["en-US"], "livetext")
+        hocr_xml = engine.convert_to_hocr(annotations_empty_text, 800, 600, ["en-US"], "livetext")
 
         assert "Valid" in hocr_xml
         # Empty text should create an element but with no text content

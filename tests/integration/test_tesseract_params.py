@@ -83,7 +83,7 @@ def test_all_parameters_end_to_end(client: TestClient, sample_jpeg):
         upload_response = client.post(
             "/upload/tesseract",
             files={"file": f},
-            data={"lang": "eng", "psm": 6, "oem": 1, "dpi": 300},
+            data={"lang": "eng", "psm": "6", "oem": "1", "dpi": "300"},
         )
 
     assert upload_response.status_code == 202

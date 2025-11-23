@@ -99,7 +99,9 @@ class OCRProcessor:
         )
 
         # Decode bytes to string
-        hocr_content = hocr_output.decode("utf-8")
+        hocr_content = (
+            hocr_output.decode("utf-8") if isinstance(hocr_output, bytes) else hocr_output
+        )
 
         logger.info("image_processed", file=str(image_path))
 
@@ -136,7 +138,10 @@ class OCRProcessor:
                 image, lang=self.lang, config=self.config_string, extension="hocr"
             )
 
-            page_hocr_list.append(hocr_output.decode("utf-8"))
+            page_hocr = (
+                hocr_output.decode("utf-8") if isinstance(hocr_output, bytes) else hocr_output
+            )
+            page_hocr_list.append(page_hocr)
 
         # Combine pages (for multi-page PDF)
         if len(page_hocr_list) == 1:

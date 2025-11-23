@@ -93,7 +93,6 @@ async def sync_tesseract(
             "Examples: 'eng', 'eng+fra', 'eng+fra+deu'. "
             "Default: eng"
         ),
-        pattern=r"^[a-z_]{3,7}(\+[a-z_]{3,7}){0,4}$",
         examples=["eng", "eng+fra", "fra"],
     ),
     psm: int | None = Form(

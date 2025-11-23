@@ -12,7 +12,7 @@ def test_result_with_completed_job_returns_200(client: TestClient, sample_jpeg):
 
     # Wait for processing (in real test, would poll status)
     # For now, this will fail until implementation is complete
-    response = client.get(f"/jobs/{job_id}/result")
+    _response = client.get(f"/jobs/{job_id}/result")
 
     # This test will initially fail (TDD)
     # When implemented:
@@ -29,7 +29,7 @@ def test_result_with_pending_job_returns_400(client: TestClient, sample_jpeg):
     job_id = upload_response.json()["job_id"]
 
     # Try to get result immediately (should be pending)
-    response = client.get(f"/jobs/{job_id}/result")
+    _response = client.get(f"/jobs/{job_id}/result")
 
     # Should return 400 if not completed
     # This test will initially fail (TDD)

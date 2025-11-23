@@ -68,7 +68,7 @@ def test_upload_without_language_defaults_to_english(client: TestClient, sample_
 def test_upload_with_psm_single_line_document(client: TestClient, sample_jpeg):
     """Test upload with PSM=7 (single line) for single-line documents."""
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": 7})
+        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": "7"})
 
     assert response.status_code == 202
     data = response.json()
@@ -93,7 +93,7 @@ def test_upload_without_psm_uses_default(client: TestClient, sample_jpeg):
 def test_upload_with_oem_lstm_accuracy(client: TestClient, sample_jpeg):
     """Test upload with OEM=1 (LSTM) for best accuracy."""
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"oem": 1})
+        response = client.post("/upload/tesseract", files={"file": f}, data={"oem": "1"})
 
     assert response.status_code == 202
     data = response.json()
@@ -118,7 +118,7 @@ def test_upload_without_oem_uses_default(client: TestClient, sample_jpeg):
 def test_upload_with_dpi_low_resolution_image(client: TestClient, sample_jpeg):
     """Test upload with DPI=150 for low-resolution images."""
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"dpi": 150})
+        response = client.post("/upload/tesseract", files={"file": f}, data={"dpi": "150"})
 
     assert response.status_code == 202
     data = response.json()
@@ -144,7 +144,7 @@ def test_upload_tesseract_endpoint_with_valid_parameters(client: TestClient, sam
     """Test POST /upload/tesseract endpoint with valid parameters."""
     with open(sample_jpeg, "rb") as f:
         response = client.post(
-            "/upload/tesseract", files={"file": f}, data={"lang": "eng", "psm": 6}
+            "/upload/tesseract", files={"file": f}, data={"lang": "eng", "psm": "6"}
         )
 
     assert response.status_code == 202
@@ -212,7 +212,7 @@ def test_upload_tesseract_with_spanish_and_psm(client: TestClient, sample_jpeg):
     """Test /upload/tesseract with lang=spa&psm=6."""
     with open(sample_jpeg, "rb") as f:
         response = client.post(
-            "/upload/tesseract", files={"file": f}, data={"lang": "spa", "psm": 6}
+            "/upload/tesseract", files={"file": f}, data={"lang": "spa", "psm": "6"}
         )
 
     assert response.status_code == 202
@@ -224,7 +224,7 @@ def test_upload_tesseract_with_spanish_and_psm(client: TestClient, sample_jpeg):
 def test_upload_tesseract_without_lang_defaults_to_eng(client: TestClient, sample_jpeg):
     """Test /upload/tesseract without lang defaults to eng."""
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": 6})
+        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": "6"})
 
     assert response.status_code == 202
     data = response.json()
@@ -236,9 +236,9 @@ def test_upload_tesseract_with_invalid_parameters_returns_400(client: TestClient
     """Test /upload/tesseract with invalid parameters returns HTTP 400."""
     # Invalid PSM value (out of range 0-13)
     with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": 99})
+        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": "99"})
 
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 # ============================================================================
@@ -422,7 +422,7 @@ def test_upload_ocrmac_with_tesseract_only_parameters_returns_400(client: TestCl
         response = client.post(
             "/upload/ocrmac",
             files={"file": f},
-            data={"psm": 6},  # Tesseract-only param
+            data={"psm": "6"},  # Tesseract-only param
         )
 
     # Should return 400 or 202 (ignored parameter)
