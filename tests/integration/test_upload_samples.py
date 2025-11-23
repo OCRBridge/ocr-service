@@ -62,7 +62,9 @@ def test_concurrent_uploads(client: TestClient, sample_jpeg):
     pass
 
 
-# User Story 2 Tests - Multi-Format Support
+# ============================================================================
+# Multi-Format Support
+# ============================================================================
 
 
 def test_ocr_pdf_end_to_end(client: TestClient, sample_pdf):

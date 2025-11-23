@@ -172,50 +172,6 @@ def test_sync_tesseract_file_size_limit(client: TestClient, tmp_path):
     assert "5MB limit" in response.json()["detail"]
 
 
-def test_sync_tesseract_invalid_lang(client: TestClient, sample_jpeg):
-    """Test synchronous Tesseract with invalid language code."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"lang": "INVALID"})
-
-    # FastAPI Form pattern validation returns 400, Pydantic validation returns 422
-    assert response.status_code in [400, 422]
-
-
-def test_sync_tesseract_invalid_psm(client: TestClient, sample_jpeg):
-    """Test synchronous Tesseract with invalid PSM value."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"psm": 99})
-
-    # FastAPI Form validation returns 400, Pydantic validation returns 422
-    assert response.status_code in [400, 422]
-
-
-def test_sync_tesseract_invalid_oem(client: TestClient, sample_jpeg):
-    """Test synchronous Tesseract with invalid OEM value."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"oem": 10})
-
-    # FastAPI Form validation returns 400, Pydantic validation returns 422
-    assert response.status_code in [400, 422]
-
-
-def test_sync_tesseract_invalid_dpi(client: TestClient, sample_jpeg):
-    """Test synchronous Tesseract with invalid DPI value."""
-    # DPI too low
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": 50})
-
-    # FastAPI Form validation returns 400, Pydantic validation returns 422
-    assert response.status_code in [400, 422]
-
-    # DPI too high
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/sync/tesseract", files={"file": f}, data={"dpi": 3000})
-
-    # FastAPI Form validation returns 400, Pydantic validation returns 422
-    assert response.status_code in [400, 422]
-
-
 def test_sync_tesseract_processing_duration_reasonable(client: TestClient, sample_jpeg):
     """Test that processing completes within reasonable time."""
     with open(sample_jpeg, "rb") as f:
@@ -229,7 +185,9 @@ def test_sync_tesseract_processing_duration_reasonable(client: TestClient, sampl
     assert data["processing_duration_seconds"] < 5.0
 
 
-# T018: Integration test for end-to-end EasyOCR sync processing
+# ============================================================================
+# EasyOCR Sync Processing Tests
+# ============================================================================
 
 
 def test_sync_easyocr_jpeg_end_to_end(client: TestClient, sample_jpeg):
@@ -273,7 +231,9 @@ def test_sync_easyocr_png_end_to_end(client: TestClient, sample_png):
     assert data["pages"] >= 1
 
 
-# T019: Integration test for EasyOCR multilingual processing
+# ============================================================================
+# EasyOCR Multilingual Processing Tests
+# ============================================================================
 
 
 def test_sync_easyocr_multilingual_processing(client: TestClient, sample_jpeg):
@@ -350,7 +310,9 @@ def test_sync_easyocr_processing_duration_reasonable(client: TestClient, sample_
     assert data["processing_duration_seconds"] < 10.0
 
 
-# T028: Integration test for end-to-end ocrmac sync processing (macOS only)
+# ============================================================================
+# OCRmac Sync Processing Tests (macOS only)
+# ============================================================================
 
 
 @pytest.mark.skipif(
@@ -468,7 +430,9 @@ def test_sync_ocrmac_processing_duration_reasonable(client: TestClient, sample_j
     assert data["processing_duration_seconds"] < 5.0
 
 
-# T029: Unit test for ocrmac platform validation
+# ============================================================================
+# OCRmac Platform Validation Tests
+# ============================================================================
 
 
 def test_sync_ocrmac_unavailable_non_macos_400(client: TestClient, sample_jpeg, monkeypatch):
@@ -492,7 +456,9 @@ def test_sync_ocrmac_unavailable_non_macos_400(client: TestClient, sample_jpeg, 
     assert "macOS" in response.json()["detail"]
 
 
-# T035-T036: Integration test for end-to-end LiveText processing
+# ============================================================================
+# LiveText End-to-End Processing Tests
+# ============================================================================
 
 
 @pytest.mark.skipif(

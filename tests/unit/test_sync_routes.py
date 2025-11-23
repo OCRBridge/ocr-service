@@ -1,6 +1,7 @@
 """Unit tests for synchronous OCR route handlers."""
 
 import asyncio
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,8 +13,18 @@ from src.api.routes.sync import temporary_upload
 
 
 @pytest.mark.asyncio
-async def test_sync_tesseract_timeout_handling(client: TestClient, sample_jpeg):
-    """Test that sync_tesseract raises 408 on timeout."""
+@pytest.mark.parametrize(
+    "engine,endpoint,needs_registry_mock",
+    [
+        ("tesseract", "/sync/tesseract", False),
+        ("easyocr", "/sync/easyocr", False),
+        ("ocrmac", "/sync/ocrmac", True),
+    ],
+)
+async def test_sync_engine_timeout_handling_and_metrics(
+    client: TestClient, sample_jpeg, engine, endpoint, needs_registry_mock
+):
+    """Test that sync endpoints raise 408 on timeout and increment timeout metrics."""
     # Mock OCRProcessor to simulate timeout
     with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
         mock_processor = MagicMock()
@@ -26,63 +37,81 @@ async def test_sync_tesseract_timeout_handling(client: TestClient, sample_jpeg):
         mock_processor.process_document = slow_process
         mock_processor_class.return_value = mock_processor
 
-        # Make request
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f})
+        # Setup context managers for registry mocking if needed
+        registry_context = (
+            patch("src.api.routes.sync.EngineRegistry")
+            if needs_registry_mock
+            else nullcontext()
+        )
 
-        # Should return 408 Request Timeout
-        assert response.status_code == 408
-        assert "timeout" in response.json()["detail"].lower()
-        assert "30s" in response.json()["detail"]  # Mentions timeout limit
+        with registry_context as mock_registry_class:
+            # Configure registry mock if needed
+            if needs_registry_mock:
+                mock_registry = MagicMock()
+                mock_registry.is_available.return_value = True
+                mock_registry_class.return_value = mock_registry
 
+            # Patch metrics
+            with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
+                with patch("src.api.routes.sync.sync_ocr_requests_total"):
+                    # Make request
+                    with open(sample_jpeg, "rb") as f:
+                        response = client.post(endpoint, files={"file": f})
 
-@pytest.mark.asyncio
-async def test_sync_tesseract_timeout_metrics(client: TestClient, sample_jpeg):
-    """Test that timeout increments timeout metrics."""
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
+                    # Should return 408 Request Timeout
+                    assert response.status_code == 408
+                    assert "timeout" in response.json()["detail"].lower()
+                    assert "30s" in response.json()["detail"]  # Mentions timeout limit
 
-        # Simulate timeout
-        async def slow_process(*args, **kwargs):
-            await asyncio.sleep(100)
-            return "<html></html>"
-
-        mock_processor.process_document = slow_process
-        mock_processor_class.return_value = mock_processor
-
-        # Patch metrics
-        with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
-            with patch("src.api.routes.sync.sync_ocr_requests_total"):
-                # Make request
-                with open(sample_jpeg, "rb") as f:
-                    response = client.post("/sync/tesseract", files={"file": f})
-
-                # Verify timeout metric was incremented
-                assert response.status_code == 408
-                mock_timeout_metric.labels.assert_called_with(engine="tesseract")
-                mock_timeout_metric.labels.return_value.inc.assert_called_once()
+                    # Verify timeout metric was incremented
+                    mock_timeout_metric.labels.assert_called_with(engine=engine)
+                    mock_timeout_metric.labels.return_value.inc.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_sync_tesseract_processing_error_handling(client: TestClient, sample_jpeg):
+@pytest.mark.parametrize(
+    "engine,endpoint,needs_registry_mock,error_msg",
+    [
+        ("tesseract", "/sync/tesseract", False, "OCR processing failed"),
+        ("easyocr", "/sync/easyocr", False, "EasyOCR processing failed"),
+        ("ocrmac", "/sync/ocrmac", True, "ocrmac processing failed"),
+    ],
+)
+async def test_sync_engine_processing_error_handling(
+    client: TestClient, sample_jpeg, engine, endpoint, needs_registry_mock, error_msg
+):
     """Test that processing errors return 500."""
     with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
         mock_processor = MagicMock()
 
         # Simulate processing error
         async def failing_process(*args, **kwargs):
-            raise RuntimeError("OCR processing failed")
+            raise RuntimeError(error_msg)
 
         mock_processor.process_document = failing_process
         mock_processor_class.return_value = mock_processor
 
-        # Make request
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/tesseract", files={"file": f})
+        # Setup context managers for registry mocking if needed
+        registry_context = (
+            patch("src.api.routes.sync.EngineRegistry")
+            if needs_registry_mock
+            else nullcontext()
+        )
 
-        # Should return 500 Internal Server Error
-        assert response.status_code == 500
-        assert "OCR processing failed" in response.json()["detail"]
+        with registry_context as mock_registry_class:
+            # Configure registry mock if needed
+            if needs_registry_mock:
+                mock_registry = MagicMock()
+                mock_registry.is_available.return_value = True
+                mock_registry_class.return_value = mock_registry
+
+            # Make request
+            with open(sample_jpeg, "rb") as f:
+                response = client.post(endpoint, files={"file": f})
+
+            # Should return 500 Internal Server Error
+            assert response.status_code == 500
+            assert error_msg in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -97,8 +126,16 @@ async def test_sync_tesseract_validation_error_handling(client: TestClient, samp
 
 
 @pytest.mark.asyncio
-async def test_temporary_upload_cleanup_on_success():
-    """Test that temporary_upload cleans up file on success."""
+@pytest.mark.parametrize(
+    "scenario,exception_type,exception_to_raise",
+    [
+        ("success", None, None),
+        ("error", RuntimeError, RuntimeError("Test error")),
+        ("timeout", asyncio.TimeoutError, TimeoutError()),
+    ],
+)
+async def test_temporary_upload_cleanup(scenario, exception_type, exception_to_raise):
+    """Test that temporary_upload cleans up file in all scenarios (success, error, timeout)."""
     # Create mock upload file
     mock_file = MagicMock(spec=UploadFile)
     mock_file.filename = "test.jpg"
@@ -118,85 +155,35 @@ async def test_temporary_upload_cleanup_on_success():
 
         mock_handler.save_upload = AsyncMock(return_value=mock_document_upload)
 
-        # Use context manager
-        async with temporary_upload(mock_file) as (file_path, file_format):
-            assert file_path == mock_temp_path
-            assert file_format == "jpeg"
-
-        # Verify cleanup was called
-        mock_temp_path.unlink.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_temporary_upload_cleanup_on_error():
-    """Test that temporary_upload cleans up file even on error."""
-    # Create mock upload file
-    mock_file = MagicMock(spec=UploadFile)
-    mock_file.filename = "test.jpg"
-
-    # Mock FileHandler
-    with patch("src.api.routes.sync.FileHandler") as mock_handler_class:
-        mock_handler = MagicMock()
-        mock_handler_class.return_value = mock_handler
-
-        # Mock temp file path
-        mock_temp_path = MagicMock(spec=Path)
-        mock_temp_path.exists.return_value = True
-
-        mock_document_upload = MagicMock()
-        mock_document_upload.temp_file_path = mock_temp_path
-        mock_document_upload.file_format = "jpeg"
-
-        mock_handler.save_upload = AsyncMock(return_value=mock_document_upload)
-
-        # Use context manager with error
-        with pytest.raises(RuntimeError):
+        # Use context manager with or without exception
+        if exception_type:
+            with pytest.raises(exception_type):
+                async with temporary_upload(mock_file) as (file_path, file_format):
+                    raise exception_to_raise
+        else:
             async with temporary_upload(mock_file) as (file_path, file_format):
-                raise RuntimeError("Test error")
+                assert file_path == mock_temp_path
+                assert file_format == "jpeg"
 
-        # Verify cleanup was still called
+        # Verify cleanup was called in all cases
         mock_temp_path.unlink.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_temporary_upload_cleanup_on_timeout():
-    """Test that temporary_upload cleans up file even on timeout."""
-    # Create mock upload file
-    mock_file = MagicMock(spec=UploadFile)
-    mock_file.filename = "test.jpg"
-
-    # Mock FileHandler
-    with patch("src.api.routes.sync.FileHandler") as mock_handler_class:
-        mock_handler = MagicMock()
-        mock_handler_class.return_value = mock_handler
-
-        # Mock temp file path
-        mock_temp_path = MagicMock(spec=Path)
-        mock_temp_path.exists.return_value = True
-
-        mock_document_upload = MagicMock()
-        mock_document_upload.temp_file_path = mock_temp_path
-        mock_document_upload.file_format = "jpeg"
-
-        mock_handler.save_upload = AsyncMock(return_value=mock_document_upload)
-
-        # Use context manager with timeout
-        with pytest.raises(asyncio.TimeoutError):
-            async with temporary_upload(mock_file) as (file_path, file_format):
-                raise TimeoutError()
-
-        # Verify cleanup was still called
-        mock_temp_path.unlink.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_sync_tesseract_success_metrics(client: TestClient, sample_jpeg):
+@pytest.mark.parametrize(
+    "engine,endpoint",
+    [
+        ("tesseract", "/sync/tesseract"),
+        ("easyocr", "/sync/easyocr"),
+    ],
+)
+async def test_sync_engine_success_metrics(client: TestClient, sample_jpeg, engine, endpoint):
     """Test that successful processing increments success metrics."""
     with patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric:
         with patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric:
             # Make successful request
             with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/tesseract", files={"file": f})
+                response = client.post(endpoint, files={"file": f})
 
             assert response.status_code == 200
 
@@ -206,201 +193,18 @@ async def test_sync_tesseract_success_metrics(client: TestClient, sample_jpeg):
             assert len(success_call) > 0
 
             # Verify duration was recorded
-            mock_duration_metric.labels.assert_called_with(engine="tesseract")
+            mock_duration_metric.labels.assert_called_with(engine=engine)
             mock_duration_metric.labels.return_value.observe.assert_called()
 
 
-# T020: Unit test for EasyOCR timeout handling
+# ============================================================================
+# EasyOCR Timeout Handling Tests
+# ============================================================================
 
 
-@pytest.mark.asyncio
-async def test_sync_easyocr_timeout_handling(client: TestClient, sample_jpeg):
-    """Test that sync_easyocr raises 408 on timeout."""
-    # Mock OCRProcessor to simulate timeout
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
-
-        # Simulate timeout by making process_document never complete
-        async def slow_process(*args, **kwargs):
-            await asyncio.sleep(100)  # Longer than timeout
-            return "<html></html>"
-
-        mock_processor.process_document = slow_process
-        mock_processor_class.return_value = mock_processor
-
-        # Make request
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/easyocr", files={"file": f})
-
-        # Should return 408 Request Timeout
-        assert response.status_code == 408
-        assert "timeout" in response.json()["detail"].lower()
-        assert "30s" in response.json()["detail"]  # Mentions timeout limit
-
-
-@pytest.mark.asyncio
-async def test_sync_easyocr_timeout_metrics(client: TestClient, sample_jpeg):
-    """Test that timeout increments timeout metrics for EasyOCR."""
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
-
-        # Simulate timeout
-        async def slow_process(*args, **kwargs):
-            await asyncio.sleep(100)
-            return "<html></html>"
-
-        mock_processor.process_document = slow_process
-        mock_processor_class.return_value = mock_processor
-
-        # Patch metrics
-        with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
-            with patch("src.api.routes.sync.sync_ocr_requests_total"):
-                # Make request
-                with open(sample_jpeg, "rb") as f:
-                    response = client.post("/sync/easyocr", files={"file": f})
-
-                # Verify timeout metric was incremented for easyocr
-                assert response.status_code == 408
-                mock_timeout_metric.labels.assert_called_with(engine="easyocr")
-                mock_timeout_metric.labels.return_value.inc.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_sync_easyocr_processing_error_handling(client: TestClient, sample_jpeg):
-    """Test that EasyOCR processing errors return 500."""
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
-
-        # Simulate processing error
-        async def failing_process(*args, **kwargs):
-            raise RuntimeError("EasyOCR processing failed")
-
-        mock_processor.process_document = failing_process
-        mock_processor_class.return_value = mock_processor
-
-        # Make request
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/sync/easyocr", files={"file": f})
-
-        # Should return 500 Internal Server Error
-        assert response.status_code == 500
-        assert "EasyOCR processing failed" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_sync_easyocr_success_metrics(client: TestClient, sample_jpeg):
-    """Test that successful EasyOCR processing increments success metrics."""
-    with patch("src.api.routes.sync.sync_ocr_requests_total") as mock_requests_metric:
-        with patch("src.api.routes.sync.sync_ocr_duration_seconds") as mock_duration_metric:
-            # Make successful request
-            with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/easyocr", files={"file": f})
-
-            assert response.status_code == 200
-
-            # Verify success metric was incremented
-            calls = [call for call in mock_requests_metric.labels.call_args_list]
-            success_call = [call for call in calls if "success" in str(call)]
-            assert len(success_call) > 0
-
-            # Verify duration was recorded for easyocr
-            mock_duration_metric.labels.assert_called_with(engine="easyocr")
-            mock_duration_metric.labels.return_value.observe.assert_called()
-
-
-# T030: Unit test for ocrmac timeout handling
-
-
-@pytest.mark.asyncio
-async def test_sync_ocrmac_timeout_handling(client: TestClient, sample_jpeg):
-    """Test that sync_ocrmac raises 408 on timeout."""
-    # Mock OCRProcessor to simulate timeout
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
-
-        # Simulate timeout by making process_document never complete
-        async def slow_process(*args, **kwargs):
-            await asyncio.sleep(100)  # Longer than timeout
-            return "<html></html>"
-
-        mock_processor.process_document = slow_process
-        mock_processor_class.return_value = mock_processor
-
-        # Mock engine registry to show ocrmac is available
-        with patch("src.api.routes.sync.EngineRegistry") as mock_registry_class:
-            mock_registry = MagicMock()
-            mock_registry.is_available.return_value = True
-            mock_registry_class.return_value = mock_registry
-
-            # Make request
-            with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/ocrmac", files={"file": f})
-
-            # Should return 408 Request Timeout
-            assert response.status_code == 408
-            assert "timeout" in response.json()["detail"].lower()
-            assert "30s" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_sync_ocrmac_timeout_metrics(client: TestClient, sample_jpeg):
-    """Test that timeout increments timeout metrics for ocrmac."""
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
-
-        # Simulate timeout
-        async def slow_process(*args, **kwargs):
-            await asyncio.sleep(100)
-            return "<html></html>"
-
-        mock_processor.process_document = slow_process
-        mock_processor_class.return_value = mock_processor
-
-        # Mock engine registry
-        with patch("src.api.routes.sync.EngineRegistry") as mock_registry_class:
-            mock_registry = MagicMock()
-            mock_registry.is_available.return_value = True
-            mock_registry_class.return_value = mock_registry
-
-            # Patch metrics
-            with patch("src.api.routes.sync.sync_ocr_timeouts_total") as mock_timeout_metric:
-                with patch("src.api.routes.sync.sync_ocr_requests_total"):
-                    # Make request
-                    with open(sample_jpeg, "rb") as f:
-                        response = client.post("/sync/ocrmac", files={"file": f})
-
-                    # Verify timeout metric was incremented for ocrmac
-                    assert response.status_code == 408
-                    mock_timeout_metric.labels.assert_called_with(engine="ocrmac")
-                    mock_timeout_metric.labels.return_value.inc.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_sync_ocrmac_processing_error_handling(client: TestClient, sample_jpeg):
-    """Test that ocrmac processing errors return 500."""
-    with patch("src.api.routes.sync.OCRProcessor") as mock_processor_class:
-        mock_processor = MagicMock()
-
-        # Simulate processing error
-        async def failing_process(*args, **kwargs):
-            raise RuntimeError("ocrmac processing failed")
-
-        mock_processor.process_document = failing_process
-        mock_processor_class.return_value = mock_processor
-
-        # Mock engine registry
-        with patch("src.api.routes.sync.EngineRegistry") as mock_registry_class:
-            mock_registry = MagicMock()
-            mock_registry.is_available.return_value = True
-            mock_registry_class.return_value = mock_registry
-
-            # Make request
-            with open(sample_jpeg, "rb") as f:
-                response = client.post("/sync/ocrmac", files={"file": f})
-
-            # Should return 500 Internal Server Error
-            assert response.status_code == 500
-            assert "ocrmac processing failed" in response.json()["detail"]
+# ============================================================================
+# OCRmac Timeout Handling Tests
+# ============================================================================
 
 
 @pytest.mark.asyncio

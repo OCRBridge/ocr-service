@@ -2,7 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-# T007: Contract tests for /sync/tesseract endpoint
+# ============================================================================
+# Tesseract Endpoint OpenAPI Tests
+# ============================================================================
 
 
 def test_sync_tesseract_openapi_endpoint_exists(client: TestClient):
@@ -138,7 +140,9 @@ def test_sync_tesseract_error_responses_in_openapi(client: TestClient):
     assert "422" in responses or "default" in responses
 
 
-# T017: Contract tests for /sync/easyocr endpoint
+# ============================================================================
+# EasyOCR Endpoint OpenAPI Tests
+# ============================================================================
 
 
 def test_sync_easyocr_openapi_endpoint_exists(client: TestClient):
@@ -201,7 +205,9 @@ def test_sync_easyocr_openapi_response_schema(client: TestClient):
     }
 
 
-# T027: Contract tests for /sync/ocrmac endpoint
+# ============================================================================
+# OCRmac Endpoint OpenAPI Tests
+# ============================================================================
 
 
 def test_sync_ocrmac_openapi_endpoint_exists(client: TestClient):
@@ -263,11 +269,13 @@ def test_sync_ocrmac_openapi_response_schema(client: TestClient):
     }
 
 
-# T040: Contract test for LiveText recognition_level in OpenAPI schema
+# ============================================================================
+# LiveText Recognition Level OpenAPI Tests
+# ============================================================================
 
 
 def test_sync_ocrmac_openapi_recognition_level_includes_livetext(client: TestClient):
-    """T040: Test that OpenAPI schema includes 'livetext' in recognition_level pattern."""
+    """Test that OpenAPI schema includes 'livetext' in recognition_level pattern."""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 

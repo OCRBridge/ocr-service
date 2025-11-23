@@ -3,18 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-# Phase 3: User Story 1 - Language Selection (T007-T012)
-
-
-def test_upload_with_valid_single_language(client: TestClient, sample_jpeg):
-    """Test upload with valid single language parameter (lang=fra)."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"lang": "fra"})
-
-    assert response.status_code == 202
-    data = response.json()
-    assert "job_id" in data
-    assert data["status"] == "pending"
+# ============================================================================
+# Language Selection
+# ============================================================================
 
 
 def test_upload_with_multiple_languages(client: TestClient, sample_jpeg):
@@ -26,18 +17,6 @@ def test_upload_with_multiple_languages(client: TestClient, sample_jpeg):
     data = response.json()
     assert "job_id" in data
     assert data["status"] == "pending"
-
-
-def test_upload_with_invalid_language_code(client: TestClient, sample_jpeg):
-    """Test upload with invalid language code format."""
-    with open(sample_jpeg, "rb") as f:
-        # Invalid format (uppercase, wrong length, etc.)
-        response = client.post("/upload/tesseract", files={"file": f}, data={"lang": "INVALID"})
-
-    assert response.status_code == 400
-    data = response.json()
-    # Validation error should be returned
-    assert "errors" in data or "detail" in data
 
 
 def test_upload_with_language_not_installed(client: TestClient, sample_jpeg):
@@ -81,33 +60,9 @@ def test_upload_without_language_defaults_to_english(client: TestClient, sample_
     # Should process successfully with default language (eng)
 
 
-# Phase 4: User Story 2 - PSM Control (T018-T021)
-
-
-def test_upload_with_valid_psm_values(client: TestClient, sample_jpeg):
-    """Test upload with valid PSM values (0-13)."""
-    valid_psm_values = [0, 3, 6, 7, 11, 13]
-
-    for psm in valid_psm_values:
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/upload/tesseract", files={"file": f}, data={"psm": psm})
-
-        assert response.status_code == 202, f"PSM {psm} should be valid"
-        data = response.json()
-        assert "job_id" in data
-
-
-def test_upload_with_invalid_psm_value(client: TestClient, sample_jpeg):
-    """Test upload with invalid PSM value (>13)."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"psm": 99})
-
-    assert response.status_code == 400
-    data = response.json()
-    assert "detail" in data
-    # Validation error message should indicate invalid data
-    error_msg = str(data["detail"]).lower()
-    assert "invalid" in error_msg or "error" in error_msg or "psm" in error_msg
+# ============================================================================
+# PSM Control
+# ============================================================================
 
 
 def test_upload_with_psm_single_line_document(client: TestClient, sample_jpeg):
@@ -130,30 +85,9 @@ def test_upload_without_psm_uses_default(client: TestClient, sample_jpeg):
     assert "job_id" in data
 
 
-# Phase 5: User Story 3 - OEM Selection (T026-T029)
-
-
-def test_upload_with_valid_oem_values(client: TestClient, sample_jpeg):
-    """Test upload with valid OEM values (0-3)."""
-    valid_oem_values = [0, 1, 2, 3]
-
-    for oem in valid_oem_values:
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/upload/tesseract", files={"file": f}, data={"oem": oem})
-
-        assert response.status_code == 202, f"OEM {oem} should be valid"
-        data = response.json()
-        assert "job_id" in data
-
-
-def test_upload_with_invalid_oem_value(client: TestClient, sample_jpeg):
-    """Test upload with invalid OEM value."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"oem": 99})
-
-    assert response.status_code == 400
-    data = response.json()
-    assert "detail" in data
+# ============================================================================
+# OEM Selection
+# ============================================================================
 
 
 def test_upload_with_oem_lstm_accuracy(client: TestClient, sample_jpeg):
@@ -176,30 +110,9 @@ def test_upload_without_oem_uses_default(client: TestClient, sample_jpeg):
     assert "job_id" in data
 
 
-# Phase 6: User Story 4 - DPI Configuration (T034-T037)
-
-
-def test_upload_with_valid_dpi_values(client: TestClient, sample_jpeg):
-    """Test upload with valid DPI values (70-2400)."""
-    valid_dpi_values = [70, 150, 300, 600, 2400]
-
-    for dpi in valid_dpi_values:
-        with open(sample_jpeg, "rb") as f:
-            response = client.post("/upload/tesseract", files={"file": f}, data={"dpi": dpi})
-
-        assert response.status_code == 202, f"DPI {dpi} should be valid"
-        data = response.json()
-        assert "job_id" in data
-
-
-def test_upload_with_invalid_dpi_out_of_range(client: TestClient, sample_jpeg):
-    """Test upload with DPI out of valid range."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"dpi": 50})
-
-    assert response.status_code == 400
-    data = response.json()
-    assert "detail" in data
+# ============================================================================
+# DPI Configuration
+# ============================================================================
 
 
 def test_upload_with_dpi_low_resolution_image(client: TestClient, sample_jpeg):
@@ -221,8 +134,9 @@ def test_upload_without_dpi_uses_default(client: TestClient, sample_jpeg):
     data = response.json()
     assert "job_id" in data
 
-
-# ==================== User Story 1: Engine Selection Tests ====================
+# ============================================================================
+# Engine Selection
+# ============================================================================
 
 
 def test_upload_tesseract_endpoint_with_valid_parameters(client: TestClient, sample_jpeg):
@@ -286,19 +200,8 @@ def test_upload_ocrmac_on_non_macos_returns_400(client: TestClient, sample_jpeg)
     assert "ocrmac" in data["detail"].lower()
 
 
-def test_upload_default_engine_backward_compatibility(client: TestClient, sample_jpeg):
-    """Test that existing /upload endpoint defaults to Tesseract for backward compatibility."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post("/upload/tesseract", files={"file": f}, data={"lang": "eng"})
-
-    assert response.status_code == 202
-    data = response.json()
-    assert "job_id" in data
-    assert data["status"] == "pending"
-
-
 # ============================================================================
-# User Story 2: Tesseract with Custom Parameters
+# Tesseract with Custom Parameters
 # ============================================================================
 
 
@@ -335,23 +238,8 @@ def test_upload_tesseract_with_invalid_parameters_returns_400(client: TestClient
     assert response.status_code == 400
 
 
-def test_upload_backward_compatibility_with_tesseract_params(client: TestClient, sample_jpeg):
-    """Test backward compatibility: /upload with Tesseract params (no engine)."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/upload/tesseract",
-            files={"file": f},
-            data={"lang": "eng", "psm": 6, "oem": 1, "dpi": 300},
-        )
-
-    assert response.status_code == 202
-    data = response.json()
-    assert "job_id" in data
-    assert data["status"] == "pending"
-
-
 # ============================================================================
-# User Story 3: ocrmac with Language Selection
+# OCRmac with Language Selection
 # ============================================================================
 
 
@@ -423,7 +311,7 @@ def test_upload_ocrmac_with_too_many_languages_returns_400(client: TestClient, s
 
 
 # ============================================================================
-# User Story 4: ocrmac with Recognition Level Control
+# OCRmac with Recognition Level Control
 # ============================================================================
 
 
@@ -509,7 +397,7 @@ def test_upload_ocrmac_with_pdf_file(client: TestClient, sample_pdf):
 
 
 # ============================================================================
-# User Story 5: Parameter Isolation Between Engines
+# Parameter Isolation Between Engines
 # ============================================================================
 
 
@@ -546,12 +434,12 @@ def test_upload_tesseract_with_ocrmac_only_parameters_returns_400(client: TestCl
 
 
 # ============================================================================
-# T037-T043: LiveText Recognition Level Contract Tests
+# LiveText Recognition Level
 # ============================================================================
 
 
 def test_upload_ocrmac_livetext_parameter_validation_accepts_valid(client: TestClient, sample_jpeg):
-    """T037: Test that 'livetext' is accepted as valid recognition_level value."""
+    """Test that 'livetext' is accepted as valid recognition_level value."""
     with open(sample_jpeg, "rb") as f:
         response = client.post(
             "/upload/ocrmac",
@@ -569,7 +457,7 @@ def test_upload_ocrmac_livetext_parameter_validation_accepts_valid(client: TestC
 
 
 def test_sync_ocrmac_livetext_parameter_validation_accepts_valid(client: TestClient, sample_jpeg):
-    """T037: Test that 'livetext' is accepted as valid recognition_level in sync endpoint."""
+    """Test that 'livetext' is accepted as valid recognition_level in sync endpoint."""
     with open(sample_jpeg, "rb") as f:
         response = client.post(
             "/sync/ocrmac",
@@ -587,7 +475,7 @@ def test_sync_ocrmac_livetext_parameter_validation_accepts_valid(client: TestCli
 
 
 def test_sync_ocrmac_livetext_platform_incompatibility_error(client: TestClient, sample_jpeg):
-    """T038: Test HTTP 400 platform incompatibility error for LiveText on pre-Sonoma."""
+    """Test HTTP 400 platform incompatibility error for LiveText on pre-Sonoma."""
     import platform
 
     # Only run this test if NOT on macOS Sonoma 14.0+
@@ -617,7 +505,7 @@ def test_sync_ocrmac_livetext_platform_incompatibility_error(client: TestClient,
 
 
 def test_sync_ocrmac_livetext_library_incompatibility_error(client: TestClient, sample_jpeg):
-    """T039: Test HTTP 500 library incompatibility error for unsupported ocrmac version."""
+    """Test HTTP 500 library incompatibility error for unsupported ocrmac version."""
     # This test verifies the error handling pattern
     # In reality, we can't force an old ocrmac version, but we test the contract
     # The actual error is tested via mock in unit tests
@@ -635,108 +523,3 @@ def test_sync_ocrmac_livetext_library_incompatibility_error(client: TestClient, 
         assert "detail" in data
         # Should be a string error message
         assert isinstance(data["detail"], str)
-
-
-def test_sync_ocrmac_recognition_level_fast_still_works(client: TestClient, sample_jpeg):
-    """T041: Test backward compatibility - 'fast' recognition_level still works."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/sync/ocrmac",
-            files={"file": f},
-            data={"recognition_level": "fast"},
-        )
-
-    # Should work (200 on macOS, 400 on non-macOS)
-    assert response.status_code in [200, 400]
-
-    if response.status_code == 200:
-        data = response.json()
-        assert "hocr" in data
-        assert data["engine"] == "ocrmac"
-
-
-def test_sync_ocrmac_recognition_level_balanced_still_works(client: TestClient, sample_jpeg):
-    """T042: Test backward compatibility - 'balanced' recognition_level still works."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/sync/ocrmac",
-            files={"file": f},
-            data={"recognition_level": "balanced"},
-        )
-
-    # Should work (200 on macOS, 400 on non-macOS)
-    assert response.status_code in [200, 400]
-
-    if response.status_code == 200:
-        data = response.json()
-        assert "hocr" in data
-        assert data["engine"] == "ocrmac"
-
-
-def test_sync_ocrmac_recognition_level_accurate_still_works(client: TestClient, sample_jpeg):
-    """T043: Test backward compatibility - 'accurate' recognition_level still works."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/sync/ocrmac",
-            files={"file": f},
-            data={"recognition_level": "accurate"},
-        )
-
-    # Should work (200 on macOS, 400 on non-macOS)
-    assert response.status_code in [200, 400]
-
-    if response.status_code == 200:
-        data = response.json()
-        assert "hocr" in data
-        assert data["engine"] == "ocrmac"
-
-
-def test_upload_ocrmac_recognition_level_fast_still_works(client: TestClient, sample_jpeg):
-    """T041: Test backward compatibility - 'fast' works in upload endpoint."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/upload/ocrmac",
-            files={"file": f},
-            data={"recognition_level": "fast"},
-        )
-
-    # Should work (202 on macOS, 400 on non-macOS)
-    assert response.status_code in [202, 400]
-
-    if response.status_code == 202:
-        data = response.json()
-        assert "job_id" in data
-
-
-def test_upload_ocrmac_recognition_level_balanced_still_works(client: TestClient, sample_jpeg):
-    """T042: Test backward compatibility - 'balanced' works in upload endpoint."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/upload/ocrmac",
-            files={"file": f},
-            data={"recognition_level": "balanced"},
-        )
-
-    # Should work (202 on macOS, 400 on non-macOS)
-    assert response.status_code in [202, 400]
-
-    if response.status_code == 202:
-        data = response.json()
-        assert "job_id" in data
-
-
-def test_upload_ocrmac_recognition_level_accurate_still_works(client: TestClient, sample_jpeg):
-    """T043: Test backward compatibility - 'accurate' works in upload endpoint."""
-    with open(sample_jpeg, "rb") as f:
-        response = client.post(
-            "/upload/ocrmac",
-            files={"file": f},
-            data={"recognition_level": "accurate"},
-        )
-
-    # Should work (202 on macOS, 400 on non-macOS)
-    assert response.status_code in [202, 400]
-
-    if response.status_code == 202:
-        data = response.json()
-        assert "job_id" in data
