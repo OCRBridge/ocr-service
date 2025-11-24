@@ -1,15 +1,9 @@
 """OCR engine registry with entry point discovery for v2 architecture."""
 
-import sys
 from importlib.metadata import entry_points
-from typing import Any, Type, get_type_hints
+from typing import Any, get_type_hints
 
 import structlog
-
-if sys.version_info >= (3, 10):
-    from importlib.metadata import EntryPoints
-else:
-    EntryPoints = list  # type: ignore
 
 logger = structlog.get_logger(__name__)
 
@@ -24,9 +18,9 @@ class EngineRegistry:
 
     def __init__(self):
         """Initialize the registry and discover engines."""
-        self._engine_classes: dict[str, Type[Any]] = {}
+        self._engine_classes: dict[str, type[Any]] = {}
         self._engine_instances: dict[str, Any] = {}
-        self._param_models: dict[str, Type[Any]] = {}
+        self._param_models: dict[str, type[Any]] = {}
         self._discover_engines()
 
     def _discover_engines(self) -> None:
@@ -36,14 +30,11 @@ class EngineRegistry:
         engine classes. Failed engine loads are logged but don't fail startup.
         """
         try:
-            # Python 3.10+ returns EntryPoints object, 3.9 returns list
+            # Get entry points for ocrbridge.engines group
             discovered = entry_points(group="ocrbridge.engines")
 
-            # Handle both return types
-            if hasattr(discovered, "__iter__"):
-                eps = list(discovered)
-            else:
-                eps = discovered  # type: ignore
+            # Handle both return types (EntryPoints object or list)
+            eps = list(discovered) if hasattr(discovered, "__iter__") else discovered  # type: ignore
 
             logger.info("discovering_engines", count=len(eps))
 
@@ -105,7 +96,7 @@ class EngineRegistry:
             )
             # Don't fail startup, just log the error
 
-    def _extract_param_model(self, engine_class: Type[Any]) -> Type[Any] | None:
+    def _extract_param_model(self, engine_class: type[Any]) -> type[Any] | None:
         """Extract parameter model from engine's process method.
 
         Args:
@@ -200,7 +191,7 @@ class EngineRegistry:
             "has_param_model": name in self._param_models,
         }
 
-    def get_param_model(self, engine_name: str) -> Type[Any] | None:
+    def get_param_model(self, engine_name: str) -> type[Any] | None:
         """Get parameter model class for an engine.
 
         Args:

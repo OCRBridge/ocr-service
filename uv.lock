@@ -751,6 +751,65 @@ wheels = [
 ]
 
 [[package]]
+name = "ocrbridge-core"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/69/37/d3b11bad906ae1bdb3a57bb4a556d364077ed7347e8b7802c98f152904d2/ocrbridge_core-1.0.0.tar.gz", hash = "sha256:caa662e0aceb813dbde55b010e3fd8cfde278a9c41b3d3ba5ed55adb9226f428", size = 86764, upload-time = "2025-11-24T00:41:46.975Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/c6/23fd2ef0855a5ca3f351b621ac9b33251d19a4b5048456b5a66a8d6313b4/ocrbridge_core-1.0.0-py3-none-any.whl", hash = "sha256:1ddf1a2c4334771f5ec89bba1559aff0526a8954cdfadd6335360cd87a92bab3", size = 8118, upload-time = "2025-11-24T00:41:45.46Z" },
+]
+
+[[package]]
+name = "ocrbridge-easyocr"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "easyocr" },
+    { name = "numpy" },
+    { name = "ocrbridge-core" },
+    { name = "pdf2image" },
+    { name = "pillow" },
+    { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/d3/c2ff0588ebf0d9a91cd13ceba5d403009089518c15bf635d4ff254f2b164/ocrbridge_easyocr-1.0.0.tar.gz", hash = "sha256:0572d9db9768a237ef5a4efc889bbdbcf2b5beb3aa6c340edc53150f165d1c96", size = 2151513, upload-time = "2025-11-24T21:29:46.174Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/ac/2f9c74196c597e2a3c814a2c4ab62545fe1339260894ba2544cbac43144d/ocrbridge_easyocr-1.0.0-py3-none-any.whl", hash = "sha256:826c28b919012e208324cd6857fe809c20bfd8c3f74661e24db63399667c3fb7", size = 8365, upload-time = "2025-11-24T21:29:44.798Z" },
+]
+
+[[package]]
+name = "ocrbridge-ocrmac"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ocrbridge-core", marker = "sys_platform == 'darwin'" },
+    { name = "ocrmac", marker = "sys_platform == 'darwin'" },
+    { name = "pdf2image", marker = "sys_platform == 'darwin'" },
+    { name = "pillow", marker = "sys_platform == 'darwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/84/21/d76972b3fa750b2418b8fac8bad6dfed77d746ff6cc15024021c232d23a7/ocrbridge_ocrmac-1.0.0.tar.gz", hash = "sha256:35280777f42503b268a82ac8c318754da3faf378dca3a6918bf4c0aafda8dba5", size = 2121005, upload-time = "2025-11-24T21:09:30.896Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/35/d9/98212b77d57c3bf8cbf084ab7b6c619aeb5812454b7f60ef5d17346f085f/ocrbridge_ocrmac-1.0.0-py3-none-any.whl", hash = "sha256:771200f47cfa2f3bab6c29ac5bfa7e7989c8c3bf3d5352843cce5a6d6a3fca9c", size = 8305, upload-time = "2025-11-24T21:09:29.774Z" },
+]
+
+[[package]]
+name = "ocrbridge-tesseract"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ocrbridge-core" },
+    { name = "pdf2image" },
+    { name = "pillow" },
+    { name = "pytesseract" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ae/30/8226ca248c685cfd1a4afe2d31327df8a7959c10be251adb18cc68d7fa7f/ocrbridge_tesseract-1.0.0.tar.gz", hash = "sha256:e0683b4221224eaeca410bad8bf2280293f5b69feb84931382cdebb6de9c4fed", size = 2110483, upload-time = "2025-11-24T01:48:53.946Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/09/5a/c2768581c92d29e7c5f42d0fc3136cd4e73d44622a3b4858fce67bcc8cac/ocrbridge_tesseract-1.0.0-py3-none-any.whl", hash = "sha256:616ba5e975030ea463deee8abd0e1b89c8c64d8ef56d81d5e8710672829d6d64", size = 6638, upload-time = "2025-11-24T01:48:52.438Z" },
+]
+
+[[package]]
 name = "ocrmac"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1382,17 +1441,16 @@ wheels = [
 
 [[package]]
 name = "restful-ocr"
-version = "1.1.0"
+version = "2.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "fastapi" },
+    { name = "ocrbridge-core" },
     { name = "opencv-python-headless" },
-    { name = "pdf2image" },
     { name = "prometheus-client" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pytesseract" },
     { name = "python-multipart" },
     { name = "redis" },
     { name = "slowapi" },
@@ -1402,16 +1460,18 @@ dependencies = [
 
 [package.optional-dependencies]
 easyocr = [
-    { name = "easyocr" },
-    { name = "torch" },
+    { name = "ocrbridge-easyocr" },
 ]
 full = [
-    { name = "easyocr" },
-    { name = "ocrmac", marker = "sys_platform == 'darwin'" },
-    { name = "torch" },
+    { name = "ocrbridge-easyocr" },
+    { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin'" },
+    { name = "ocrbridge-tesseract" },
 ]
 ocrmac = [
-    { name = "ocrmac", marker = "sys_platform == 'darwin'" },
+    { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin'" },
+]
+tesseract = [
+    { name = "ocrbridge-tesseract" },
 ]
 
 [package.dev-dependencies]
@@ -1428,26 +1488,25 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=23.2.0" },
-    { name = "easyocr", marker = "extra == 'easyocr'", specifier = ">=1.7.0" },
-    { name = "easyocr", marker = "extra == 'full'", specifier = ">=1.7.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
-    { name = "ocrmac", marker = "sys_platform == 'darwin' and extra == 'full'", specifier = ">=0.1.0" },
-    { name = "ocrmac", marker = "sys_platform == 'darwin' and extra == 'ocrmac'", specifier = ">=0.1.0" },
+    { name = "ocrbridge-core", specifier = ">=1.0.0" },
+    { name = "ocrbridge-easyocr", marker = "extra == 'easyocr'", specifier = ">=1.0.0" },
+    { name = "ocrbridge-easyocr", marker = "extra == 'full'", specifier = ">=1.0.0" },
+    { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin' and extra == 'full'", specifier = ">=1.0.0" },
+    { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin' and extra == 'ocrmac'", specifier = ">=1.0.0" },
+    { name = "ocrbridge-tesseract", marker = "extra == 'full'", specifier = ">=1.0.0" },
+    { name = "ocrbridge-tesseract", marker = "extra == 'tesseract'", specifier = ">=1.0.0" },
     { name = "opencv-python-headless", specifier = ">=4.8.0,<4.11.0" },
-    { name = "pdf2image", specifier = ">=1.16.0" },
     { name = "prometheus-client", specifier = ">=0.19.0" },
     { name = "pydantic", specifier = ">=2.5.0" },
     { name = "pydantic-settings", specifier = ">=2.1.0" },
-    { name = "pytesseract", specifier = ">=0.3.0" },
     { name = "python-multipart", specifier = ">=0.0.6" },
     { name = "redis", specifier = ">=5.0.0" },
     { name = "slowapi", specifier = ">=0.1.0" },
     { name = "structlog", specifier = ">=23.2.0" },
-    { name = "torch", marker = "extra == 'easyocr'", specifier = ">=2.0.0" },
-    { name = "torch", marker = "extra == 'full'", specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
 ]
-provides-extras = ["easyocr", "ocrmac", "full"]
+provides-extras = ["tesseract", "easyocr", "ocrmac", "full"]
 
 [package.metadata.requires-dev]
 dev = [

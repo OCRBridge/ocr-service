@@ -13,9 +13,7 @@ from redis import asyncio as aioredis
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
 from src.config import settings
-from src.models.job import EngineType
 from src.services.cleanup import CleanupService
-from src.services.ocr.registry import EngineRegistry as EngineRegistryV1
 from src.services.ocr.registry_v2 import EngineRegistry
 
 # Configure structured logging
@@ -59,43 +57,14 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("application_starting", version="2.0.0")
 
-    # Initialize v1 EngineRegistry for backward compatibility (v1 endpoints)
-    registry_v1 = EngineRegistryV1()
-    app.state.engine_registry_v1 = registry_v1
+    # Initialize EngineRegistry with entry point discovery
+    registry = EngineRegistry()
+    app.state.engine_registry = registry
 
-    # Log available OCR engines with version information (v1)
-    tesseract_caps = registry_v1.get_capabilities(EngineType.TESSERACT)
-    easyocr_caps = registry_v1.get_capabilities(EngineType.EASYOCR)
-    ocrmac_caps = registry_v1.get_capabilities(EngineType.OCRMAC)
-
-    available_engines_v1 = []
-    if tesseract_caps.available:
-        available_engines_v1.append(f"tesseract {tesseract_caps.version}")
-    if easyocr_caps.available:
-        available_engines_v1.append(f"easyocr {easyocr_caps.version}")
-    if ocrmac_caps.available:
-        available_engines_v1.append(f"ocrmac {ocrmac_caps.version}")
-
+    # Log discovered engines
+    discovered_engines = registry.list_engines()
     logger.info(
-        "ocr_engines_detected_v1",
-        available_engines=available_engines_v1,
-        default_engine=settings.default_ocr_engine,
-        tesseract_available=tesseract_caps.available,
-        tesseract_version=tesseract_caps.version,
-        easyocr_available=easyocr_caps.available,
-        easyocr_version=easyocr_caps.version,
-        ocrmac_available=ocrmac_caps.available,
-        ocrmac_version=ocrmac_caps.version,
-    )
-
-    # Initialize v2 EngineRegistry with entry point discovery
-    registry_v2 = EngineRegistry()
-    app.state.engine_registry = registry_v2
-
-    # Log discovered engines (v2)
-    discovered_engines = registry_v2.list_engines()
-    logger.info(
-        "ocr_engines_discovered_v2",
+        "ocr_engines_discovered",
         discovered_engines=discovered_engines,
         count=len(discovered_engines),
     )
@@ -152,14 +121,9 @@ app.mount("/metrics", metrics_app)
 
 
 # Import and register routes
-from src.api.routes import health, jobs, sync, upload  # noqa: E402
+from src.api.routes import health  # noqa: E402
 from src.api.routes.v2 import ocr as ocr_v2  # noqa: E402
 
-# V2 Routes (new modular architecture)
-app.include_router(ocr_v2.router, tags=["OCR v2"])
-
-# V1 Routes (legacy - to be deprecated)
-app.include_router(upload.router, tags=["upload (v1 - deprecated)"])
-app.include_router(jobs.router, tags=["jobs"])
-app.include_router(sync.router, prefix="/sync", tags=["sync (v1 - deprecated)"])
+# V2 Routes
+app.include_router(ocr_v2.router, tags=["OCR"])
 app.include_router(health.router, tags=["health"])

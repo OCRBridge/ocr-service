@@ -106,6 +106,8 @@ async def process_document(
         str,
         Form(description="OCR engine to use (e.g., 'tesseract', 'easyocr', 'ocrmac')"),
     ],
+    registry: Annotated[EngineRegistry, Depends(get_registry)],
+    _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
     params: Annotated[
         str | None,
         Form(
@@ -113,8 +115,6 @@ async def process_document(
             example='{"lang": "eng", "psm": 3}',
         ),
     ] = None,
-    registry: Annotated[EngineRegistry, Depends(get_registry)] = Depends(get_registry),
-    _validated_file: UploadFile = Depends(validate_sync_file_size),
 ) -> SyncOCRResponse:
     """Process a document using specified OCR engine (synchronous).
 
@@ -242,7 +242,7 @@ async def process_document(
                     detail=f"OCR processing failed: {e}",
                 )
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("ocr_timeout_v2", engine=engine)
                 raise HTTPException(
                     status_code=504,

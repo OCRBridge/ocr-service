@@ -19,46 +19,38 @@ dependencies = [
     # Pin opencv-python-headless to avoid broken 4.11.0.86 release
     # See: https://github.com/opencv/opencv-python/issues (version 4.11.0.86 has missing attributes)
     "opencv-python-headless>=4.8.0,<4.11.0",
+    # OCR Bridge Core (required for engine support)
+    "ocrbridge-core>=1.0.0",
 ]
 
 [project.optional-dependencies]
-# OCR Core (required for engine support)
-# Install: pip install -e .[core]
-core = [
-    "ocrbridge-core>=0.1.0",
-]
-
 # Individual engines (install as needed)
 # Install: pip install -e .[tesseract]
 tesseract = [
-    "ocrbridge-core>=0.1.0",
-    "ocrbridge-tesseract>=0.1.0",
+    "ocrbridge-tesseract>=1.0.0",
 ]
 
 # EasyOCR: Deep learning OCR with GPU support
 # Install: pip install -e .[easyocr]
 # Docker: Use full image (not lite)
 easyocr = [
-    "ocrbridge-core>=0.1.0",
-    "ocrbridge-easyocr>=0.1.0",
+    "ocrbridge-easyocr>=1.0.0",
 ]
 
 # ocrmac: macOS-only Vision framework OCR
 # Install: pip install -e .[ocrmac]  (macOS only)
 # Docker: Not compatible (Docker uses Linux even on Mac)
 ocrmac = [
-    "ocrbridge-core>=0.1.0",
-    "ocrbridge-ocrmac>=0.1.0",
+    "ocrbridge-ocrmac>=1.0.0; platform_system == 'Darwin'",
 ]
 
 # Full: All OCR engines
 # Install: pip install -e .[full]
 # Docker: Use full image
 full = [
-    "ocrbridge-core>=0.1.0",
-    "ocrbridge-tesseract>=0.1.0",
-    "ocrbridge-easyocr>=0.1.0",
-    "ocrbridge-ocrmac>=0.1.0",
+    "ocrbridge-tesseract>=1.0.0",
+    "ocrbridge-easyocr>=1.0.0",
+    "ocrbridge-ocrmac>=1.0.0; platform_system == 'Darwin'",
 ]
 
 [dependency-groups]
