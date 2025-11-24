@@ -1,21 +1,8 @@
 # Base Docker Compose configuration shared by all flavors
-# This file contains common configuration for Redis and API services
+# This file contains common configuration for the API service
 # Do not use this file directly - use docker-compose.yml or docker-compose.lite.yml
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: ocr-redis
-    ports:
-      - "7879:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   api:
     build:
       context: .
@@ -25,7 +12,6 @@ services:
     ports:
       - "8080:8000"
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - API_WORKERS=4
@@ -35,9 +21,6 @@ services:
       - ./src:/app/src  # Development: hot-reload source code
       - upload-tmp:/tmp/uploads
       - results-tmp:/tmp/results
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -46,6 +29,5 @@ services:
       start_period: 40s
 
 volumes:
-  redis-data:
   upload-tmp:
   results-tmp:

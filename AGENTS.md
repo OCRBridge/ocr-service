@@ -8,20 +8,19 @@ Auto-generated from all feature plans. Last updated: 2025-10-18
 - Pydantic 2.5+ (Data validation)
 - Uvicorn 0.24+ (ASGI server)
 - Tesseract 5.3+ (OCR engine via pytesseract)
-- Redis 7.0+ (Job state storage)
 - pytest 7.4+ (Testing framework)
 - Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, Tesseract 5.3+ (002-tesseract-params)
-- Redis 7.0+ (job state), filesystem (temporary uploaded files) (002-tesseract-params)
-- Redis 7.0+ (job state), filesystem (temporary uploaded files, results) (003-multi-engine-ocr)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+ (004-easyocr-engine)
-- Redis 7.0+ (job state), filesystem (temporary uploaded files, results), configurable persistent volume (EasyOCR models, 5GB default) (004-easyocr-engine)
+- Filesystem (temporary uploaded files) (002-tesseract-params)
+- Filesystem (temporary uploaded files, results) (003-multi-engine-ocr)
+- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+ (004-easyocr-engine)
+- Filesystem (temporary uploaded files, results), configurable persistent volume (EasyOCR models, 5GB default) (004-easyocr-engine)
 - Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+ (005-remove-generic-upload)
 - pyright 1.1+ (Type checking)
 - pre-commit 3.5+ (Git hooks for code quality)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints) (006-direct-ocr-endpoints)
-- Filesystem (temporary uploaded files - cleaned up immediately after sync processing), Redis 7.0+ (job state for async endpoints only) (006-direct-ocr-endpoints)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+ (007-ocrmac-livetext-option)
-- Redis (job state for async), filesystem (temporary uploaded files) (007-ocrmac-livetext-option)
+- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency) (006-direct-ocr-endpoints)
+- Filesystem (temporary uploaded files - cleaned up immediately after sync processing) (006-direct-ocr-endpoints)
+- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support) (007-ocrmac-livetext-option)
+- Filesystem (temporary uploaded files) (007-ocrmac-livetext-option)
 
 ## Project Structure
 
@@ -71,7 +70,7 @@ uv run pre-commit autoupdate                     # Update hook versions
 
 ### Docker
 ```bash
-# Start services (API + Redis)
+# Start services
 docker compose up -d
 
 # Stop services
@@ -79,18 +78,6 @@ docker compose down
 
 # View logs
 docker compose logs -f api
-```
-
-### Redis
-```bash
-# Check Redis connection
-redis-cli ping
-
-# Monitor Redis operations
-redis-cli monitor
-
-# Flush test data
-redis-cli flushdb
 ```
 
 ## Code Style
@@ -114,8 +101,8 @@ Automatically run before each commit:
 **Bypass hooks** (use sparingly): `git commit --no-verify -m "message"`
 
 ## Recent Changes
-- 007-ocrmac-livetext-option: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+
-- 006-direct-ocr-endpoints: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints)
+- 007-ocrmac-livetext-option: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support)
+- 006-direct-ocr-endpoints: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency)
 - 005-remove-generic-upload: Added Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+
 
 ## Platform Limitations

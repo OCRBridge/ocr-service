@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
-from redis import asyncio as aioredis
 
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
@@ -69,18 +68,6 @@ async def lifespan(app: FastAPI):
         count=len(discovered_engines),
     )
 
-    # Initialize Redis connection
-    redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
-    app.state.redis = redis_client
-
-    # Verify Redis connection
-    try:
-        await redis_client.ping()
-        logger.info("redis_connected", url=settings.redis_url)
-    except Exception as e:
-        logger.error("redis_connection_failed", error=str(e))
-        raise
-
     # Start cleanup background task (US3 - T096)
     cleanup_task = asyncio.create_task(cleanup_task_runner())
     app.state.cleanup_task = cleanup_task
@@ -97,7 +84,6 @@ async def lifespan(app: FastAPI):
     with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
 
-    await redis_client.close()
     logger.info("application_shutdown_complete")
 
 

@@ -23,7 +23,6 @@ This service uses a **modular plugin architecture** powered by the [datenzar OCR
   - `ocrbridge-easyocr` - EasyOCR deep learning (80+ languages, GPU support)
   - `ocrbridge-ocrmac` - Apple Vision framework (macOS only)
 - **Engine Discovery**: Python entry points for automatic detection
-- **Job Store**: Redis for rate limiting
 - **Logging**: structlog (JSON format)
 - **Metrics**: Prometheus client
 
@@ -39,7 +38,6 @@ This service uses a **modular plugin architecture** powered by the [datenzar OCR
 ### Prerequisites
 
 - Python 3.11+
-- Redis server
 
 ### Base Installation
 
@@ -85,22 +83,7 @@ pip install -e .[full]
 
 ## Quick Start
 
-### 1. Start Redis
-
-```bash
-# macOS
-brew install redis
-brew services start redis
-
-# Ubuntu/Debian
-sudo apt-get install redis-server
-sudo systemctl start redis
-
-# Or use Docker
-docker run -d -p 6379:6379 redis:alpine
-```
-
-### 2. Install an OCR Engine
+### 1. Install an OCR Engine
 
 ```bash
 # Install Tesseract engine (lightest option)
@@ -250,12 +233,8 @@ curl http://localhost:8000/metrics
 Configuration via environment variables:
 
 ```bash
-# Redis Configuration
-REDIS_URL=redis://localhost:6379/0
-
 # API Configuration
 MAX_UPLOAD_SIZE_MB=5
-RATE_LIMIT_REQUESTS=100
 
 # Logging
 LOG_LEVEL=INFO
@@ -357,15 +336,13 @@ ocr-service/
 # Build image
 docker build -t ocr-service:latest .
 
-# Run with Redis
-docker run -d -p 8000:8000 \
-  -e REDIS_URL=redis://redis:6379/0 \
-  ocr-service:latest
+# Run
+docker run -d -p 8000:8000 ocr-service:latest
 ```
 
 ### Production Considerations
 
-- **Horizontal Scaling**: Service is stateless (except Redis for rate limiting)
+- **Horizontal Scaling**: Service is fully stateless
 - **Engine Installation**: Install only needed engines to minimize image size
 - **GPU Support**: Use GPU-enabled base image for EasyOCR
 - **Health Monitoring**: Use `/health` endpoint for liveness/readiness probes
@@ -406,5 +383,4 @@ Default: 100 requests/minute per IP. Configure with `RATE_LIMIT_REQUESTS`.
 Built with:
 - [FastAPI](https://fastapi.tiangolo.com/) - Web framework
 - [datenzar OCR Bridge](https://pypi.org/user/datenzar/) - Modular OCR engines
-- [Redis](https://redis.io/) - Rate limiting backend
 - [structlog](https://www.structlog.org/) - Structured logging

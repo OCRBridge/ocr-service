@@ -29,7 +29,6 @@ Before you begin contributing, please:
 ### Prerequisites
 
 - Python 3.11+
-- Redis 7.0+
 - Tesseract OCR 5.3+
 - Poppler utils (for PDF processing)
 - uv (Python package manager)
@@ -47,7 +46,7 @@ git remote add upstream https://github.com/ORIGINAL_OWNER/restful-ocr.git
 
 # Install system dependencies (Ubuntu/Debian)
 sudo apt-get update
-sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils redis-server
+sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils
 
 # Create virtual environment and install dependencies
 uv venv
@@ -70,9 +69,6 @@ chmod 700 /tmp/uploads /tmp/results
 
 # Copy environment configuration
 cp .env.example .env
-
-# Start Redis
-sudo systemctl start redis
 ```
 
 ### Running the Development Server
@@ -141,7 +137,7 @@ restful-ocr/
 ├── samples/               # Test fixtures and sample documents
 ├── pyproject.toml         # Project metadata and dependencies
 ├── Dockerfile             # Multi-stage build (lite & full targets)
-├── docker-compose.base.yml    # Shared Docker config (Redis, common API)
+├── docker-compose.base.yml    # Shared Docker config (common API)
 ├── docker-compose.yml         # Full flavor (Tesseract + EasyOCR)
 └── docker-compose.lite.yml    # Lite flavor (Tesseract only)
 ```
@@ -152,7 +148,7 @@ restful-ocr/
 - **src/api/routes/**: Implement API endpoints
 - **src/services/**: Implement business logic, OCR processing, and external integrations
 - **tests/unit/**: Write unit tests with mocks/stubs for isolated testing
-- **tests/integration/**: Write integration tests that use real services (Redis, Tesseract)
+- **tests/integration/**: Write integration tests that use real services (Tesseract)
 
 ## Development Workflow
 
@@ -255,20 +251,19 @@ uv run pytest -k "test_upload" -v
 Unit tests should be fast, isolated, and test a single unit of functionality:
 
 ```python
-# tests/unit/test_job_service.py
+# tests/unit/test_health.py
 import pytest
-from unittest.mock import Mock, patch
-from src.services.job_service import JobService
+from fastapi.testclient import TestClient
+from src.main import app
 
-@patch('src.services.job_service.redis_client')
-def test_create_job_generates_unique_id(mock_redis):
-    """Test that job creation generates a unique job ID."""
-    service = JobService()
-    job_id = service.create_job("test.jpg")
+def test_health_check_returns_healthy():
+    """Test that health check endpoint returns healthy status."""
+    client = TestClient(app)
+    response = client.get("/health")
 
-    assert len(job_id) == 48
-    assert job_id.isalnum()
-    mock_redis.set.assert_called_once()
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+    assert "version" in response.json()
 ```
 
 #### Integration Tests
@@ -493,7 +488,6 @@ What actually happened.
 **Environment:**
 - OS: [e.g., Ubuntu 22.04]
 - Python version: [e.g., 3.11.5]
-- Redis version: [e.g., 7.0.12]
 - Tesseract version: [e.g., 5.3.0]
 
 **Logs**

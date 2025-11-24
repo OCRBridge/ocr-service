@@ -14,17 +14,10 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_workers: int = 4
 
-    # Redis Configuration
-    redis_url: str = "redis://localhost:6379/0"
-
     # File Storage
     upload_dir: str = "/tmp/uploads"
     results_dir: str = "/tmp/results"
     max_upload_size_mb: int = 25
-
-    # Rate Limiting
-    rate_limit_requests: int = 100
-    rate_limit_window_seconds: int = 60
 
     # Job Configuration
     job_expiration_hours: int = 48

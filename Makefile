@@ -19,7 +19,7 @@ help:
 	@echo "  make typecheck-watch  - Run pyright in watch mode"
 	@echo "  make pre-commit       - Run pre-commit hooks on all files"
 	@echo "  make pre-commit-install - Install pre-commit git hooks"
-	@echo "  make docker-up        - Start Docker services (API + Redis)"
+	@echo "  make docker-up        - Start Docker services"
 	@echo "  make docker-down      - Stop Docker services"
 	@echo "  make docker-logs      - View Docker logs"
 	@echo "  make docker-build-lite - Build Tesseract-only Docker image (using --target lite)"
@@ -29,7 +29,6 @@ help:
 	@echo "  make docker-compose-lite-down - Stop lite flavor"
 	@echo "  make docker-compose-full-up   - Start full flavor with docker-compose (default)"
 	@echo "  make docker-compose-full-down - Stop full flavor"
-	@echo "  make setup-test-env   - Set up test environment (create samples)"
 	@echo "  make clean            - Remove cache and temporary files"
 	@echo "  make commit           - Create a conventional commit using commitizen"
 	@echo "  make release          - Create a new release (updates version, changelog, creates tag)"
@@ -47,42 +46,29 @@ dev:
 run: dev
 
 # Testing
-setup-test-env:
-	@echo "Setting up test environment..."
-	@docker compose -f docker-compose.base.yml up -d redis
-	@echo "Waiting for Redis to be ready..."
-	@for i in 1 2 3 4 5; do \
-		if docker compose -f docker-compose.base.yml exec -T redis redis-cli ping > /dev/null 2>&1; then \
-			echo "Redis is ready"; \
-			break; \
-		fi; \
-		echo "Waiting for Redis... ($$i/5)"; \
-		sleep 1; \
-	done
+test:
+	uv run pytest -m "not macos and not slow" -v
 
-test: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "not macos and not slow" -v
-
-test-slow: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest --run-slow
+test-slow:
+	uv run pytest --run-slow
 
 test-unit:
 	uv run pytest tests/unit/
 
-test-integration: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest tests/integration/
+test-integration:
+	uv run pytest tests/integration/
 
-test-contract: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest tests/contract/
+test-contract:
+	uv run pytest tests/contract/
 
-test-coverage: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
+test-coverage:
+	uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
 
-test-macos: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest -m "macos" -v
+test-macos:
+	uv run pytest -m "macos" -v
 
-test-all: setup-test-env
-	REDIS_URL=redis://localhost:7879/0 uv run pytest -v
+test-all:
+	uv run pytest -v
 
 # Code quality
 lint:
