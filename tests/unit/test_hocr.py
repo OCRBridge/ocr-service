@@ -87,7 +87,7 @@ def test_parse_hocr_empty_string():
 
 
 def test_parse_hocr_minimum_page_count():
-    """Test that page_count is at least 1 even if no pages found."""
+    """Test that page_count returns 0 when no pages found."""
     hocr_no_pages = """<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <body></body>
@@ -95,8 +95,8 @@ def test_parse_hocr_minimum_page_count():
 
     info = parse_hocr(hocr_no_pages)
 
-    # Should return at least 1 page even if none found
-    assert info.page_count == 1
+    # Should return actual count (0 if no pages)
+    assert info.page_count == 0
 
 
 # ==============================================================================

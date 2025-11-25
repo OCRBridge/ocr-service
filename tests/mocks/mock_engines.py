@@ -19,6 +19,8 @@ class MockTesseractParams(OCREngineParams):
 class MockTesseractEngine(OCREngine):
     """Mock Tesseract OCR engine for testing."""
 
+    __param_model__ = None  # Will be set after MockTesseractParams is defined
+
     @property
     def name(self) -> str:
         return "tesseract"
@@ -56,6 +58,8 @@ class MockEasyOCRParams(OCREngineParams):
 
 class MockEasyOCREngine(OCREngine):
     """Mock EasyOCR engine for testing."""
+
+    __param_model__ = None  # Will be set after MockEasyOCRParams is defined
 
     @property
     def name(self) -> str:
@@ -107,6 +111,11 @@ class MockEngineWithoutParams(OCREngine):
   </div>
 </body>
 </html>"""
+
+
+# Set param models after class definitions
+MockTesseractEngine.__param_model__ = MockTesseractParams
+MockEasyOCREngine.__param_model__ = MockEasyOCRParams
 
 
 class InvalidEngine:

@@ -24,8 +24,13 @@ def cleanup_service(temp_upload_dir, temp_results_dir, monkeypatch):
     import importlib
 
     import src.config
+    import src.services.cleanup
 
     importlib.reload(src.config)
+    # Also reload cleanup module to pick up new settings reference
+    importlib.reload(src.services.cleanup)
+
+    from src.services.cleanup import CleanupService
 
     service = CleanupService()
     return service

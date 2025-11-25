@@ -53,7 +53,7 @@ def mock_engine_registry():
     engines = {"tesseract": MockTesseractEngine, "easyocr": MockEasyOCREngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    # Patch entry_points where it's used (in the registry module), not where it's defined
+    # Patch entry_points where it's used in the registry module
     with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         from src.services.ocr.registry_v2 import EngineRegistry
 

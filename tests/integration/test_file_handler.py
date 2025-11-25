@@ -292,10 +292,10 @@ async def test_delete_temp_file_error_handling(file_handler, temp_upload_dir):
     """Test that delete_temp_file handles errors gracefully."""
     # Create file with restricted parent directory permissions
     restricted_dir = temp_upload_dir / "restricted"
-    restricted_dir.mkdir(mode=0o500)  # Read + execute only
+    restricted_dir.mkdir()  # Create with normal permissions first
 
     problem_file = restricted_dir / "file.txt"
-    problem_file.write_text("content")
+    problem_file.write_text("content")  # Create file
 
     # Make directory read-only (can't delete files)
     os.chmod(restricted_dir, 0o500)

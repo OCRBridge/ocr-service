@@ -12,14 +12,16 @@ def test_jobs_created_total_metric():
     """Test that jobs_created_total counter is defined."""
     assert hasattr(metrics, "jobs_created_total")
     assert isinstance(metrics.jobs_created_total, Counter)
-    assert metrics.jobs_created_total._name == "ocr_jobs_created_total"
+    # Prometheus automatically appends _total to counter names, so _name doesn't include it
+    assert metrics.jobs_created_total._name == "ocr_jobs_created"
 
 
 def test_jobs_completed_total_metric():
     """Test that jobs_completed_total counter is defined with engine label."""
     assert hasattr(metrics, "jobs_completed_total")
     assert isinstance(metrics.jobs_completed_total, Counter)
-    assert metrics.jobs_completed_total._name == "ocr_jobs_completed_total"
+    # Prometheus automatically appends _total to counter names, so _name doesn't include it
+    assert metrics.jobs_completed_total._name == "ocr_jobs_completed"
     # Should have 'engine' label
     assert "engine" in metrics.jobs_completed_total._labelnames
 
@@ -28,7 +30,8 @@ def test_jobs_failed_total_metric():
     """Test that jobs_failed_total counter is defined with labels."""
     assert hasattr(metrics, "jobs_failed_total")
     assert isinstance(metrics.jobs_failed_total, Counter)
-    assert metrics.jobs_failed_total._name == "ocr_jobs_failed_total"
+    # Prometheus automatically appends _total to counter names, so _name doesn't include it
+    assert metrics.jobs_failed_total._name == "ocr_jobs_failed"
     # Should have 'error_code' and 'engine' labels
     assert "error_code" in metrics.jobs_failed_total._labelnames
     assert "engine" in metrics.jobs_failed_total._labelnames
@@ -107,34 +110,34 @@ def test_sync_ocr_file_size_bytes_metric():
 
 def test_histogram_buckets_processing_duration():
     """Test that processing duration has appropriate buckets."""
-    buckets = metrics.job_processing_duration_seconds._buckets
-    # Should include buckets from 1 to 180 seconds
-    assert 1 in buckets
-    assert 30 in buckets
-    assert 180 in buckets
+    buckets = metrics.job_processing_duration_seconds._upper_bounds
+    # Should include buckets from 1 to 180 seconds (as floats)
+    assert 1.0 in buckets
+    assert 30.0 in buckets
+    assert 180.0 in buckets
 
 
 def test_histogram_buckets_queue_duration():
     """Test that queue duration has appropriate buckets for fast queues."""
-    buckets = metrics.job_queue_duration_seconds._buckets
+    buckets = metrics.job_queue_duration_seconds._upper_bounds
     # Should include sub-second buckets for fast queue times
     assert 0.1 in buckets
     assert 0.5 in buckets
-    assert 1 in buckets
+    assert 1.0 in buckets
 
 
 def test_histogram_buckets_document_size():
     """Test that document size has appropriate buckets."""
-    buckets = metrics.document_size_bytes._buckets
-    # Should include 1KB, 1MB, 5MB buckets
-    assert 1024 in buckets  # 1KB
-    assert 1048576 in buckets  # 1MB
-    assert 5242880 in buckets  # 5MB
+    buckets = metrics.document_size_bytes._upper_bounds
+    # Should include 1KB, 1MB, 5MB buckets (as floats)
+    assert 1024.0 in buckets  # 1KB
+    assert 1048576.0 in buckets  # 1MB
+    assert 5242880.0 in buckets  # 5MB
 
 
 def test_histogram_buckets_sync_duration():
     """Test that sync duration buckets align with 30s timeout."""
-    buckets = metrics.sync_ocr_duration_seconds._buckets
+    buckets = metrics.sync_ocr_duration_seconds._upper_bounds
     # Should include 0.5s to 30s range
     assert 0.5 in buckets
     assert 30.0 in buckets

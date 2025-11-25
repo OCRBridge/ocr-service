@@ -97,7 +97,10 @@ class EngineRegistry:
             # Don't fail startup, just log the error
 
     def _extract_param_model(self, engine_class: type[Any]) -> type[Any] | None:
-        """Extract parameter model from engine's process method.
+        """Extract parameter model from engine class.
+
+        First checks for explicit __param_model__ class attribute.
+        Falls back to extracting from process() method type hints.
 
         Args:
             engine_class: The OCREngine class
@@ -106,7 +109,14 @@ class EngineRegistry:
             Parameter model class or None if not found
         """
         try:
-            # Get type hints from the process method
+            # Check for explicit param model declaration (preferred method)
+            if hasattr(engine_class, "__param_model__"):
+                param_model = getattr(engine_class, "__param_model__")
+                # Validate it's a class (not instance) and not None
+                if param_model is not None and isinstance(param_model, type):
+                    return param_model
+
+            # Fall back to type hint extraction
             type_hints = get_type_hints(engine_class.process)
 
             # Look for 'params' parameter
@@ -121,9 +131,12 @@ class EngineRegistry:
                 # Get the first non-None type from Union
                 for arg in params_type.__args__:
                     if arg is not type(None):  # noqa: E721
-                        return arg
+                        # Only return if it's NOT the base OCREngineParams
+                        from ocrbridge.core.models import OCREngineParams
+                        if arg is not OCREngineParams:
+                            return arg
 
-            return params_type
+            return None
 
         except Exception as e:
             logger.debug(

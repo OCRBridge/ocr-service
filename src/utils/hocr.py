@@ -62,7 +62,7 @@ def parse_hocr(hocr_content: str) -> HOCRInfo:
     has_bounding_boxes = "bbox" in hocr_content
 
     return HOCRInfo(
-        page_count=max(page_count, 1),  # At least 1 page
+        page_count=page_count,  # Return actual count
         word_count=word_count,
         has_bounding_boxes=has_bounding_boxes,
     )

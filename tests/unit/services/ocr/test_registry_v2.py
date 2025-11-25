@@ -36,7 +36,7 @@ def test_discover_engines_success():
     }
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         discovered = registry.list_engines()
@@ -49,7 +49,7 @@ def test_discover_engines_empty():
     """Test engine discovery when no engines are installed."""
     mock_ep = mock_entry_points_factory({})
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         discovered = registry.list_engines()
@@ -61,7 +61,7 @@ def test_discover_engines_single():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         discovered = registry.list_engines()
@@ -79,7 +79,7 @@ def test_discover_engines_failed_load():
             return [failing_ep, good_ep]
         return []
 
-    with patch("importlib.metadata.entry_points", mock_entry_points):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_entry_points):
         registry = EngineRegistry()
 
         # Should only discover the working engine
@@ -96,7 +96,7 @@ def test_discover_engines_invalid_class():
     }
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Invalid engine should be rejected
@@ -115,7 +115,7 @@ def test_get_engine_lazy_loading():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Engine should not be instantiated yet
@@ -135,7 +135,7 @@ def test_get_engine_caching():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Get engine twice
@@ -151,7 +151,7 @@ def test_get_engine_not_found():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         with pytest.raises(ValueError) as exc_info:
@@ -167,7 +167,7 @@ def test_get_engine_not_found_empty_registry():
     """Test error message when no engines are available."""
     mock_ep = mock_entry_points_factory({})
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         with pytest.raises(ValueError) as exc_info:
@@ -182,7 +182,7 @@ def test_is_engine_available_true():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         assert registry.is_engine_available("tesseract") is True
@@ -193,7 +193,7 @@ def test_is_engine_available_false():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         assert registry.is_engine_available("easyocr") is False
@@ -209,7 +209,7 @@ def test_get_engine_info():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         info = registry.get_engine_info("tesseract")
@@ -226,7 +226,7 @@ def test_get_engine_info_not_found():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         with pytest.raises(ValueError) as exc_info:
@@ -240,7 +240,7 @@ def test_get_engine_info_without_params():
     engines = {"simple": MockEngineWithoutParams}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         info = registry.get_engine_info("simple")
@@ -259,7 +259,7 @@ def test_extract_param_model_with_optional():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         param_model = registry.get_param_model("tesseract")
@@ -274,7 +274,7 @@ def test_extract_param_model_none():
     engines = {"simple": MockEngineWithoutParams}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         param_model = registry.get_param_model("simple")
@@ -287,7 +287,7 @@ def test_get_param_model_not_found():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         with pytest.raises(ValueError) as exc_info:
@@ -306,7 +306,7 @@ def test_validate_params_valid():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         params = {"lang": "eng", "psm": 6, "dpi": 300}
@@ -323,7 +323,7 @@ def test_validate_params_invalid():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Invalid PSM value (out of range 0-13)
@@ -341,7 +341,7 @@ def test_validate_params_empty_dict():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         validated = registry.validate_params("tesseract", {})
@@ -356,7 +356,7 @@ def test_validate_params_no_model():
     engines = {"simple": MockEngineWithoutParams}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         result = registry.validate_params("simple", {"any": "value"})
@@ -369,7 +369,7 @@ def test_validate_params_extra_fields_rejected():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         params = {"lang": "eng", "unknown_field": "value"}
@@ -384,7 +384,7 @@ def test_validate_params_type_coercion():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Pass string instead of int for psm
@@ -411,7 +411,7 @@ def test_list_engines_multiple():
     }
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         engine_list = registry.list_engines()
@@ -427,7 +427,7 @@ def test_list_engines_returns_list():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         engine_list = registry.list_engines()
@@ -445,7 +445,7 @@ def test_registry_internal_state():
     engines = {"tesseract": MockTesseractEngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Check internal dictionaries
@@ -469,10 +469,10 @@ def test_registry_multiple_instances():
     mock_ep1 = mock_entry_points_factory(engines1)
     mock_ep2 = mock_entry_points_factory(engines2)
 
-    with patch("importlib.metadata.entry_points", mock_ep1):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep1):
         registry1 = EngineRegistry()
 
-    with patch("importlib.metadata.entry_points", mock_ep2):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep2):
         registry2 = EngineRegistry()
 
     # Each registry should have different engines
@@ -491,7 +491,7 @@ def test_registry_handles_exception_during_discovery():
     def mock_failing_entry_points(group=None):
         raise RuntimeError("Entry points discovery failed")
 
-    with patch("importlib.metadata.entry_points", mock_failing_entry_points):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_failing_entry_points):
         # Should not raise, just log error
         registry = EngineRegistry()
 
@@ -531,7 +531,7 @@ def test_registry_handles_param_extraction_failure():
     engines = {"broken": BrokenOCREngine}
     mock_ep = mock_entry_points_factory(engines)
 
-    with patch("importlib.metadata.entry_points", mock_ep):
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
 
         # Should discover the engine even if param extraction failed
