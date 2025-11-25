@@ -32,6 +32,13 @@ def client(app, mock_engine_registry):
     with TestClient(app, raise_server_exceptions=True) as test_client:
         # Set mock registry on app state
         app.state.engine_registry = mock_engine_registry
+
+        # Register dynamic per-engine routes for tests
+        # (since we bypass lifespan, we must include them manually)
+        from src.api.routes.v2.dynamic_routes import register_engine_routes
+
+        register_engine_routes(app, mock_engine_registry)
+
         yield test_client
 
 

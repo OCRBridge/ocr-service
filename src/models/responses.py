@@ -24,7 +24,6 @@ class SyncOCRResponse(BaseModel):
     engine: str = Field(
         ...,
         description="OCR engine used for processing",
-        pattern="^(tesseract|easyocr|ocrmac)$",
     )
     pages: int = Field(
         ...,

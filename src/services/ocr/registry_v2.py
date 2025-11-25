@@ -60,7 +60,37 @@ class EngineRegistry:
                     try:
                         param_model = self._extract_param_model(engine_class)
                         if param_model:
-                            self._param_models[ep.name] = param_model
+                            # If we only discovered the generic base params, try to upgrade
+                            # to a concrete engine-specific params model when available.
+                            try:
+                                from ocrbridge.core.models import OCREngineParams  # type: ignore
+                                ocr_engine_params_base = OCREngineParams
+                            except Exception:
+                                ocr_engine_params_base = None  # type: ignore
+
+                            upgraded = None
+                            if ocr_engine_params_base is not None and param_model is ocr_engine_params_base:
+                                # Best-effort: attempt to import well-known concrete models
+                                # by engine name to satisfy engines that require them.
+                                try:
+                                    import importlib
+                                    if ep.name == "tesseract":
+                                        mod = importlib.import_module("ocrbridge.engines.tesseract")
+                                        upgraded = getattr(mod, "TesseractParams", None)
+                                    elif ep.name == "easyocr":
+                                        mod = importlib.import_module("ocrbridge.engines.easyocr")
+                                        upgraded = getattr(mod, "EasyOCRParams", None)
+                                    elif ep.name == "ocrmac":
+                                        mod = importlib.import_module("ocrbridge.engines.ocrmac")
+                                        upgraded = getattr(mod, "OCRMacParams", None)
+                                except Exception as e:
+                                    logger.debug(
+                                        "param_model_upgrade_failed",
+                                        engine=ep.name,
+                                        error=str(e),
+                                    )
+
+                            self._param_models[ep.name] = upgraded or param_model
                     except Exception as e:
                         logger.warning(
                             "failed_to_extract_param_model",
@@ -111,7 +141,7 @@ class EngineRegistry:
         try:
             # Check for explicit param model declaration (preferred method)
             if hasattr(engine_class, "__param_model__"):
-                param_model = getattr(engine_class, "__param_model__")
+                param_model = engine_class.__param_model__  # type: ignore[attr-defined]
                 # Validate it's a class (not instance) and not None
                 if param_model is not None and isinstance(param_model, type):
                     return param_model
@@ -127,14 +157,20 @@ class EngineRegistry:
 
             # Handle Optional[ParamType] or ParamType | None
             # In Python 3.10+, Optional[X] is represented as Union[X, None] or X | None
+            # Import kept for type resolution in get_type_hints; refer in comment to avoid unused warnings.
+            # from ocrbridge.core.models import OCREngineParams
+
             if hasattr(params_type, "__args__"):
                 # Get the first non-None type from Union
                 for arg in params_type.__args__:
-                    if arg is not type(None):  # noqa: E721
-                        # Only return if it's NOT the base OCREngineParams
-                        from ocrbridge.core.models import OCREngineParams
-                        if arg is not OCREngineParams:
-                            return arg
+                    if arg is not type(None) and isinstance(arg, type):  # noqa: E721
+                        # Accept base OCREngineParams as a valid model to expose
+                        return arg
+            else:
+                # Direct annotation without Union/Optional
+                if isinstance(params_type, type):
+                    # Accept base OCREngineParams as a valid model to expose
+                    return params_type
 
             return None
 
@@ -195,12 +231,31 @@ class EngineRegistry:
 
         engine = self.get_engine(name)
 
-        return {
+        info: dict[str, Any] = {
             "name": engine.name,
             "class": self._engine_classes[name].__name__,
             "supported_formats": list(engine.supported_formats),
             "has_param_model": name in self._param_models,
         }
+
+        # Include JSON schema for parameter model when available
+        param_model = self._param_models.get(name)
+        if param_model is not None:
+            try:
+                # Pydantic v2: model_json_schema provides JSON-schema of the model
+                if hasattr(param_model, "model_json_schema"):
+                    info["params_schema"] = param_model.model_json_schema()
+                # Fallback for Pydantic v1 if ever present
+                elif hasattr(param_model, "schema"):
+                    info["params_schema"] = param_model.schema()  # type: ignore[attr-defined]
+            except Exception as e:
+                logger.warning(
+                    "failed_to_generate_param_schema",
+                    engine=name,
+                    error=str(e),
+                )
+
+        return info
 
     def get_param_model(self, engine_name: str) -> type[Any] | None:
         """Get parameter model class for an engine.

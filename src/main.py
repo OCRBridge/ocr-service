@@ -11,6 +11,7 @@ from prometheus_client import make_asgi_app
 
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
+from src.api.routes.v2.dynamic_routes import register_engine_routes
 from src.config import settings
 from src.services.cleanup import CleanupService
 from src.services.ocr.registry_v2 import EngineRegistry
@@ -68,6 +69,9 @@ async def lifespan(app: FastAPI):
         count=len(discovered_engines),
     )
 
+    # Dynamically register engine routes
+    register_engine_routes(app, registry)
+
     # Start cleanup background task (US3 - T096)
     cleanup_task = asyncio.create_task(cleanup_task_runner())
     app.state.cleanup_task = cleanup_task
@@ -108,8 +112,6 @@ app.mount("/metrics", metrics_app)
 
 # Import and register routes
 from src.api.routes import health  # noqa: E402
-from src.api.routes.v2 import ocr as ocr_v2  # noqa: E402
 
-# V2 Routes
-app.include_router(ocr_v2.router, tags=["OCR"])
+# Register health routes
 app.include_router(health.router, tags=["health"])

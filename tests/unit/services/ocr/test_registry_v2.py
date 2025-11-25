@@ -219,6 +219,9 @@ def test_get_engine_info():
         assert isinstance(info["supported_formats"], list)
         assert ".jpg" in info["supported_formats"]
         assert info["has_param_model"] is True
+        # Should include JSON schema for params
+        assert "params_schema" in info
+        assert isinstance(info["params_schema"], dict)
 
 
 def test_get_engine_info_not_found():
@@ -247,6 +250,8 @@ def test_get_engine_info_without_params():
 
         assert info["name"] == "simple"
         assert info["has_param_model"] is False
+        # Should not include schema when no param model
+        assert "params_schema" not in info
 
 
 # ==============================================================================

@@ -384,3 +384,32 @@ Built with:
 - [FastAPI](https://fastapi.tiangolo.com/) - Web framework
 - [datenzar OCR Bridge](https://pypi.org/user/datenzar/) - Modular OCR engines
 - [structlog](https://www.structlog.org/) - Structured logging
+
+### V2 Engine Discovery and Params
+
+- `GET /v2/ocr/engines`: Lists discovered engines with metadata.
+  - Includes `name`, `class`, `supported_formats`, `has_param_model`, and `params_schema` (JSON Schema for engine params when available).
+- `GET /v2/ocr/{engine}/info`: Returns metadata for a specific engine, including `params_schema`.
+- `POST /v2/ocr/{engine}/process`:
+  - `multipart/form-data` with `file` and optional `params_json` (stringified JSON matching `params_schema`).
+  - If the engine has a Pydantic params model, `params_json` is validated against it before processing.
+
+Example:
+
+```json
+{
+  "name": "tesseract",
+  "class": "TesseractEngine",
+  "supported_formats": ["image/png", "image/jpeg", "application/pdf"],
+  "has_param_model": true,
+  "params_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TesseractParams",
+    "type": "object",
+    "properties": {
+      "psm": {"type": "integer"},
+      "oem": {"type": "integer"}
+    }
+  }
+}
+```

@@ -8,7 +8,7 @@ RESTful OCR API service with a modular plugin architecture powered by datenzar O
 
 **Key Architecture Principles:**
 - **Plugin-based engines**: OCR engines (Tesseract, EasyOCR, ocrmac) are separate PyPI packages discovered via Python entry points in the `ocrbridge.engines` group
-- **Engine-agnostic API**: Single unified `/v2/ocr/process` endpoint works with any installed engine
+- **Dynamic engine routes**: Per-engine endpoints like `/v2/ocr/<engine>/process` are generated at startup
 - **Zero-code engine addition**: Installing a new engine package automatically makes it available in the API
 - **Parameter validation**: Each engine provides its own Pydantic model for parameter validation via type hints or `__param_model__` class attribute
 
@@ -107,7 +107,7 @@ src/
 ├── api/
 │   ├── routes/
 │   │   └── v2/
-│   │       └── ocr.py              # V2 unified OCR endpoints
+│   │       └── dynamic_routes.py   # V2 dynamic per-engine OCR endpoints
 │   └── middleware/
 │       ├── error_handler.py        # Global error handling
 │       └── logging.py              # Request/response logging
@@ -161,23 +161,22 @@ engine_class = entry_point.load()  # e.g., TesseractEngine
 - `validate_params(engine, params)` - Validates using engine's Pydantic model
 - `get_param_model(engine)` - Returns parameter model class or None
 
-### 2. Unified OCR Endpoint (api/routes/v2/ocr.py)
+### 2. Dynamic OCR Endpoints (api/routes/v2/dynamic_routes.py)
 
-Single endpoint works with any engine:
+Per-engine endpoints are generated for each discovered OCR engine:
 
 ```python
-POST /v2/ocr/process
-- file: UploadFile
-- engine: str (e.g., "tesseract", "easyocr")
-- params: Optional[str] (JSON string, engine-specific)
+POST /v2/ocr/<engine>/process
+- file: UploadFile (required)
+- params_json: Optional[str] (JSON string, engine-specific)
 ```
 
 **Flow:**
-1. Validate engine exists in registry
-2. Parse and validate params using engine's Pydantic model
-3. Save uploaded file to temp location
-4. Get engine from registry (lazy loaded)
-5. Process in thread pool with 30s timeout
+1. Discover engines via entry points at startup
+2. Register `/v2/ocr/<engine>/process` for each engine
+3. Parse `params_json` and validate with the engine's Pydantic model (if present)
+4. Save uploaded file to a temp path
+5. Process in thread pool with a 30s timeout
 6. Return HOCR + metadata
 7. Cleanup temp file
 
@@ -203,7 +202,7 @@ def test_endpoint(client, mock_engine_registry):
     response = client.post("/v2/ocr/process", ...)
 ```
 
-**Important**: Tests bypass the lifespan startup to inject mock registry directly.
+**Important**: Tests bypass the lifespan startup to inject a mock registry and explicitly call `register_engine_routes(app, registry)` to include dynamic routes.
 
 ### 4. Background Cleanup Task
 
@@ -308,13 +307,16 @@ GET /v2/ocr/engines
 GET /v2/ocr/engines/{engine_name}/schema
 # Returns: JSON schema for engine's Pydantic parameter model
 
-# Process document (unified endpoint)
-POST /v2/ocr/process
-# Form data:
-#   - file: UploadFile
-#   - engine: str
-#   - params: str (optional JSON)
-# Returns: {"hocr": "...", "processing_duration_seconds": 2.5, "engine": "tesseract", "pages": 1}
+# Per-engine processing
+POST /v2/ocr/tesseract/process
+    form: file=<UploadFile>, params_json="{\"lang\": \"eng\", \"psm\": 6}"
+
+POST /v2/ocr/easyocr/process
+    form: file=<UploadFile>, params_json="{\"languages\": [\"en\"], \"text_threshold\": 0.7}"
+
+# Notes
+- `params_json` is optional. If provided, it's validated against the engine's model.
+- Response: {"hocr": "...", "processing_duration_seconds": 2.5, "engine": "tesseract", "pages": 1}
 ```
 
 ## Deployment
