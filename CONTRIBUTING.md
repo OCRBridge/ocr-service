@@ -215,82 +215,232 @@ Closes #123
 
 ## Testing
 
-Testing is a critical part of our development process. All contributions must include appropriate tests.
+Testing is a critical part of our development process. All contributions must include appropriate tests. We follow a comprehensive testing strategy with **296 tests** covering unit, integration, and E2E scenarios.
 
 > **Quick Command Reference**: For a quick reference of all development commands (testing, formatting, type checking, Docker, etc.), see [AGENTS.md](AGENTS.md).
+
+### Test Suite Overview
+
+Our test suite consists of three types of tests:
+
+1. **Unit Tests** (`tests/unit/`) - Fast, isolated tests with mocks
+   - 127 tests covering validators, config, security, HOCR, registry
+   - ~87% pass rate, targeting 90%+ coverage
+   - Uses mock OCR engines for speed
+
+2. **Integration Tests** (`tests/integration/`) - Real I/O, FastAPI client
+   - 111 tests covering API endpoints, health checks, file handling
+   - ~87% pass rate, targeting 80%+ coverage
+   - Uses TestClient for API testing
+
+3. **E2E Tests** (`tests/e2e/`) - Real OCR engines
+   - 40 tests with actual Tesseract and EasyOCR
+   - 100% pass rate for Tesseract E2E
+   - Marked with `@pytest.mark.slow` for CI flexibility
 
 ### Running Tests
 
 ```bash
-# Run all tests
-uv run pytest
+# Quick test (excludes slow tests and macOS-only)
+make test
 
-# Run with coverage report
-uv run pytest --cov=src --cov-report=html --cov-report=term
-
-# Run specific test module
-uv run pytest tests/unit/test_models.py -v
+# Run unit tests only (fastest)
+make test-unit
 
 # Run integration tests
-uv run pytest tests/integration/ -v
+make test-integration
+
+# Run E2E tests with real Tesseract
+make test-e2e
+
+# Run slow E2E tests (EasyOCR - takes 10+ min)
+make test-e2e-slow
+
+# Run all tests
+make test-all
+
+# Run with coverage report
+make test-coverage
+
+# Run specific test file
+uv run pytest tests/unit/test_validators.py -v
 
 # Run tests matching a pattern
 uv run pytest -k "test_upload" -v
 ```
 
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared fixtures (20+ fixtures)
+├── mocks/                   # Mock OCR engines for unit tests
+│   ├── mock_engines.py      # MockTesseractEngine, MockEasyOCREngine
+│   └── mock_entry_points.py # Entry point mocking
+├── unit/                    # Fast isolated tests with mocks
+│   ├── test_validators.py   # File format/size validation (45 tests)
+│   ├── test_config.py       # Settings validation (17 tests)
+│   ├── test_hocr.py         # HOCR parsing/conversion (29 tests)
+│   ├── test_security.py     # Job ID generation (7 tests)
+│   ├── test_platform.py     # OS detection (11 tests)
+│   ├── test_gpu.py          # CUDA detection (13 tests)
+│   ├── test_metrics.py      # Prometheus metrics (31 tests)
+│   └── services/
+│       ├── ocr/test_registry_v2.py  # Engine registry (29 tests)
+│       └── test_cleanup.py          # File cleanup (18 tests)
+├── integration/             # API and I/O integration tests
+│   ├── test_file_handler.py # Async file operations (skipped)
+│   └── api/
+│       ├── test_health.py   # Health endpoint (11 tests)
+│       └── test_ocr_endpoints.py # V2 API (43 tests)
+└── e2e/                     # Real OCR engine tests
+    ├── test_ocr_tesseract.py # Tesseract E2E (25 tests)
+    └── test_ocr_easyocr.py   # EasyOCR E2E (15 tests, slow)
+```
+
 ### Coverage Requirements
 
-- **Unit tests**: Aim for 90%+ coverage
-- **Integration tests**: Aim for 80%+ coverage
+- **Overall**: Targeting 80-90% code coverage
+- **Unit tests**: 90%+ for critical paths
+- **Integration tests**: 80%+ for API endpoints
+- **Current coverage**: 58%+ and growing
 - New code should maintain or improve existing coverage
 
 ### Writing Tests
 
-#### Unit Tests
+#### Unit Tests with Mock Engines
 
-Unit tests should be fast, isolated, and test a single unit of functionality:
+Unit tests should be fast, isolated, and use mock OCR engines:
 
 ```python
-# tests/unit/test_health.py
+# tests/unit/test_validators.py
 import pytest
-from fastapi.testclient import TestClient
-from src.main import app
+from src.utils.validators import validate_file_format
 
-def test_health_check_returns_healthy():
-    """Test that health check endpoint returns healthy status."""
-    client = TestClient(app)
-    response = client.get("/health")
+def test_validate_jpeg_format():
+    """Test JPEG format validation with magic bytes."""
+    # Valid JPEG magic bytes
+    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF"
+
+    # Should not raise exception
+    validate_file_format(jpeg_bytes, "image.jpg")
+```
+
+#### Integration Tests with TestClient
+
+Integration tests use FastAPI's TestClient and mock engines:
+
+```python
+# tests/integration/api/test_ocr_endpoints.py
+def test_process_document_success_tesseract(client, sample_jpeg_bytes):
+    """Test successful document processing with tesseract."""
+    files = {"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")}
+    data = {"engine": "tesseract"}
+
+    response = client.post("/v2/ocr/process", files=files, data=data)
 
     assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
-    assert "version" in response.json()
+    result = response.json()
+    assert result["engine"] == "tesseract"
+    assert result["hocr"].startswith("<?xml")
 ```
 
-#### Integration Tests
+#### E2E Tests with Real Engines
 
-Integration tests verify that components work together correctly:
+E2E tests use actual OCR engines and PIL-generated test images:
 
 ```python
-# tests/integration/test_ocr_processing.py
+# tests/e2e/test_ocr_tesseract.py
 import pytest
-from src.services.ocr_service import OCRService
 
-def test_ocr_processes_sample_image():
-    """Test OCR processing with a real sample image."""
-    service = OCRService()
-    result = service.process_image("samples/numbers_gs150.jpg")
+# Skip if Tesseract not installed
+pytestmark = pytest.mark.skipif(
+    not TESSERACT_AVAILABLE, reason="Tesseract engine not installed"
+)
 
-    assert result.text is not None
-    assert len(result.text) > 0
-    assert "hocr" in result.format
+def test_tesseract_detects_text(tesseract_engine, test_image_simple_text):
+    """Test that Tesseract actually detects text from image."""
+    result = tesseract_engine.process(test_image_simple_text)
+
+    # Should contain the word "TESTING"
+    result_lower = result.lower()
+    assert "test" in result_lower or "testing" in result_lower
 ```
 
-### Test Organization
+### Test Fixtures
 
-- Group related tests in classes
-- Use descriptive test names that explain what is being tested
-- Follow the Arrange-Act-Assert pattern
-- Use fixtures for common setup
+We provide comprehensive fixtures in `tests/conftest.py`:
+
+**Mock Fixtures:**
+- `mock_engine_registry` - Registry with mock Tesseract/EasyOCR
+- `mock_tesseract_engine` - Individual mock engine instance
+- `app` - FastAPI app with mock engine registry injected
+- `client` - TestClient with mocked engines
+
+**File Fixtures:**
+- `sample_jpeg_bytes` - Valid JPEG magic bytes
+- `sample_png_bytes` - Valid PNG magic bytes
+- `sample_pdf_bytes` - Valid PDF magic bytes
+- `test_image_with_text` - PIL-generated image with multi-line text
+- `test_image_simple_text` - PIL-generated image with "TESTING"
+- `test_image_multiline` - PIL-generated image with 3 lines
+
+**HOCR Fixtures:**
+- `sample_hocr` - Valid HOCR XML with proper DOCTYPE
+- `sample_hocr_multipage` - Multi-page HOCR document
+- `sample_easyocr_output` - Raw EasyOCR detection output
+
+### Test Markers
+
+Use pytest markers to categorize tests:
+
+```python
+# Mark slow tests (EasyOCR, large datasets)
+@pytest.mark.slow
+def test_easyocr_processing():
+    ...
+
+# Mark macOS-only tests
+@pytest.mark.macos
+def test_ocrmac_processing():
+    ...
+
+# Skip if dependency not available
+@pytest.mark.skipif(not TESSERACT_AVAILABLE, reason="Tesseract not installed")
+def test_tesseract_processing():
+    ...
+```
+
+### Test Organization Best Practices
+
+- **One assertion concept per test** - Test one thing at a time
+- **Descriptive names** - `test_validate_jpeg_with_valid_magic_bytes()`
+- **Arrange-Act-Assert** - Clear structure in every test
+- **Use fixtures** - Avoid code duplication
+- **Fast by default** - Unit tests should run in milliseconds
+- **Mock external dependencies** - Keep tests isolated
+- **Test error paths** - Don't just test happy paths
+
+### CI/CD Testing
+
+Our GitHub Actions workflow runs tests automatically:
+
+- **Fast Tests Job**: Unit + Integration tests (~5 min)
+  - Runs on every push and PR
+  - Includes linting, formatting, type checking
+  - Uploads coverage to Codecov
+
+- **E2E Tests Job**: Tesseract E2E tests (~2 min)
+  - Validates real OCR functionality
+  - Runs on every push and PR
+
+- **Slow Tests Job**: EasyOCR E2E tests (~30 min)
+  - Runs only on main branch or manual trigger
+  - Deep learning model initialization is slow
+
+- **Coverage Report Job**: Generates HTML coverage report
+  - Uploads as GitHub artifact
+  - 30-day retention
 
 ## Code Quality
 

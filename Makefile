@@ -5,12 +5,15 @@ help:
 	@echo "Available targets:"
 	@echo "  make install          - Install dependencies"
 	@echo "  make dev              - Run development server"
-	@echo "  make test             - Run tests excluding macOS-only tests (for Linux CI)"
+	@echo "  make test             - Run tests excluding macOS-only and slow tests (for Linux CI)"
 	@echo "  make test-slow        - Run all tests including slow tests"
 	@echo "  make test-unit        - Run unit tests only"
 	@echo "  make test-integration - Run integration tests only"
+	@echo "  make test-e2e         - Run E2E tests (excluding slow)"
+	@echo "  make test-e2e-slow    - Run slow E2E tests (EasyOCR)"
 	@echo "  make test-contract    - Run contract tests only"
-	@echo "  make test-coverage    - Run tests with coverage report"
+	@echo "  make test-coverage    - Run tests with HTML/XML coverage report (excluding slow)"
+	@echo "  make test-coverage-full - Run all tests with coverage (including slow)"
 	@echo "  make test-macos       - Run only macOS-specific tests (OCRMac)"
 	@echo "  make test-all         - Run all tests including slow and macOS tests"
 	@echo "  make lint             - Check code with ruff"
@@ -53,16 +56,30 @@ test-slow:
 	uv run pytest --run-slow
 
 test-unit:
-	uv run pytest tests/unit/
+	uv run pytest tests/unit/ -v
 
 test-integration:
-	uv run pytest tests/integration/
+	uv run pytest tests/integration/ -v
+
+test-e2e:
+	uv run pytest tests/e2e/ -v -m "not slow"
+
+test-e2e-slow:
+	uv run pytest tests/e2e/ -v -m slow
 
 test-contract:
 	uv run pytest tests/contract/
 
 test-coverage:
-	uv run pytest --cov=src --cov-report=html --cov-report=term -m "not slow"
+	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m "not slow"
+	@echo "Coverage report generated:"
+	@echo "  HTML: htmlcov/index.html"
+	@echo "  XML: coverage.xml"
+
+test-coverage-full:
+	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
+	@echo "Full coverage report (including slow tests):"
+	@echo "  HTML: htmlcov/index.html"
 
 test-macos:
 	uv run pytest -m "macos" -v
