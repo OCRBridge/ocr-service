@@ -8,17 +8,17 @@ Run with: pytest -m slow
 Skip with: pytest -m "not slow"
 """
 
-from pathlib import Path
-
 import pytest
 
 # Check if EasyOCR is available
 try:
     from ocrbridge.engines.easyocr import EasyOCREngine
 
-    EASYOCR_AVAILABLE = True
+    easyocr_available = True
 except ImportError:
-    EASYOCR_AVAILABLE = False
+    easyocr_available = False
+
+EASYOCR_AVAILABLE = easyocr_available
 
 pytestmark = [
     pytest.mark.slow,

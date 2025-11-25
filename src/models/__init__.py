@@ -1,3 +1,5 @@
 """Pydantic models for API request/response and validation."""
 
-__all__ = []
+from src.models.upload import DocumentUpload, FileFormat
+
+__all__ = ["DocumentUpload", "FileFormat"]

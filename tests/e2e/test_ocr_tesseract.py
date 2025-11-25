@@ -8,17 +8,10 @@ from pathlib import Path
 
 import pytest
 
-# Check if Tesseract is available
-try:
-    from ocrbridge.engines.tesseract import TesseractEngine
+# Skip all tests if Tesseract is not available
+pytest.importorskip("ocrbridge.engines.tesseract")
 
-    TESSERACT_AVAILABLE = True
-except ImportError:
-    TESSERACT_AVAILABLE = False
-
-pytestmark = pytest.mark.skipif(
-    not TESSERACT_AVAILABLE, reason="Tesseract engine not installed"
-)
+from ocrbridge.engines.tesseract import TesseractEngine
 
 
 @pytest.fixture
@@ -175,9 +168,7 @@ def test_tesseract_multiple_calls_independent(tesseract_engine, test_image_simpl
     assert result1 == result2
 
 
-def test_tesseract_different_images(
-    tesseract_engine, test_image_simple_text, test_image_multiline
-):
+def test_tesseract_different_images(tesseract_engine, test_image_simple_text, test_image_multiline):
     """Test processing different images produces different results."""
     result1 = tesseract_engine.process(test_image_simple_text)
     result2 = tesseract_engine.process(test_image_multiline)
@@ -289,4 +280,4 @@ def test_tesseract_title_attributes(tesseract_engine, test_image_simple_text):
     # Elements should have title attributes
     assert 'title="' in result
     # Title should contain bbox
-    assert 'title="bbox' in result or 'title=\'bbox' in result
+    assert 'title="bbox' in result or "title='bbox" in result

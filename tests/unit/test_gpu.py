@@ -3,9 +3,7 @@
 Tests for CUDA availability detection and EasyOCR device selection.
 """
 
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from src.utils.gpu import detect_gpu_availability, get_easyocr_device
 
@@ -27,11 +25,13 @@ def test_detect_gpu_availability_cuda_not_available():
 def test_detect_gpu_availability_torch_not_installed():
     """Test graceful handling when PyTorch is not installed."""
     # Mock ImportError when trying to import torch
-    with patch.dict("sys.modules", {"torch": None}):
-        with patch("builtins.__import__", side_effect=ImportError("No module named 'torch'")):
-            result = detect_gpu_availability()
-            # Should return False when torch is not available
-            assert result is False
+    with (
+        patch.dict("sys.modules", {"torch": None}),
+        patch("builtins.__import__", side_effect=ImportError("No module named 'torch'")),
+    ):
+        result = detect_gpu_availability()
+        # Should return False when torch is not available
+        assert result is False
 
 
 def test_detect_gpu_availability_import_error():

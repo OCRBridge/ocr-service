@@ -3,7 +3,6 @@
 Tests for metric definitions, types, and basic functionality.
 """
 
-import pytest
 from prometheus_client import Counter, Gauge, Histogram
 
 from src.utils import metrics

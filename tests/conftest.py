@@ -1,13 +1,11 @@
 """Shared pytest fixtures and configuration for all tests."""
 
 import io
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
-
 
 # ==============================================================================
 # Application Fixtures
@@ -159,7 +157,7 @@ def create_upload_file():
 @pytest.fixture
 def sample_hocr():
     """Valid HOCR XML with page, words, and bounding boxes."""
-    return '''<?xml version="1.0" encoding="UTF-8"?>
+    return """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -172,13 +170,13 @@ def sample_hocr():
     <span class="ocrx_word" id="word_1_2" title="bbox 210 100 300 150; x_wconf 92">World</span>
   </div>
 </body>
-</html>'''
+</html>"""
 
 
 @pytest.fixture
 def sample_hocr_multi_page():
     """Valid HOCR XML with multiple pages."""
-    return '''<?xml version="1.0" encoding="UTF-8"?>
+    return """<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <body>
   <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
@@ -190,31 +188,31 @@ def sample_hocr_multi_page():
     <span class="ocrx_word" id="word_2_2" title="bbox 210 100 250 150; x_wconf 88">2</span>
   </div>
 </body>
-</html>'''
+</html>"""
 
 
 @pytest.fixture
 def invalid_hocr_no_pages():
     """Invalid HOCR (missing ocr_page elements)."""
-    return '''<?xml version="1.0" encoding="UTF-8"?>
+    return """<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <body>
   <span class="ocrx_word">Invalid</span>
 </body>
-</html>'''
+</html>"""
 
 
 @pytest.fixture
 def invalid_hocr_no_bbox():
     """Invalid HOCR (missing bounding boxes)."""
-    return '''<?xml version="1.0" encoding="UTF-8"?>
+    return """<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <body>
   <div class="ocr_page" id="page_1">
     <span class="ocrx_word" id="word_1_1">NoBBox</span>
   </div>
 </body>
-</html>'''
+</html>"""
 
 
 # ==============================================================================
@@ -301,7 +299,7 @@ def test_image_with_text(tmp_path):
     # Try to use a basic font, fall back to default if not available
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-    except (OSError, IOError):
+    except OSError:
         # Fall back to default font
         font = ImageFont.load_default()
 
@@ -335,7 +333,7 @@ def test_image_simple_text(tmp_path):
     # Use larger font
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 48)
-    except (OSError, IOError):
+    except OSError:
         font = ImageFont.load_default()
 
     # Draw single line of text
@@ -366,7 +364,7 @@ def test_image_multiline(tmp_path):
 
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
-    except (OSError, IOError):
+    except OSError:
         font = ImageFont.load_default()
 
     # Multiple lines

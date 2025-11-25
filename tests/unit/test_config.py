@@ -144,7 +144,7 @@ def test_sync_max_file_size_validation():
 def test_settings_extra_fields_ignored():
     """Test that extra fields are ignored (not strict mode)."""
     # Should not raise error for extra fields
-    settings = Settings(unknown_field="value")
+    settings = Settings(unknown_field="value")  # type: ignore[call-arg]
 
     # Unknown field should not be stored
     assert not hasattr(settings, "unknown_field")

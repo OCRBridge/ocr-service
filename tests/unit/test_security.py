@@ -3,8 +3,6 @@
 Tests for cryptographically secure job ID generation.
 """
 
-import pytest
-
 from src.utils.security import generate_job_id
 
 
@@ -68,7 +66,6 @@ def test_generate_job_id_cryptographically_secure():
     but we can check that the function uses secrets module which is
     cryptographically secure.
     """
-    import secrets
 
     # Verify the function uses secrets.token_urlsafe
     # by checking it's imported in the security module

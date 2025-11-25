@@ -6,10 +6,9 @@ Tests entry point discovery, lazy loading, parameter model extraction,
 and engine validation.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 from src.services.ocr.registry_v2 import EngineRegistry
 from tests.mocks.mock_engines import (
@@ -23,7 +22,6 @@ from tests.mocks.mock_entry_points import (
     mock_entry_points_factory,
     mock_failing_entry_point,
 )
-
 
 # ==============================================================================
 # Engine Discovery Tests
@@ -527,7 +525,7 @@ def test_registry_handles_param_extraction_failure():
         def supported_formats(self):
             return {".jpg"}
 
-        def process(self, file_path):
+        def process(self, file_path, params=None):
             return "<html></html>"
 
     engines = {"broken": BrokenOCREngine}

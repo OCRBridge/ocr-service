@@ -9,9 +9,6 @@ Tests all V2 API endpoints with mocked engines including:
 
 import io
 import json
-from unittest.mock import patch
-
-import pytest
 
 
 def test_list_engines_returns_200(client):
@@ -509,7 +506,7 @@ def test_engine_schema_engine_without_params(client):
     # MockEngineWithoutParams has no parameters
     # First need to check if it's available
     engines_response = client.get("/v2/ocr/engines")
-    engines = engines_response.json()["engines"]
+    _engines = engines_response.json()["engines"]
 
     # If we have an engine without params, test it
     # For now, tesseract and easyocr both have params

@@ -2,20 +2,13 @@
 
 Tests async file operations, streaming uploads, temporary file management,
 and file permissions.
-
-NOTE: Some tests are skipped because DocumentUpload model doesn't exist yet.
-These tests focus on the core file I/O operations.
 """
 
 import os
-from pathlib import Path
 
 import pytest
 
-# Skip importing FileHandler since it depends on non-existent models
-# from src.services.file_handler import FileHandler
-
-pytestmark = pytest.mark.skip(reason="FileHandler depends on DocumentUpload model that doesn't exist yet")
+from src.services.file_handler import FileHandler
 
 
 @pytest.fixture
@@ -316,7 +309,9 @@ async def test_delete_temp_file_error_handling(file_handler, temp_upload_dir):
 
 
 @pytest.mark.asyncio
-async def test_save_upload_filename_with_unknown_extension(file_handler, create_upload_file, sample_jpeg_bytes):
+async def test_save_upload_filename_with_unknown_extension(
+    file_handler, create_upload_file, sample_jpeg_bytes
+):
     """Test handling of files with unknown/no filename."""
     upload_file = create_upload_file(sample_jpeg_bytes, None)  # No filename
 

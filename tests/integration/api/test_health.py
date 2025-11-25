@@ -3,8 +3,6 @@
 Tests the /health endpoint returns correct status and version information.
 """
 
-import pytest
-
 
 def test_health_check_returns_200(client):
     """Test that health check endpoint returns 200 OK."""

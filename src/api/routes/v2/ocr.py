@@ -28,7 +28,7 @@ def get_registry() -> EngineRegistry:
 
 @router.get("/engines")
 async def list_engines(
-    registry: Annotated[EngineRegistry, Depends(get_registry)]
+    registry: Annotated[EngineRegistry, Depends(get_registry)],
 ) -> dict[str, Any]:
     """List all available OCR engines.
 

@@ -5,8 +5,6 @@ Tests for macOS detection and platform name retrieval.
 
 from unittest.mock import patch
 
-import pytest
-
 from src.utils.platform import get_platform_name, is_macos
 
 

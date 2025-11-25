@@ -147,9 +147,7 @@ class EngineRegistry:
         """
         if name not in self._engine_classes:
             available = ", ".join(self._engine_classes.keys()) if self._engine_classes else "none"
-            raise ValueError(
-                f"Engine '{name}' not found. Available engines: {available}"
-            )
+            raise ValueError(f"Engine '{name}' not found. Available engines: {available}")
 
         # Lazy load engine instance
         if name not in self._engine_instances:

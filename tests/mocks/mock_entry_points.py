@@ -1,5 +1,6 @@
 """Mock entry points for testing engine discovery."""
 
+from collections.abc import Callable
 from typing import Any
 from unittest.mock import Mock
 
@@ -20,7 +21,7 @@ def create_mock_entry_point(name: str, engine_class: Any) -> Mock:
     return ep
 
 
-def mock_entry_points_factory(engines: dict[str, Any]) -> callable:
+def mock_entry_points_factory(engines: dict[str, Any]) -> Callable[[str | None], list[Mock]]:
     """Create mock entry_points function.
 
     This factory creates a mock function that can replace importlib.metadata.entry_points().

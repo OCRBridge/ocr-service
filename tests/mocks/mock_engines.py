@@ -3,13 +3,12 @@
 from pathlib import Path
 
 from ocrbridge.core import OCREngine
-from pydantic import BaseModel, Field
+from ocrbridge.core.models import OCREngineParams
+from pydantic import Field
 
 
-class MockTesseractParams(BaseModel):
+class MockTesseractParams(OCREngineParams):
     """Mock parameters for Tesseract engine."""
-
-    model_config = {"extra": "forbid"}
 
     lang: str = Field(default="eng", pattern=r"^[a-z_]{3,7}(\+[a-z_]{3,7})*$")
     psm: int = Field(default=3, ge=0, le=13)
@@ -28,9 +27,9 @@ class MockTesseractEngine(OCREngine):
     def supported_formats(self) -> set[str]:
         return {".jpg", ".jpeg", ".png", ".pdf", ".tiff", ".tif"}
 
-    def process(self, file_path: Path, params: MockTesseractParams | None = None) -> str:
+    def process(self, file_path: Path, params: OCREngineParams | None = None) -> str:
         """Return mock HOCR output."""
-        return '''<?xml version="1.0" encoding="UTF-8"?>
+        return """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
@@ -44,10 +43,10 @@ class MockTesseractEngine(OCREngine):
     <span class="ocrx_word" id="word_1_2" title="bbox 55 10 90 50; x_wconf 92">Text</span>
   </div>
 </body>
-</html>'''
+</html>"""
 
 
-class MockEasyOCRParams(BaseModel):
+class MockEasyOCRParams(OCREngineParams):
     """Mock parameters for EasyOCR engine."""
 
     languages: list[str] = Field(default=["en"], min_length=1, max_length=5)
@@ -66,9 +65,9 @@ class MockEasyOCREngine(OCREngine):
     def supported_formats(self) -> set[str]:
         return {".jpg", ".jpeg", ".png", ".pdf", ".tiff", ".tif"}
 
-    def process(self, file_path: Path, params: MockEasyOCRParams | None = None) -> str:
+    def process(self, file_path: Path, params: OCREngineParams | None = None) -> str:
         """Return mock HOCR output."""
-        return '''<?xml version="1.0" encoding="UTF-8"?>
+        return """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
@@ -84,7 +83,7 @@ class MockEasyOCREngine(OCREngine):
     </span>
   </div>
 </body>
-</html>'''
+</html>"""
 
 
 class MockEngineWithoutParams(OCREngine):
@@ -98,16 +97,16 @@ class MockEngineWithoutParams(OCREngine):
     def supported_formats(self) -> set[str]:
         return {".jpg", ".png"}
 
-    def process(self, file_path: Path, params: None = None) -> str:
+    def process(self, file_path: Path, params: OCREngineParams | None = None) -> str:
         """Return minimal HOCR output."""
-        return '''<?xml version="1.0" encoding="UTF-8"?>
+        return """<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <body>
   <div class="ocr_page" id="page_1" title="bbox 0 0 100 100">
     <span class="ocrx_word" id="word_1_1" title="bbox 10 10 50 50; x_wconf 95">Test</span>
   </div>
 </body>
-</html>'''
+</html>"""
 
 
 class InvalidEngine:
