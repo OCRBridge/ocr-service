@@ -22,6 +22,14 @@ This file serves as a comprehensive context guide for the Gemini AI agent workin
 - **Registry:** `src.services.ocr.registry_v2.EngineRegistry` loads engines on startup.
 - **Zero-Code Extension:** Installing a valid `ocrbridge-X` package automatically adds it to the API without changing core code.
 
+### Engine Schema Enhancements (v2.0)
+To support rich parameter validation and complex types (e.g., lists of languages), the system now supports v2.0 of the `ocrbridge-*` ecosystem.
+
+- **Requirement:** External engine packages (e.g., `ocrbridge-tesseract`) must export Pydantic v2 models (e.g., `TesseractParams`) defining their configuration.
+- **Discovery Priority:** The registry (`src/services/ocr/registry_v2.py`) prioritizes importing these specific models from the installed engine package. If not found, it falls back to the legacy method of inspecting `process()` method type hints.
+- **Reference:** See `specs/schemas.py` for the authoritative specification of these parameter models.
+- **Complex Types:** The API generation logic correctly maps complex types like `List[str]` to FastAPI `Form` parameters, enabling features like multi-value selection in Swagger UI.
+
 ### API Structure
 - **Framework:** FastAPI.
 - **Routes:**

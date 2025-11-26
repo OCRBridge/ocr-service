@@ -1,6 +1,5 @@
 """Unit tests for dynamic engine-specific route generation."""
 
-from fastapi import FastAPI
 
 from src.api.routes.v2.dynamic_routes import register_engine_routes
 

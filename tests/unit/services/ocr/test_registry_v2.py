@@ -6,7 +6,7 @@ Tests entry point discovery, lazy loading, parameter model extraction,
 and engine validation.
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -400,6 +400,62 @@ def test_validate_params_type_coercion():
         # Should be coerced to int
         assert validated.psm == 6
         assert isinstance(validated.psm, int)
+
+
+def test_validate_params_calls_custom_validation():
+    """Test that registry calls validate_config on engine if present."""
+
+    # Create a mock engine with validate_config
+    mock_engine_class = MockTesseractEngine
+    mock_engine_instance = MockTesseractEngine()
+    mock_engine_instance.validate_config = Mock()
+
+    # Mock factory to return our custom instance
+    def mock_engine_factory():
+        return mock_engine_instance
+
+    # Patch the class to return our instance when instantiated
+    with patch("tests.mocks.mock_engines.MockTesseractEngine", side_effect=mock_engine_factory):
+        engines = {"tesseract": MockTesseractEngine}
+        mock_ep = mock_entry_points_factory(engines)
+
+        with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
+            registry = EngineRegistry()
+
+            # Force instantiation and injection into registry cache to use our mock instance
+            registry._engine_instances["tesseract"] = mock_engine_instance
+            registry._engine_classes["tesseract"] = MockTesseractEngine # Ensure class is present
+
+            # Also need param model
+            registry._param_models["tesseract"] = registry._extract_param_model(MockTesseractEngine)
+
+            params = {"lang": "eng"}
+            validated = registry.validate_params("tesseract", params)
+
+            # Verify validate_config was called
+            mock_engine_instance.validate_config.assert_called_once_with(validated)
+
+
+def test_validate_params_custom_validation_failure():
+    """Test that custom validation failure raises ValueError."""
+
+    # Create a mock engine that fails validation
+    mock_engine_instance = MockTesseractEngine()
+    mock_engine_instance.validate_config = Mock(side_effect=ValueError("Custom validation failed"))
+
+    engines = {"tesseract": MockTesseractEngine}
+    mock_ep = mock_entry_points_factory(engines)
+
+    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
+        registry = EngineRegistry()
+        registry._engine_instances["tesseract"] = mock_engine_instance
+        registry._engine_classes["tesseract"] = MockTesseractEngine
+        registry._param_models["tesseract"] = registry._extract_param_model(MockTesseractEngine)
+
+        with pytest.raises(ValueError) as exc_info:
+            registry.validate_params("tesseract", {"lang": "eng"})
+
+        assert "Custom validation failed" in str(exc_info.value)
 
 
 # ==============================================================================

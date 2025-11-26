@@ -5,7 +5,6 @@ engines discovered at startup via entry points.
 """
 
 import asyncio
-import json
 import time
 from inspect import Parameter, Signature
 from pathlib import Path
@@ -57,16 +56,28 @@ def create_form_params_from_model(param_model: type[BaseModel]) -> dict[str, Par
         # Get description from Field()
         description = field_info.description or f"Parameter: {field_name}"
 
-        # Create Form() annotation without default; FastAPI requires defaults
-        # to be set via the parameter `=` not inside Annotated metadata.
-        form_annotation = Form(description=description)
+        # Handle generic types (like List[str]) specifically for FastAPI Form
+        # getting the origin type (e.g. list) to check if it is a list
+        import typing
+        origin = typing.get_origin(field_type)
+        
+        if origin in (list, typing.List, typing.Sequence):
+             # For lists, we must use Annotated[list[T], Form()] for FastAPI to
+             # correctly interpret it as a multi-value form field.
+             # We do NOT pass 'default' to Form() here, letting the function signature handle it.
+             form_annotation = Form(description=description)
+             annotation = Annotated[field_type, form_annotation]
+        else:
+            # Standard scalar types
+            form_annotation = Form(description=description)
+            annotation = Annotated[field_type, form_annotation]
 
         # Create parameter with proper annotation and default value
         params[field_name] = Parameter(
             name=field_name,
             kind=Parameter.KEYWORD_ONLY,
             default=default_value,
-            annotation=Annotated[field_type, form_annotation],
+            annotation=annotation,
         )
 
     return params

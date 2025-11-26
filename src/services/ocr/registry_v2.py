@@ -56,52 +56,44 @@ class EngineRegistry:
 
                     self._engine_classes[ep.name] = engine_class
 
-                    # Extract parameter model from type hints
+                    # Attempt to resolve the best parameter model for this engine.
+                    # Strategy:
+                    # 1. Check for engine-specific v2.0 models (TesseractParams, EasyOCRParams)
+                    #    exported by the engine package itself.
+                    # 2. Check for explicit __param_model__ on the engine class.
+                    # 3. Fall back to extracting from type hints (v1 behavior).
+
+                    param_model = None
                     try:
-                        param_model = self._extract_param_model(engine_class)
-                        if param_model:
-                            # If we only discovered the generic base params, try to upgrade
-                            # to a concrete engine-specific params model when available.
-                            try:
-                                from ocrbridge.core.models import OCREngineParams  # type: ignore
-                                ocr_engine_params_base = OCREngineParams
-                            except Exception:
-                                ocr_engine_params_base = None  # type: ignore
-
-                            upgraded = None
-                            if ocr_engine_params_base is not None and param_model is ocr_engine_params_base:
-                                # Best-effort: attempt to import well-known concrete models
-                                # by engine name to satisfy engines that require them.
-                                try:
-                                    import importlib
-                                    if ep.name == "tesseract":
-                                        mod = importlib.import_module("ocrbridge.engines.tesseract")
-                                        upgraded = getattr(mod, "TesseractParams", None)
-                                    elif ep.name == "easyocr":
-                                        mod = importlib.import_module("ocrbridge.engines.easyocr")
-                                        upgraded = getattr(mod, "EasyOCRParams", None)
-                                    elif ep.name == "ocrmac":
-                                        mod = importlib.import_module("ocrbridge.engines.ocrmac")
-                                        upgraded = getattr(mod, "OCRMacParams", None)
-                                except Exception as e:
-                                    logger.debug(
-                                        "param_model_upgrade_failed",
-                                        engine=ep.name,
-                                        error=str(e),
-                                    )
-
-                            self._param_models[ep.name] = upgraded or param_model
+                        import importlib
+                        if ep.name == "tesseract":
+                            mod = importlib.import_module("ocrbridge.engines.tesseract")
+                            param_model = getattr(mod, "TesseractParams", None)
+                        elif ep.name == "easyocr":
+                            mod = importlib.import_module("ocrbridge.engines.easyocr")
+                            param_model = getattr(mod, "EasyOCRParams", None)
+                        elif ep.name == "ocrmac":
+                            mod = importlib.import_module("ocrbridge.engines.ocrmac")
+                            param_model = getattr(mod, "OCRMacParams", None)
+                    except ImportError:
+                        # Engine package installed but maybe not the submodule we expect
+                        pass
                     except Exception as e:
-                        logger.warning(
-                            "failed_to_extract_param_model",
-                            engine=ep.name,
-                            error=str(e),
-                        )
+                        logger.debug("v2_model_import_failed", engine=ep.name, error=str(e))
+
+                    # If no v2 model found, fall back to v1 inspection logic
+                    if param_model is None:
+                        param_model = self._extract_param_model(engine_class)
+
+                    if param_model:
+                        self._param_models[ep.name] = param_model
 
                     logger.info(
                         "engine_discovered",
                         name=ep.name,
                         class_name=engine_class.__name__,
+                        has_param_model=param_model is not None,
+                        param_model_name=param_model.__name__ if param_model else None,
                     )
 
                 except Exception as e:
@@ -277,6 +269,9 @@ class EngineRegistry:
     def validate_params(self, engine_name: str, params: dict[str, Any]) -> Any:
         """Validate parameters against engine's parameter model.
 
+        If the engine has a 'validate_config' method, it will be called
+        with the validated parameter model (or None) for additional checks.
+
         Args:
             engine_name: Engine name
             params: Parameters dictionary
@@ -289,15 +284,33 @@ class EngineRegistry:
         """
         param_model = self.get_param_model(engine_name)
 
-        if param_model is None:
-            # Engine has no parameter model, return params as-is
-            return None
+        # Initial validation via Pydantic model
+        validated_params = None
+        if param_model is not None:
+            try:
+                validated_params = param_model(**params)
+            except Exception as e:
+                raise ValueError(f"Invalid parameters for {engine_name}: {e}") from e
 
-        # Validate using Pydantic
+        # Extended validation via engine protocol
+        # If the engine implements validate_config(params), call it.
         try:
-            return param_model(**params)
+            engine = self.get_engine(engine_name)
+            if hasattr(engine, "validate_config"):
+                engine.validate_config(validated_params)  # type: ignore
         except Exception as e:
-            raise ValueError(f"Invalid parameters for {engine_name}: {e}") from e
+            # Re-raise ValueErrors as-is (validation failures)
+            if isinstance(e, ValueError):
+                raise
+            # Wrap other errors
+            logger.error(
+                "engine_custom_validation_failed",
+                engine=engine_name,
+                error=str(e),
+            )
+            raise ValueError(f"Engine validation failed for {engine_name}: {e}") from e
+
+        return validated_params
 
     def is_engine_available(self, name: str) -> bool:
         """Check if an engine is available.
