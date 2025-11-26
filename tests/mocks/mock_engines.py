@@ -101,7 +101,7 @@ class MockEngineWithoutParams(OCREngine):
     def supported_formats(self) -> set[str]:
         return {".jpg", ".png"}
 
-    def process(self, file_path: Path, params: OCREngineParams | None = None) -> str:
+    def process(self, file_path: Path, params=None) -> str:
         """Return minimal HOCR output."""
         return """<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">

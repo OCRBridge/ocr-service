@@ -23,9 +23,8 @@ def test_tesseract_process_success(client, sample_jpeg_bytes):
 
 def test_easyocr_process_with_params(client, sample_jpeg_bytes):
     files = {"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")}
-    # Provide params via params_json (stringified JSON)
-    params_json = '{"languages": ["en"], "text_threshold": 0.7}'
-    data = {"params_json": params_json}
+    # V2 uses individual form fields, not params_json
+    data = {"text_threshold": 0.5}
 
     resp = client.post("/v2/ocr/easyocr/process", files=files, data=data)
     assert resp.status_code == 200
@@ -35,14 +34,27 @@ def test_easyocr_process_with_params(client, sample_jpeg_bytes):
     assert isinstance(data.get("hocr"), str)
 
 
-def test_invalid_json_params_returns_400(client, sample_jpeg_bytes):
+def test_tesseract_invalid_param_returns_400(client, sample_jpeg_bytes):
     files = {"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")}
-    data = {"params_json": "not valid json{"}
+    # psm must be <= 13
+    data = {"psm": 99}
 
     resp = client.post("/v2/ocr/tesseract/process", files=files, data=data)
     assert resp.status_code == 400
     err = resp.json()
-    assert "invalid json" in err.get("detail", "").lower()
+    assert "validation failed" in err.get("detail", "").lower()
+
+
+def test_tesseract_process_with_params(client, sample_jpeg_bytes):
+    files = {"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")}
+    data = {"lang": "eng", "psm": 3, "oem": 1, "dpi": 300}
+
+    resp = client.post("/v2/ocr/tesseract/process", files=files, data=data)
+    assert resp.status_code == 200
+
+    data = resp.json()
+    assert data["engine"] == "tesseract"
+    assert isinstance(data.get("hocr"), str)
 
 
 def test_file_too_large_returns_413(client, large_file_bytes):

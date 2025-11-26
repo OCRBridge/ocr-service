@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies (base only - no optional extras)
-RUN uv pip install --system -e .
+RUN uv pip install --system -e .[tesseract]
 
 # Copy application source
 COPY src ./src
@@ -85,7 +85,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies with EasyOCR support
 # Includes EasyOCR and PyTorch for deep learning OCR
-RUN uv pip install --system -e .[easyocr]
+RUN uv pip install --system -e .[full]
 
 # Copy application source
 COPY src ./src
