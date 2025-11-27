@@ -2,7 +2,7 @@
 
 import sys
 from types import ModuleType
-from unittest.mock import MagicMock
+from typing import Any, cast
 
 from specs.schemas import EasyOCRParams, TesseractParams
 
@@ -16,15 +16,15 @@ def create_mock_package(name: str) -> ModuleType:
 
 def setup_v2_mocks():
     """Setup sys.modules to simulate installed ocrbridge v2 packages."""
-    
+
     # Mock ocrbridge.engines.tesseract
-    tess_mod = create_mock_package("ocrbridge.engines.tesseract")
+    tess_mod = cast(Any, create_mock_package("ocrbridge.engines.tesseract"))
     tess_mod.TesseractParams = TesseractParams  # Expose v2 model
-    
+
     # Mock ocrbridge.engines.easyocr
-    easy_mod = create_mock_package("ocrbridge.engines.easyocr")
+    easy_mod = cast(Any, create_mock_package("ocrbridge.engines.easyocr"))
     easy_mod.EasyOCRParams = EasyOCRParams  # Expose v2 model
-    
+
     return tess_mod, easy_mod
 
 

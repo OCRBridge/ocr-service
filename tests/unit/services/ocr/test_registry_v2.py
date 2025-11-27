@@ -119,7 +119,7 @@ def test_get_engine_lazy_loading():
         registry = EngineRegistry()
 
         # Engine should not be instantiated yet
-        assert "tesseract" not in registry._engine_instances
+        assert "tesseract" not in registry.get_engine_instances()
 
         # First access should instantiate
         engine = registry.get_engine("tesseract")
@@ -127,7 +127,7 @@ def test_get_engine_lazy_loading():
         assert isinstance(engine, MockTesseractEngine)
 
         # Should now be cached
-        assert "tesseract" in registry._engine_instances
+        assert "tesseract" in registry.get_engine_instances()
 
 
 def test_get_engine_caching():
@@ -406,7 +406,6 @@ def test_validate_params_calls_custom_validation():
     """Test that registry calls validate_config on engine if present."""
 
     # Create a mock engine with validate_config
-    mock_engine_class = MockTesseractEngine
     mock_engine_instance = MockTesseractEngine()
     mock_engine_instance.validate_config = Mock()
 
@@ -423,11 +422,17 @@ def test_validate_params_calls_custom_validation():
             registry = EngineRegistry()
 
             # Force instantiation and injection into registry cache to use our mock instance
-            registry._engine_instances["tesseract"] = mock_engine_instance
-            registry._engine_classes["tesseract"] = MockTesseractEngine # Ensure class is present
+            registry.inject_engine_instance("tesseract", mock_engine_instance)
+            registry.inject_engine_class(
+                "tesseract", MockTesseractEngine
+            )  # Ensure class is present
 
             # Also need param model
-            registry._param_models["tesseract"] = registry._extract_param_model(MockTesseractEngine)
+            from typing import Any, cast
+
+            registry.inject_param_model(
+                "tesseract", cast(type[Any], registry.extract_param_model(MockTesseractEngine))
+            )
 
             params = {"lang": "eng"}
             validated = registry.validate_params("tesseract", params)
@@ -448,9 +453,13 @@ def test_validate_params_custom_validation_failure():
 
     with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
         registry = EngineRegistry()
-        registry._engine_instances["tesseract"] = mock_engine_instance
-        registry._engine_classes["tesseract"] = MockTesseractEngine
-        registry._param_models["tesseract"] = registry._extract_param_model(MockTesseractEngine)
+        registry.inject_engine_instance("tesseract", mock_engine_instance)
+        registry.inject_engine_class("tesseract", MockTesseractEngine)
+        from typing import Any, cast
+
+        registry.inject_param_model(
+            "tesseract", cast(type[Any], registry.extract_param_model(MockTesseractEngine))
+        )
 
         with pytest.raises(ValueError) as exc_info:
             registry.validate_params("tesseract", {"lang": "eng"})
@@ -510,16 +519,16 @@ def test_registry_internal_state():
         registry = EngineRegistry()
 
         # Check internal dictionaries
-        assert "tesseract" in registry._engine_classes
-        assert "tesseract" in registry._param_models
+        assert "tesseract" in registry.get_engine_classes()
+        assert "tesseract" in registry.get_param_models()
         # Instance should not exist until first access
-        assert "tesseract" not in registry._engine_instances
+        assert "tesseract" not in registry.get_engine_instances()
 
         # Access engine
         registry.get_engine("tesseract")
 
         # Now instance should exist
-        assert "tesseract" in registry._engine_instances
+        assert "tesseract" in registry.get_engine_instances()
 
 
 def test_registry_multiple_instances():
@@ -562,17 +571,6 @@ def test_registry_handles_exception_during_discovery():
 
 def test_registry_handles_param_extraction_failure():
     """Test graceful handling when parameter model extraction fails."""
-
-    class BrokenEngine:
-        """Mock engine with broken type hints that cause extraction to fail."""
-
-        @property
-        def name(self):
-            return "broken"
-
-        def process(self, file_path):
-            # No type hints - should cause extraction to fail gracefully
-            pass
 
     # First, make it inherit from OCREngine to pass validation
     from ocrbridge.core import OCREngine

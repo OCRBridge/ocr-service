@@ -85,3 +85,27 @@ sync_ocr_file_size_bytes = Histogram(
     ["engine"],
     buckets=[10240, 102400, 524288, 1048576, 2621440, 5242880],  # 10KB to 5MB
 )
+
+
+# Helper accessors to avoid private attribute usage in tests
+def metric_name(metric: Counter | Gauge | Histogram) -> str:
+    return metric._name
+
+
+def metric_labels(metric: Counter | Gauge | Histogram) -> list[str]:
+    labels = getattr(metric, "_labelnames", [])
+    return list(labels)
+
+
+def metric_buckets(hist: Histogram) -> list[float]:
+    buckets = getattr(hist, "_upper_bounds", [])
+    return list(buckets)
+
+
+def metric_value(metric: Counter | Gauge) -> float:
+    value = metric._value.get()
+    return float(value)
+
+
+def metric_help(metric: Counter | Gauge | Histogram) -> str:
+    return getattr(metric, "_documentation", "")

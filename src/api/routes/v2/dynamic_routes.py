@@ -12,15 +12,15 @@ from tempfile import NamedTemporaryFile
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from ocrbridge.core.exceptions import OCRProcessingError
 from pydantic import BaseModel
-from pydantic_core import PydanticUndefined
 
 from src.models.responses import SyncOCRResponse
 from src.services.ocr.registry_v2 import EngineRegistry
 from src.utils.validators import validate_sync_file_size
 
-logger = structlog.get_logger(__name__)
+logger = structlog.get_logger()
 
 
 def get_registry() -> EngineRegistry:
@@ -31,56 +31,8 @@ def get_registry() -> EngineRegistry:
 
 
 def create_form_params_from_model(param_model: type[BaseModel]) -> dict[str, Parameter]:
-    """Convert Pydantic model fields to function parameters with Form() annotations.
-
-    Args:
-        param_model: Pydantic model class defining engine parameters
-
-    Returns:
-        Dictionary mapping parameter names to Parameter objects
-    """
-    params = {}
-
-    for field_name, field_info in param_model.model_fields.items():
-        # Get field type
-        field_type = field_info.annotation
-
-        # Determine if field is required
-        if field_info.default is not PydanticUndefined:
-            default_value = field_info.default
-        elif field_info.default_factory is not None:
-            default_value = field_info.default_factory()
-        else:
-            default_value = ...  # Required field
-
-        # Get description from Field()
-        description = field_info.description or f"Parameter: {field_name}"
-
-        # Handle generic types (like List[str]) specifically for FastAPI Form
-        # getting the origin type (e.g. list) to check if it is a list
-        import typing
-        origin = typing.get_origin(field_type)
-        
-        if origin in (list, typing.List, typing.Sequence):
-             # For lists, we must use Annotated[list[T], Form()] for FastAPI to
-             # correctly interpret it as a multi-value form field.
-             # We do NOT pass 'default' to Form() here, letting the function signature handle it.
-             form_annotation = Form(description=description)
-             annotation = Annotated[field_type, form_annotation]
-        else:
-            # Standard scalar types
-            form_annotation = Form(description=description)
-            annotation = Annotated[field_type, form_annotation]
-
-        # Create parameter with proper annotation and default value
-        params[field_name] = Parameter(
-            name=field_name,
-            kind=Parameter.KEYWORD_ONLY,
-            default=default_value,
-            annotation=annotation,
-        )
-
-    return params
+    """No-op: document via openapi_extra; parse forms at runtime."""
+    return {}
 
 
 def create_signature_with_dynamic_params(
@@ -119,9 +71,7 @@ def create_signature_with_dynamic_params(
     return original_sig.replace(parameters=new_params)
 
 
-def create_process_handler(
-    engine_name: str, param_model: type[BaseModel] | None
-) -> Any:
+def create_process_handler(engine_name: str, param_model: type[BaseModel] | None) -> Any:
     """Create the /process endpoint handler for a specific engine.
 
     Args:
@@ -162,9 +112,7 @@ def create_process_handler(
             )
 
             hocr = await asyncio.wait_for(
-                asyncio.to_thread(
-                    ocr_engine.process, Path(temp_file_name), validated_params
-                ),
+                asyncio.to_thread(ocr_engine.process, Path(temp_file_name), validated_params),
                 timeout=30.0,
             )
 
@@ -191,6 +139,12 @@ def create_process_handler(
                 status_code=504,
                 detail=f"OCR processing timeout after 30 seconds for {engine_name}",
             )
+        except OCRProcessingError as e:
+            logger.error("ocr_engine_processing_failed", engine=engine_name, error=str(e))
+            raise HTTPException(
+                status_code=500,
+                detail=f"OCR engine failed to process document: {str(e)}",
+            )
         except ValueError as e:
             logger.error("engine_error", engine=engine_name, error=str(e))
             raise HTTPException(status_code=400, detail=str(e))
@@ -211,30 +165,25 @@ def create_process_handler(
 
     # Create handler based on whether engine has parameters
     if param_model:
-        # Build dynamic form parameters from the model
-        dynamic_params = create_form_params_from_model(param_model)
 
-        async def handler(
+        async def handler_with_params(
+            request: Request,
             file: Annotated[UploadFile, File(description="Document to process")],
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
-            **engine_params: Any,
         ) -> SyncOCRResponse:
-            """Process document with OCR engine."""
+            """Process document with OCR engine (form parsed at runtime)."""
             try:
+                form_data = await request.form()
+                engine_params: dict[str, Any] = dict(form_data)
                 validated_params = registry.validate_params(engine_name, engine_params)
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=f"Parameter validation failed: {e}")
 
             return await process_document(file, registry, validated_params)
-
-        # Update function signature to include model-driven fields
-        handler.__signature__ = create_signature_with_dynamic_params(
-            Signature.from_callable(handler), dynamic_params
-        )
     else:
         # Engine without parameters
-        async def handler(
+        async def handler_no_params(
             file: Annotated[UploadFile, File(description="Document to process")],
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
@@ -243,9 +192,12 @@ def create_process_handler(
             return await process_document(file, registry, None)
 
     # Update docstring for OpenAPI
-    handler.__doc__ = f"Process document with {engine_name} OCR engine."
-
-    return handler
+    if param_model:
+        handler_with_params.__doc__ = f"Process document with {engine_name} OCR engine."
+        return handler_with_params
+    else:
+        handler_no_params.__doc__ = f"Process document with {engine_name} OCR engine."
+        return handler_no_params
 
 
 def create_engine_router(
@@ -261,14 +213,29 @@ def create_engine_router(
     Returns:
         APIRouter configured for the engine
     """
-    router = APIRouter(
-        prefix=f"/v2/ocr/{engine_name}", tags=["OCR", engine_name.capitalize()]
-    )
+    router = APIRouter(prefix=f"/v2/ocr/{engine_name}", tags=["OCR", engine_name.capitalize()])
 
     # Create and register the process endpoint
     handler = create_process_handler(engine_name, param_model)
 
     # Use a truly unique operation_id by including a prefix unlikely to collide
+    openapi_extra: dict[str, Any] | None = None
+    if param_model is not None:
+        try:
+            body_schema = param_model.model_json_schema()
+            openapi_extra = {
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": body_schema,
+                        }
+                    },
+                }
+            }
+        except Exception:
+            openapi_extra = None
+
     router.post(
         "/process",
         response_model=SyncOCRResponse,
@@ -278,6 +245,7 @@ def create_engine_router(
             "Provide engine-specific parameters as individual form fields derived from the engine's model."
         ),
         operation_id=f"ocr_process_{engine_name}_v2",
+        openapi_extra=openapi_extra,
     )(handler)
 
     # Add an info endpoint to expose engine capabilities and params schema
@@ -294,6 +262,9 @@ def create_engine_router(
         _registry: Annotated[EngineRegistry, Depends(get_registry)],
     ) -> dict[str, Any]:
         return registry.get_engine_info(engine_name)
+
+    # Remove local name to avoid unused-function warnings while keeping route registered
+    del engine_info
 
     return router
 
@@ -360,14 +331,15 @@ def register_engine_routes(app: FastAPI, registry: EngineRegistry) -> None:
     @api_router.get(
         "/engines",
         summary="List available OCR engines",
-        description=(
-            "Lists all discovered OCR engines with metadata and parameter schemas."
-        ),
+        description=("Lists all discovered OCR engines with metadata and parameter schemas."),
         operation_id="ocr_engines_list_v2",
     )
     async def list_engines_endpoint() -> list[dict[str, Any]]:
         engines = registry.list_engines()
         return [registry.get_engine_info(name) for name in engines]
+
+    # Remove local name to avoid unused-function warnings while keeping route registered
+    del list_engines_endpoint
 
     # Avoid duplicate include: check if base path exists
     existing_paths = {getattr(r, "path", None) for r in app.router.routes}

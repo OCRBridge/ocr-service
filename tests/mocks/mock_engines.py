@@ -6,6 +6,10 @@ from ocrbridge.core import OCREngine
 from ocrbridge.core.models import OCREngineParams
 from pydantic import Field
 
+"""Mock OCR engine implementations for testing."""
+
+
+
 
 class MockTesseractParams(OCREngineParams):
     """Mock parameters for Tesseract engine."""
@@ -19,7 +23,7 @@ class MockTesseractParams(OCREngineParams):
 class MockTesseractEngine(OCREngine):
     """Mock Tesseract OCR engine for testing."""
 
-    __param_model__ = None  # Will be set after MockTesseractParams is defined
+    __param_model__: type[OCREngineParams] | None = MockTesseractParams
 
     @property
     def name(self) -> str:
@@ -47,6 +51,10 @@ class MockTesseractEngine(OCREngine):
 </body>
 </html>"""
 
+    def validate_config(self, params: OCREngineParams | None) -> None:  # pragma: no cover
+        """Optional custom validation hook used by registry tests."""
+        return None
+
 
 class MockEasyOCRParams(OCREngineParams):
     """Mock parameters for EasyOCR engine."""
@@ -59,7 +67,7 @@ class MockEasyOCRParams(OCREngineParams):
 class MockEasyOCREngine(OCREngine):
     """Mock EasyOCR engine for testing."""
 
-    __param_model__ = None  # Will be set after MockEasyOCRParams is defined
+    __param_model__: type[OCREngineParams] | None = MockEasyOCRParams
 
     @property
     def name(self) -> str:
@@ -89,6 +97,9 @@ class MockEasyOCREngine(OCREngine):
 </body>
 </html>"""
 
+    def validate_config(self, params: OCREngineParams | None) -> None:  # pragma: no cover
+        return None
+
 
 class MockEngineWithoutParams(OCREngine):
     """Mock engine without parameter model (for testing optional params)."""
@@ -111,11 +122,6 @@ class MockEngineWithoutParams(OCREngine):
   </div>
 </body>
 </html>"""
-
-
-# Set param models after class definitions
-MockTesseractEngine.__param_model__ = MockTesseractParams
-MockEasyOCREngine.__param_model__ = MockEasyOCRParams
 
 
 class InvalidEngine:

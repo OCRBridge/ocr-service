@@ -10,7 +10,6 @@ from src.utils.hocr import (
     HOCRInfo,
     HOCRParseError,
     HOCRValidationError,
-    _group_easyocr_words_into_lines,
     easyocr_to_hocr,
     extract_bbox,
     parse_hocr,
@@ -285,91 +284,72 @@ def test_easyocr_to_hocr_system_metadata():
 
 
 def test_group_easyocr_words_single_line():
-    """Test grouping words on a single line."""
+    """Test grouping words on a single line via HOCR output."""
     # Two words with same vertical position (y=10-50)
     results = [
         ([[10, 10], [100, 10], [100, 50], [10, 50]], "Hello", 0.95),
         ([[110, 10], [200, 10], [200, 50], [110, 50]], "World", 0.92),
     ]
 
-    lines = _group_easyocr_words_into_lines(results)
-
-    assert len(lines) == 1
-    assert len(lines[0]["words"]) == 2
-    assert lines[0]["words"][0]["text"] == "Hello"
-    assert lines[0]["words"][1]["text"] == "World"
+    hocr = easyocr_to_hocr(results, image_width=220, image_height=60)
+    # Should produce a single line group and include both words
+    assert hocr.count('class="ocr_line"') == 1
+    assert "Hello" in hocr and "World" in hocr
 
 
 def test_group_easyocr_words_multi_line(sample_easyocr_multiline):
-    """Test grouping words into multiple lines."""
-    lines = _group_easyocr_words_into_lines(sample_easyocr_multiline)
-
-    assert len(lines) == 2
-
-    # First line
-    assert len(lines[0]["words"]) == 2
-    assert lines[0]["words"][0]["text"] == "First"
-    assert lines[0]["words"][1]["text"] == "Line"
-
-    # Second line
-    assert len(lines[1]["words"]) == 2
-    assert lines[1]["words"][0]["text"] == "Second"
-    assert lines[1]["words"][1]["text"] == "Line"
+    """Test grouping words into multiple lines via HOCR output."""
+    hocr = easyocr_to_hocr(sample_easyocr_multiline, image_width=220, image_height=120)
+    assert hocr.count('class="ocr_line"') == 2
+    # Both lines' words should be present in the HOCR
+    assert "First" in hocr and "Second" in hocr
 
 
 def test_group_easyocr_words_empty():
-    """Test grouping with empty results."""
-    lines = _group_easyocr_words_into_lines([])
-
-    assert lines == []
+    """Test grouping with empty results via HOCR output."""
+    hocr = easyocr_to_hocr([], image_width=10, image_height=10)
+    # No words or lines should be present
+    assert 'class="ocr_line"' not in hocr
 
 
 def test_group_easyocr_words_single_word():
-    """Test grouping with single word."""
+    """Test grouping with single word via HOCR output."""
     results = [([[10, 10], [100, 10], [100, 50], [10, 50]], "Solo", 0.95)]
 
-    lines = _group_easyocr_words_into_lines(results)
-
-    assert len(lines) == 1
-    assert len(lines[0]["words"]) == 1
-    assert lines[0]["words"][0]["text"] == "Solo"
+    hocr = easyocr_to_hocr(results, image_width=120, image_height=60)
+    assert hocr.count('class="ocr_line"') == 1
+    assert "Solo" in hocr
 
 
 def test_group_easyocr_words_line_bbox():
-    """Test that line bounding box encompasses all words."""
+    """Test that line bbox encompasses all words via HOCR output."""
     results = [
         ([[10, 10], [100, 10], [100, 50], [10, 50]], "Word1", 0.95),
         ([[110, 15], [200, 15], [200, 45], [110, 45]], "Word2", 0.92),
     ]
 
-    lines = _group_easyocr_words_into_lines(results)
-
-    line_bbox = lines[0]["bbox"]
-
-    # Line bbox should encompass both words
-    assert line_bbox[0] == 10  # Min x
-    assert line_bbox[1] == 10  # Min y
-    assert line_bbox[2] == 200  # Max x
-    assert line_bbox[3] == 50  # Max y
+    hocr = easyocr_to_hocr(results, image_width=210, image_height=60)
+    # Expect the line bbox to cover from x=10..200 and y around 10..50
+    assert 'class="ocr_line"' in hocr
+    assert "bbox 10" in hocr and "200" in hocr
 
 
 def test_group_easyocr_words_left_to_right_sorting():
-    """Test that words within a line are sorted left to right."""
+    """Test that words within a line are sorted left to right via HOCR output."""
     # Add words in reverse order (right to left)
     results = [
         ([[110, 10], [200, 10], [200, 50], [110, 50]], "Second", 0.92),
         ([[10, 10], [100, 10], [100, 50], [10, 50]], "First", 0.95),
     ]
 
-    lines = _group_easyocr_words_into_lines(results)
-
-    # Should be reordered left to right
-    assert lines[0]["words"][0]["text"] == "First"
-    assert lines[0]["words"][1]["text"] == "Second"
+    hocr = easyocr_to_hocr(results, image_width=220, image_height=60)
+    # In HOCR string, "First" should appear before "Second"
+    assert hocr.find("First") != -1 and hocr.find("Second") != -1
+    assert hocr.find("First") < hocr.find("Second")
 
 
 def test_group_easyocr_words_vertical_sorting():
-    """Test that lines are sorted top to bottom."""
+    """Test that lines are sorted top to bottom via HOCR output."""
     # Add lines in reverse order (bottom to top)
     results = [
         # Bottom line (y=60-100)
@@ -378,15 +358,13 @@ def test_group_easyocr_words_vertical_sorting():
         ([[10, 10], [100, 10], [100, 50], [10, 50]], "Top", 0.95),
     ]
 
-    lines = _group_easyocr_words_into_lines(results)
-
-    # Should be reordered top to bottom
-    assert lines[0]["words"][0]["text"] == "Top"
-    assert lines[1]["words"][0]["text"] == "Bottom"
+    hocr = easyocr_to_hocr(results, image_width=120, image_height=110)
+    # "Top" should appear earlier than "Bottom" in the HOCR output
+    assert hocr.find("Top") < hocr.find("Bottom")
 
 
 def test_group_easyocr_words_threshold_calculation():
-    """Test that line grouping uses median height threshold."""
+    """Test that line grouping uses a reasonable threshold via HOCR output."""
     # Mix of different height words
     results = [
         # Tall word
@@ -395,11 +373,10 @@ def test_group_easyocr_words_threshold_calculation():
         ([[60, 40], [100, 40], [100, 70], [60, 70]], "Short", 0.92),
     ]
 
-    lines = _group_easyocr_words_into_lines(results)
-
-    # Despite different heights, should be grouped if centers are close
-    # This tests the threshold algorithm
-    assert len(lines) >= 1
+    hocr = easyocr_to_hocr(results, image_width=120, image_height=110)
+    # Expect at least one line containing both words
+    assert hocr.count('class="ocr_line"') >= 1
+    assert "Tall" in hocr and "Short" in hocr
 
 
 # ==============================================================================

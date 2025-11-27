@@ -1,9 +1,8 @@
 """Unit tests for dynamic route handling with complex types (v2 schemas)."""
 
 import typing
-from typing import Annotated, List
+from typing import Annotated
 
-import pytest
 from fastapi import Form
 from pydantic import BaseModel, Field
 
@@ -12,8 +11,9 @@ from src.api.routes.v2.dynamic_routes import create_form_params_from_model
 
 class ComplexModel(BaseModel):
     """Test model with complex types similar to EasyOCRParams."""
-    languages: List[str] = Field(description="List of langs")
-    options: typing.List[int] = Field(default=[1, 2])
+
+    languages: list[str] = Field(description="List of langs")
+    options: list[int] = Field(default=[1, 2])
     gpu: bool = Field(default=True)
 
 
@@ -24,20 +24,20 @@ def test_create_form_params_list_handling():
     # Check languages (List[str])
     assert "languages" in params
     lang_param = params["languages"]
-    
+
     # Should verify it has the correct annotation structure
     # Annotated[List[str], Form(...)]
     assert typing.get_origin(lang_param.annotation) is Annotated
-    
+
     # Unwrap annotation
     args = typing.get_args(lang_param.annotation)
     type_arg = args[0]
     form_arg = args[1]
-    
+
     # Verify type is List[str]
     assert typing.get_origin(type_arg) is list
     assert typing.get_args(type_arg)[0] is str
-    
+
     # Verify Form info
     assert isinstance(form_arg, type(Form()))
 
@@ -45,6 +45,6 @@ def test_create_form_params_list_handling():
 def test_create_form_params_defaults():
     """Test default values are preserved."""
     params = create_form_params_from_model(ComplexModel)
-    
+
     assert params["options"].default == [1, 2]
     assert params["gpu"].default is True

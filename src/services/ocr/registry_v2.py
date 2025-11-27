@@ -66,6 +66,7 @@ class EngineRegistry:
                     param_model = None
                     try:
                         import importlib
+
                         if ep.name == "tesseract":
                             mod = importlib.import_module("ocrbridge.engines.tesseract")
                             param_model = getattr(mod, "TesseractParams", None)
@@ -173,6 +174,43 @@ class EngineRegistry:
                 error=str(e),
             )
             return None
+
+    # Public helpers for tests and introspection (avoid private access)
+    def extract_param_model(self, engine_class: type[Any]) -> type[Any] | None:
+        """Public wrapper around param model extraction.
+
+        Args:
+            engine_class: Engine class to inspect
+
+        Returns:
+            Parameter model class or None
+        """
+        return self._extract_param_model(engine_class)
+
+    def get_engine_classes(self) -> dict[str, type[Any]]:
+        """Return discovered engine classes."""
+        return dict(self._engine_classes)
+
+    def get_engine_instances(self) -> dict[str, Any]:
+        """Return instantiated engine instances (lazy-loaded)."""
+        return dict(self._engine_instances)
+
+    def get_param_models(self) -> dict[str, type[Any]]:
+        """Return parameter models mapped by engine name."""
+        return dict(self._param_models)
+
+    # Injection helpers specifically for tests
+    def inject_engine_instance(self, name: str, instance: Any) -> None:
+        """Inject or override an engine instance (testing utility)."""
+        self._engine_instances[name] = instance
+
+    def inject_engine_class(self, name: str, cls: type[Any]) -> None:
+        """Inject or override an engine class (testing utility)."""
+        self._engine_classes[name] = cls
+
+    def inject_param_model(self, name: str, model: type[Any]) -> None:
+        """Inject or override a parameter model (testing utility)."""
+        self._param_models[name] = model
 
     def get_engine(self, name: str) -> Any:
         """Get engine instance by name (lazy loading).
