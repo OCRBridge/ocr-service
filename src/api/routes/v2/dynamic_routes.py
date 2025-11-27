@@ -9,12 +9,13 @@ import time
 from inspect import Parameter, Signature
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Any
+from typing import Annotated, Any, get_args, get_origin
 
 import structlog
-from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from ocrbridge.core.exceptions import OCRProcessingError
 from pydantic import BaseModel
+from pydantic.fields import FieldInfo
 
 from src.models.responses import SyncOCRResponse
 from src.services.ocr.registry_v2 import EngineRegistry
@@ -31,8 +32,41 @@ def get_registry() -> EngineRegistry:
 
 
 def create_form_params_from_model(param_model: type[BaseModel]) -> dict[str, Parameter]:
-    """No-op: document via openapi_extra; parse forms at runtime."""
-    return {}
+    """Create FastAPI Form parameters from a Pydantic model.
+    
+    Converts each field in the Pydantic model to a FastAPI Form parameter
+    with proper type annotations and default values.
+    
+    Args:
+        param_model: Pydantic model class
+        
+    Returns:
+        Dictionary mapping field names to Parameter objects
+    """
+    params: dict[str, Parameter] = {}
+    
+    for field_name, field_info in param_model.model_fields.items():
+        # Get the field type annotation
+        field_type = field_info.annotation
+        
+        # Create Form with appropriate default
+        if field_info.is_required():
+            form_default = Form(..., description=field_info.description)
+        else:
+            form_default = Form(field_info.default, description=field_info.description)
+        
+        # Create annotated type: Annotated[field_type, Form(...)]
+        annotated_type = Annotated[field_type, form_default]
+        
+        # Create Parameter object
+        params[field_name] = Parameter(
+            field_name,
+            Parameter.KEYWORD_ONLY,
+            default=form_default,
+            annotation=annotated_type,
+        )
+    
+    return params
 
 
 def create_signature_with_dynamic_params(
@@ -175,7 +209,10 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             """Process document with OCR engine (form parsed at runtime)."""
             try:
                 form_data = await request.form()
-                engine_params: dict[str, Any] = dict(form_data)
+                # Filter out the 'file' field from engine parameters
+                engine_params: dict[str, Any] = {
+                    k: v for k, v in dict(form_data).items() if k != "file"
+                }
                 validated_params = registry.validate_params(engine_name, engine_params)
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=f"Parameter validation failed: {e}")

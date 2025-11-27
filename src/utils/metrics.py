@@ -89,7 +89,7 @@ sync_ocr_file_size_bytes = Histogram(
 
 # Helper accessors to avoid private attribute usage in tests
 def metric_name(metric: Counter | Gauge | Histogram) -> str:
-    return metric._name
+    return str(getattr(metric, "_name", ""))
 
 
 def metric_labels(metric: Counter | Gauge | Histogram) -> list[str]:
@@ -103,8 +103,10 @@ def metric_buckets(hist: Histogram) -> list[float]:
 
 
 def metric_value(metric: Counter | Gauge) -> float:
-    value = metric._value.get()
-    return float(value)
+    value_obj = getattr(metric, "_value", None)
+    if value_obj is None:
+        return 0.0
+    return float(value_obj.get())
 
 
 def metric_help(metric: Counter | Gauge | Histogram) -> str:

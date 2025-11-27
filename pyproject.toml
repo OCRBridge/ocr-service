@@ -111,4 +111,3 @@ exclude_lines = [
 ocrbridge-core = { workspace = true }
 ocrbridge-tesseract = { workspace = true }
 ocrbridge-easyocr = { workspace = true }
-ocrbridge-ocrmac = { workspace = true }
