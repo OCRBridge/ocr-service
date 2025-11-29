@@ -28,9 +28,10 @@ Before you begin contributing, please:
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - Tesseract OCR 5.3+
 - Poppler utils (for PDF processing)
+- libmagic (for file type detection)
 - uv (Python package manager)
 - Git
 
@@ -46,7 +47,7 @@ git remote add upstream https://github.com/ORIGINAL_OWNER/restful-ocr.git
 
 # Install system dependencies (Ubuntu/Debian)
 sudo apt-get update
-sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils
+sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils libmagic1
 
 # Create virtual environment and install dependencies
 uv venv
@@ -637,7 +638,7 @@ What actually happened.
 
 **Environment:**
 - OS: [e.g., Ubuntu 22.04]
-- Python version: [e.g., 3.11.5]
+- Python version: [e.g., 3.10.12]
 - Tesseract version: [e.g., 5.3.0]
 
 **Logs**

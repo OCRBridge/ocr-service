@@ -37,7 +37,7 @@ This service uses a **modular plugin architecture** powered by the [datenzar OCR
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 
 ### Base Installation
 

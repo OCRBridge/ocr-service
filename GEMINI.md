@@ -13,7 +13,7 @@
 *   **Observability:** JSON logging (structlog) and Prometheus metrics.
 
 **Tech Stack:**
-*   **Language:** Python 3.11+
+*   **Language:** Python 3.10+
 *   **Framework:** FastAPI, Uvicorn
 *   **Dependency Management:** `uv`
 *   **Linting/Formatting:** `ruff`

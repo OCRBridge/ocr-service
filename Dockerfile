@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-eng \
     poppler-utils \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies (base only - no optional extras)
@@ -73,6 +74,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-eng \
     poppler-utils \
+    libmagic1 \
     build-essential \
     libffi-dev \
     libssl-dev \

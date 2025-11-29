@@ -8,7 +8,7 @@
     "**/htmlcov",
     "**/.git"
   ],
-  "pythonVersion": "3.11",
+  "pythonVersion": "3.10",
   "pythonPlatform": "All",
   "typeCheckingMode": "basic",
   "reportMissingImports": true,

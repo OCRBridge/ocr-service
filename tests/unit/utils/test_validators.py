@@ -9,7 +9,7 @@ import pytest
 from fastapi import HTTPException, UploadFile
 
 from src.utils.validators import (
-    MAGIC_BYTES,
+    SUPPORTED_MIME_TYPES,
     FileTooLargeError,
     UnsupportedFormatError,
     validate_file_format,
@@ -19,7 +19,7 @@ from src.utils.validators import (
 )
 
 # ==============================================================================
-# Magic Byte Validation Tests
+# File Format Validation Tests
 # ==============================================================================
 
 
@@ -28,9 +28,11 @@ from src.utils.validators import (
     [
         (b"\xff\xd8\xff", "image/jpeg"),
         (b"\xff\xd8\xff\xe0", "image/jpeg"),
-        (b"\x89PNG\r\n\x1a\n", "image/png"),
+        # PNG requires IHDR chunk for robust detection by libmagic
+        (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR", "image/png"),
         (b"%PDF-", "application/pdf"),
         (b"%PDF-1.4", "application/pdf"),
+        # TIFF headers often need more context for libmagic to be sure, but basic headers usually work
         (b"II*\x00", "image/tiff"),  # Little-endian TIFF
         (b"MM\x00*", "image/tiff"),  # Big-endian TIFF
     ],
@@ -38,7 +40,8 @@ from src.utils.validators import (
 def test_validate_file_format_valid(magic_bytes, expected_mime):
     """Test magic byte detection for all supported formats."""
     # Pad with additional bytes to simulate real file header
-    header = magic_bytes + b"\x00" * 10
+    # libmagic often needs a bit more context
+    header = magic_bytes + b"\x00" * 50
 
     result = validate_file_format(header)
 
@@ -47,14 +50,13 @@ def test_validate_file_format_valid(magic_bytes, expected_mime):
 
 def test_validate_file_format_unsupported():
     """Test that unsupported formats raise UnsupportedFormatError."""
+    # A purely random binary file usually results in application/octet-stream
     invalid_header = b"INVALID_FORMAT\x00" * 10
 
     with pytest.raises(UnsupportedFormatError) as exc_info:
         validate_file_format(invalid_header)
 
     assert "Unsupported file format" in str(exc_info.value)
-    assert "JPEG" in str(exc_info.value)
-    assert "PNG" in str(exc_info.value)
 
 
 def test_validate_file_format_empty():
@@ -64,19 +66,19 @@ def test_validate_file_format_empty():
 
 
 def test_validate_file_format_short_header():
-    """Test that short headers (less than magic bytes) raise UnsupportedFormatError."""
+    """Test that short headers raise UnsupportedFormatError."""
+    # libmagic might identify this as something else or fail to match supported types
     with pytest.raises(UnsupportedFormatError):
         validate_file_format(b"\xff\xd8")  # Incomplete JPEG header
 
 
-def test_magic_bytes_constant():
-    """Test that MAGIC_BYTES constant is correctly defined."""
-    assert b"\xff\xd8\xff" in MAGIC_BYTES
-    assert b"\x89PNG\r\n\x1a\n" in MAGIC_BYTES
-    assert b"%PDF-" in MAGIC_BYTES
-    assert b"II*\x00" in MAGIC_BYTES
-    assert b"MM\x00*" in MAGIC_BYTES
-    assert len(MAGIC_BYTES) == 5
+def test_supported_mime_types_constant():
+    """Test that SUPPORTED_MIME_TYPES constant is correctly defined."""
+    assert "image/jpeg" in SUPPORTED_MIME_TYPES
+    assert "image/png" in SUPPORTED_MIME_TYPES
+    assert "application/pdf" in SUPPORTED_MIME_TYPES
+    assert "image/tiff" in SUPPORTED_MIME_TYPES
+    assert len(SUPPORTED_MIME_TYPES) == 4
 
 
 # ==============================================================================

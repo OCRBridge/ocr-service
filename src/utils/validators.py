@@ -2,6 +2,7 @@
 
 from typing import IO
 
+import magic
 import structlog
 from fastapi import HTTPException, UploadFile
 
@@ -22,22 +23,21 @@ class FileTooLargeError(Exception):
     pass
 
 
-# Magic byte signatures for supported formats
-MAGIC_BYTES = {
-    b"\xff\xd8\xff": "image/jpeg",  # JPEG
-    b"\x89PNG\r\n\x1a\n": "image/png",  # PNG
-    b"%PDF-": "application/pdf",  # PDF
-    b"II*\x00": "image/tiff",  # TIFF (little-endian)
-    b"MM\x00*": "image/tiff",  # TIFF (big-endian)
+# Supported MIME types
+SUPPORTED_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "application/pdf",
+    "image/tiff",
 }
 
 
 def validate_file_format(file_header: bytes) -> str:
     """
-    Validate file format using magic bytes.
+    Validate file format using python-magic (libmagic).
 
     Args:
-        file_header: First 8-12 bytes of the file
+        file_header: File header bytes (at least 2048 bytes recommended)
 
     Returns:
         MIME type string if format is supported
@@ -45,11 +45,19 @@ def validate_file_format(file_header: bytes) -> str:
     Raises:
         UnsupportedFormatError: If format is not supported
     """
-    for magic, mime_type in MAGIC_BYTES.items():
-        if file_header.startswith(magic):
-            return mime_type
+    try:
+        # Detect MIME type from buffer
+        mime_type = magic.from_buffer(file_header, mime=True)
+    except Exception as e:
+        logger.error("magic_detection_failed", error=str(e))
+        raise UnsupportedFormatError(f"Failed to detect file format: {e}")
 
-    raise UnsupportedFormatError("Unsupported file format. Supported: JPEG, PNG, PDF, TIFF")
+    if mime_type not in SUPPORTED_MIME_TYPES:
+        raise UnsupportedFormatError(
+            f"Unsupported file format: {mime_type}. Supported: JPEG, PNG, PDF, TIFF"
+        )
+
+    return mime_type
 
 
 def validate_file_size(file_size: int) -> None:
@@ -83,8 +91,8 @@ def validate_upload_file(file: IO[bytes]) -> tuple[str, int]:
         UnsupportedFormatError: If format not supported
         FileTooLargeError: If file too large
     """
-    # Read magic bytes
-    header = file.read(12)
+    # Read header for magic detection (2KB is usually sufficient)
+    header = file.read(2048)
     mime_type = validate_file_format(header)
 
     # Reset file pointer

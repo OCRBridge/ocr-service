@@ -3,7 +3,7 @@ name = "restful-ocr"
 version = "2.0.0"
 description = "RESTful OCR API service with modular engine architecture (v2)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 # Base dependencies: Core API service (engines installed separately)
 dependencies = [
     "fastapi>=0.104.0",
@@ -17,6 +17,8 @@ dependencies = [
     # Pin opencv-python-headless to avoid broken 4.11.0.86 release
     # See: https://github.com/opencv/opencv-python/issues (version 4.11.0.86 has missing attributes)
     "opencv-python-headless>=4.8.0,<4.11.0",
+    # File type validation
+    "python-magic>=0.4.27",
     # OCR Bridge Core (required for engine support)
     "ocrbridge-core>=2.0.0",
 ]
