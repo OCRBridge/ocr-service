@@ -1,35 +1,23 @@
 """Health check and metrics endpoints."""
 
 import structlog
-from fastapi import APIRouter, Depends
-from redis import asyncio as aioredis
-
-from src.api.dependencies import get_redis
+from fastapi import APIRouter
 
 router = APIRouter()
 logger = structlog.get_logger()
 
 
 @router.get("/health")
-async def health_check(redis: aioredis.Redis = Depends(get_redis)):
+async def health_check():
     """
-    Health check endpoint with Redis connection verification.
+    Health check endpoint.
 
     Returns:
         Health status and version information
     """
-    # Check Redis connection
-    try:
-        await redis.ping()  # type: ignore[misc]
-        redis_status = "connected"
-    except Exception as e:
-        logger.error("health_check_redis_failed", error=str(e))
-        redis_status = "disconnected"
-
     return {
-        "status": "healthy" if redis_status == "connected" else "degraded",
-        "version": "1.0.0",
-        "redis": redis_status,
+        "status": "healthy",
+        "version": "2.0.0",
     }
 
 

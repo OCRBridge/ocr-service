@@ -1,4 +1,4 @@
-"""Background cleanup service for expired files and Redis keys."""
+"""Background cleanup service for expired files."""
 
 import time
 from pathlib import Path

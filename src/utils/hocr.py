@@ -62,7 +62,7 @@ def parse_hocr(hocr_content: str) -> HOCRInfo:
     has_bounding_boxes = "bbox" in hocr_content
 
     return HOCRInfo(
-        page_count=max(page_count, 1),  # At least 1 page
+        page_count=page_count,  # Return actual count
         word_count=word_count,
         has_bounding_boxes=has_bounding_boxes,
     )
@@ -102,8 +102,8 @@ def extract_bbox(element_title: str) -> tuple[int, int, int, int] | None:
     """
     match = re.search(r"bbox (\d+) (\d+) (\d+) (\d+)", element_title)
     if match:
-        groups = match.groups()
-        return (int(groups[0]), int(groups[1]), int(groups[2]), int(groups[3]))
+        coords = match.groups()
+        return (int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3]))
     return None
 
 
