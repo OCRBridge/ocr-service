@@ -127,23 +127,29 @@ curl -X POST http://localhost:8000/v2/ocr/process \
   -F "file=@document.pdf" \
   -F "engine=tesseract"
 
-# Process with custom parameters (JSON string)
+# Process with custom parameters (Individual form fields)
 curl -X POST http://localhost:8000/v2/ocr/process \
   -F "file=@document.pdf" \
   -F "engine=tesseract" \
-  -F 'params={"lang": "eng+fra", "psm": 3, "dpi": 300}'
+  -F "lang=eng+fra" \
+  -F "psm=3" \
+  -F "dpi=300"
 
 # Process with EasyOCR (if installed)
+# List parameters can be passed by repeating the field
 curl -X POST http://localhost:8000/v2/ocr/process \
   -F "file=@document.pdf" \
   -F "engine=easyocr" \
-  -F 'params={"languages": ["en", "ch_sim"], "text_threshold": 0.7}'
+  -F "languages=en" \
+  -F "languages=ch_sim" \
+  -F "text_threshold=0.7"
 
 # Process with ocrmac (macOS only, if installed)
 curl -X POST http://localhost:8000/v2/ocr/process \
   -F "file=@document.pdf" \
   -F "engine=ocrmac" \
-  -F 'params={"languages": ["en-US"], "recognition_level": "accurate"}'
+  -F "languages=en-US" \
+  -F "recognition_level=accurate"
 ```
 
 **Response**:
@@ -317,7 +323,7 @@ ocr-service/
 │   ├── api/
 │   │   └── routes/
 │   │       └── v2/
-│   │           └── ocr.py          # V2 unified OCR endpoints
+│   │           └── dynamic_routes.py # V2 unified OCR endpoints
 │   ├── services/
 │   │   └── ocr/
 │   │       └── registry_v2.py      # Entry point discovery registry
@@ -391,8 +397,8 @@ Built with:
   - Includes `name`, `class`, `supported_formats`, `has_param_model`, and `params_schema` (JSON Schema for engine params when available).
 - `GET /v2/ocr/{engine}/info`: Returns metadata for a specific engine, including `params_schema`.
 - `POST /v2/ocr/{engine}/process`:
-  - `multipart/form-data` with `file` and optional `params_json` (stringified JSON matching `params_schema`).
-  - If the engine has a Pydantic params model, `params_json` is validated against it before processing.
+  - `multipart/form-data` with `file` and engine-specific parameters as individual form fields.
+  - Parameters are dynamically registered in the OpenAPI schema and validated against the engine's Pydantic model.
 
 Example:
 

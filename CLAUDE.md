@@ -163,22 +163,23 @@ engine_class = entry_point.load()  # e.g., TesseractEngine
 
 ### 2. Dynamic OCR Endpoints (api/routes/v2/dynamic_routes.py)
 
-Per-engine endpoints are generated for each discovered OCR engine:
+Per-engine endpoints are generated for each discovered OCR engine, with parameters exposed directly in the OpenAPI schema:
 
 ```python
 POST /v2/ocr/<engine>/process
 - file: UploadFile (required)
-- params_json: Optional[str] (JSON string, engine-specific)
+- **dynamic_params**: Individual Form fields matching engine's Pydantic model
 ```
 
 **Flow:**
 1. Discover engines via entry points at startup
 2. Register `/v2/ocr/<engine>/process` for each engine
-3. Parse `params_json` and validate with the engine's Pydantic model (if present)
-4. Save uploaded file to a temp path
-5. Process in thread pool with a 30s timeout
-6. Return HOCR + metadata
-7. Cleanup temp file
+3. Use `inspect` module to dynamically generate the route handler signature
+4. Convert engine's Pydantic model fields into `Annotated[T, Form()]` parameters
+5. Validates incoming form data against the engine's model automatically via FastAPI
+6. Process in thread pool with a 30s timeout
+7. Return HOCR + metadata
+8. Cleanup temp file
 
 ### 3. Testing with Mock Engines
 
@@ -309,13 +310,14 @@ GET /v2/ocr/engines/{engine_name}/schema
 
 # Per-engine processing
 POST /v2/ocr/tesseract/process
-    form: file=<UploadFile>, params_json="{\"lang\": \"eng\", \"psm\": 6}"
+    form: file=<UploadFile>, lang="eng", psm=6
 
 POST /v2/ocr/easyocr/process
-    form: file=<UploadFile>, params_json="{\"languages\": [\"en\"], \"text_threshold\": 0.7}"
+    form: file=<UploadFile>, languages=["en"], text_threshold=0.7
 
 # Notes
-- `params_json` is optional. If provided, it's validated against the engine's model.
+- Parameters are passed as standard `multipart/form-data` fields.
+- Validated against the engine's model (exposed in OpenAPI).
 - Response: {"hocr": "...", "processing_duration_seconds": 2.5, "engine": "tesseract", "pages": 1}
 ```
 
