@@ -9,8 +9,6 @@ from pydantic import Field
 """Mock OCR engine implementations for testing."""
 
 
-
-
 class MockTesseractParams(OCREngineParams):
     """Mock parameters for Tesseract engine."""
 
