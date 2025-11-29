@@ -46,6 +46,6 @@ def test_create_form_params_defaults():
     """Test default values are preserved."""
     params = create_form_params_from_model(ComplexModel)
 
-    # The default is a Form object, check its default attribute
-    assert params["options"].default.default == [1, 2]
-    assert params["gpu"].default.default is True
+    # The default value is set directly on the Parameter object
+    assert params["options"].default == [1, 2]
+    assert params["gpu"].default is True
