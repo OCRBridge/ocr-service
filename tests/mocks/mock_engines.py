@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ocrbridge.core import OCREngine
 from ocrbridge.core.models import OCREngineParams
+
 from specs.schemas import TesseractParams
 
 """Mock OCR engine implementations for testing."""
