@@ -55,8 +55,5 @@ coverage.xml
 /tmp/uploads/
 /tmp/results/
 
-# Sample PDFs (large files)
-samples/*_signed.pdf
-
-# EasyOCR model files (large models, downloaded at runtime)
-.EasyOCR/
+# Sample PDFs for local testing
+samples.local/

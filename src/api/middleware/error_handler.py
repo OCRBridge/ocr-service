@@ -1,7 +1,5 @@
 """Exception handlers to convert exceptions to JSON error responses."""
 
-from typing import Any
-
 import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -10,16 +8,17 @@ from fastapi.responses import JSONResponse
 logger = structlog.get_logger()
 
 
-async def validation_exception_handler(request: Request, exc: Any) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle Pydantic validation errors (400)."""
-    logger.warning("validation_error", errors=exc.errors())
+    errors = exc.errors() if isinstance(exc, RequestValidationError) else []
+    logger.warning("validation_error", errors=errors)
 
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={
             "detail": "Invalid request data",
             "error_code": "validation_error",
-            "errors": exc.errors(),
+            "errors": errors,
         },
     )
 

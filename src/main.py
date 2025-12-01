@@ -8,14 +8,14 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
-from redis import asyncio as aioredis
 
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
+from src.api.routes import health
+from src.api.routes.v2.dynamic_routes import register_engine_routes
 from src.config import settings
-from src.models.job import EngineType
 from src.services.cleanup import CleanupService
-from src.services.ocr.registry import EngineRegistry
+from src.services.ocr.registry_v2 import EngineRegistry
 
 # Configure structured logging
 structlog.configure(
@@ -56,30 +56,24 @@ async def cleanup_task_runner():
 async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
     # Startup
-    logger.info("application_starting", version="1.1.0")
+    logger.info("application_starting", version="2.0.0")
 
-    # Initialize EngineRegistry (detect OCR engines at startup)
+    # Initialize EngineRegistry with entry point discovery
     registry = EngineRegistry()
     app.state.engine_registry = registry
+
+    # Log discovered engines
+    discovered_engines = registry.list_engines()
     logger.info(
-        "engine_registry_initialized",
-        tesseract_available=registry.is_available(EngineType.TESSERACT),
-        ocrmac_available=registry.is_available(EngineType.OCRMAC),
+        "ocr_engines_discovered",
+        discovered_engines=discovered_engines,
+        count=len(discovered_engines),
     )
 
-    # Initialize Redis connection
-    redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
-    app.state.redis = redis_client
+    # Dynamically register engine routes
+    register_engine_routes(app, registry)
 
-    # Verify Redis connection
-    try:
-        await redis_client.ping()  # type: ignore[misc]
-        logger.info("redis_connected", url=settings.redis_url)
-    except Exception as e:
-        logger.error("redis_connection_failed", error=str(e))
-        raise
-
-    # Start cleanup background task (US3 - T096)
+    # Start cleanup background task
     cleanup_task = asyncio.create_task(cleanup_task_runner())
     app.state.cleanup_task = cleanup_task
 
@@ -95,20 +89,19 @@ async def lifespan(app: FastAPI):
     with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
 
-    await redis_client.close()
     logger.info("application_shutdown_complete")
 
 
 # Create FastAPI application
 app = FastAPI(
     title="RESTful OCR API",
-    description="OCR document processing service with HOCR output",
-    version="1.1.0",
+    description="OCR document processing service with modular engine architecture",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
 # Add middleware
-app.add_middleware(LoggingMiddleware)
+app.add_middleware(LoggingMiddleware)  # type: ignore[reportInvalidArgumentType]
 
 # Add exception handlers
 add_exception_handlers(app)
@@ -117,11 +110,5 @@ add_exception_handlers(app)
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
-
-# Import and register routes
-from src.api.routes import health, jobs, sync, upload  # noqa: E402
-
-app.include_router(upload.router, tags=["upload"])
-app.include_router(jobs.router, tags=["jobs"])
-app.include_router(sync.router, prefix="/sync", tags=["sync"])
+# Register health routes
 app.include_router(health.router, tags=["health"])
