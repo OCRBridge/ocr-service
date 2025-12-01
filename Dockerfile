@@ -33,7 +33,7 @@ FROM base AS lite_builder
 
 # Install Python dependencies for the 'tesseract' optional group
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev --group tesseract
+    uv sync --locked --no-install-project --no-dev --extra tesseract
 
 # Copy application source (after dependencies for optimal caching)
 COPY src ./src
@@ -88,7 +88,7 @@ FROM base AS full_builder
 
 # Install Python dependencies for the 'full' optional group
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev --group full
+    uv sync --locked --no-install-project --no-dev --extra full
 
 # Copy application source (after dependencies for optimal caching)
 COPY src ./src
