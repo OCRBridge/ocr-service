@@ -35,27 +35,31 @@ uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 ### Testing
 
-**Important**: Tests are marked with two custom markers:
-- `@pytest.mark.slow` - Slow tests (EasyOCR integration, skipped by default in CI)
-- `@pytest.mark.macos` - macOS-only tests (ocrmac engine, skipped on Linux)
+**Important**: Tests are marked with engine-specific markers:
+- `@pytest.mark.tesseract` - Tesseract tests
+- `@pytest.mark.easyocr` - EasyOCR tests (slow, deep learning)
+- `@pytest.mark.ocrmac` - Ocrmac tests (macOS-only)
 
 ```bash
-# Run fast tests only (excluding slow and macOS-only)
-make test              # Uses: pytest -m "not macos and not slow"
+# Run fast tests only (excluding EasyOCR and Ocrmac)
+make test              # Uses: pytest -m "not ocrmac and not easyocr"
 
 # Run specific test types
 make test-unit         # Unit tests only
 make test-integration  # Integration tests only
-make test-e2e          # E2E tests (excluding slow)
-make test-e2e-slow     # Slow E2E tests (EasyOCR)
+make test-e2e          # E2E tests
 
-# Run all tests including slow ones
-make test-slow         # Uses: pytest --run-slow
-make test-all          # All tests including macOS (if on macOS)
+# Run specific engine tests
+make test-tesseract    # Tesseract tests
+make test-easyocr      # EasyOCR tests
+make test-macos        # Ocrmac tests (if on macOS)
+
+# Run all tests including EasyOCR and Ocrmac
+make test-all          # All tests
 
 # Coverage reports
-make test-coverage      # HTML + XML coverage (excludes slow tests)
-make test-coverage-full # Full coverage including slow tests
+make test-coverage      # HTML + XML coverage (excludes EasyOCR)
+make test-coverage-full # Full coverage including EasyOCR
 
 # Run a single test file
 uv run pytest tests/unit/services/ocr/test_registry_v2.py -v
@@ -324,8 +328,8 @@ JOB_EXPIRATION_HOURS=48           # How long to keep job results
 
 ### Testing Guidelines
 - **Mock by default**: Unit and integration tests use mock engines to avoid binary dependencies
-- **E2E for real engines**: E2E tests use real engines but are marked `@pytest.mark.slow`
-- **Mark platform-specific tests**: Use `@pytest.mark.macos` for ocrmac tests
+- **E2E for real engines**: E2E tests use real engines and are marked with engine-specific markers
+- **Mark platform-specific tests**: Use `@pytest.mark.ocrmac` for ocrmac tests
 - **File fixtures**: Use `sample_jpeg_bytes`, `sample_png_bytes`, `sample_pdf_bytes` from conftest.py
 - **Client fixture**: Automatically injects mock registry into app state
 

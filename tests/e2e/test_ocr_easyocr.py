@@ -1,11 +1,11 @@
 """E2E tests for EasyOCR engine with real processing.
 
 These tests use the actual EasyOCR engine which is slow due to deep learning
-model initialization. All tests are marked with @pytest.mark.slow and can be
+model initialization. All tests are marked with @pytest.mark.easyocr and can be
 skipped in CI/CD pipelines.
 
-Run with: pytest -m slow
-Skip with: pytest -m "not slow"
+Run with: pytest -m easyocr
+Skip with: pytest -m "not easyocr"
 """
 
 import pytest
@@ -21,7 +21,7 @@ except ImportError:
 EASYOCR_AVAILABLE = easyocr_available
 
 pytestmark = [
-    pytest.mark.slow,
+    pytest.mark.easyocr,
     pytest.mark.skipif(not EASYOCR_AVAILABLE, reason="EasyOCR engine not installed"),
 ]
 

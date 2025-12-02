@@ -1,17 +1,18 @@
 """E2E tests for ocrmac OCR engine with real processing.
 
 These tests use the actual ocrmac engine which requires macOS (Darwin platform).
-All tests are marked with @pytest.mark.macos and will be skipped on non-macOS systems.
+All tests are marked with @pytest.mark.ocrmac and will be
+skipped on non-macOS systems.
 
-Run with: pytest -m macos
-Skip with: pytest -m "not macos"
+Run with: pytest -m ocrmac
+Skip with: pytest -m "not ocrmac"
 """
 
 import pytest
 
 # Check if ocrmac is available
 try:
-    from ocrbridge.engines.ocrmac import OcrmacEngine
+    from ocrbridge.engines.ocrmac import OcrmacEngine  # type: ignore
 
     ocrmac_available = True
 except ImportError:
@@ -20,7 +21,7 @@ except ImportError:
 OCRMAC_AVAILABLE = ocrmac_available
 
 pytestmark = [
-    pytest.mark.macos,
+    pytest.mark.ocrmac,
     pytest.mark.skipif(not OCRMAC_AVAILABLE, reason="ocrmac engine not installed"),
 ]
 
@@ -92,7 +93,7 @@ def test_ocrmac_multiline_text(ocrmac_engine, test_image_multiline):
 
 def test_ocrmac_with_languages_param(ocrmac_engine, test_image_simple_text):
     """Test ocrmac with languages parameter."""
-    from ocrbridge.engines.ocrmac import OcrmacParams
+    from ocrbridge.engines.ocrmac import OcrmacParams  # type: ignore
 
     params = OcrmacParams(languages=["en-US"])
     result = ocrmac_engine.process(test_image_simple_text, params)
@@ -104,7 +105,7 @@ def test_ocrmac_with_languages_param(ocrmac_engine, test_image_simple_text):
 
 def test_ocrmac_with_recognition_level(ocrmac_engine, test_image_simple_text):
     """Test ocrmac with recognition level parameter."""
-    from ocrbridge.engines.ocrmac import OcrmacParams, RecognitionLevel
+    from ocrbridge.engines.ocrmac import OcrmacParams, RecognitionLevel  # type: ignore
 
     # Test with accurate recognition level
     params = OcrmacParams(recognition_level=RecognitionLevel.ACCURATE)
@@ -198,7 +199,7 @@ def test_ocrmac_different_images(ocrmac_engine, test_image_simple_text, test_ima
 
 def test_ocrmac_params_validation(ocrmac_engine, test_image_simple_text):
     """Test that invalid parameters are rejected."""
-    from ocrbridge.engines.ocrmac import OcrmacParams
+    from ocrbridge.engines.ocrmac import OcrmacParams  # type: ignore
     from pydantic import ValidationError
 
     # Invalid recognition level (must be RecognitionLevel enum)
@@ -290,7 +291,7 @@ def test_ocrmac_title_attributes(ocrmac_engine, test_image_simple_text):
 
 def test_ocrmac_multiple_languages(ocrmac_engine, test_image_simple_text):
     """Test ocrmac with multiple language codes (if supported)."""
-    from ocrbridge.engines.ocrmac import OcrmacParams
+    from ocrbridge.engines.ocrmac import OcrmacParams  # type: ignore
 
     try:
         # Try multiple languages
@@ -305,7 +306,7 @@ def test_ocrmac_multiple_languages(ocrmac_engine, test_image_simple_text):
 
 def test_ocrmac_fast_recognition_level(ocrmac_engine, test_image_simple_text):
     """Test ocrmac with fast recognition level."""
-    from ocrbridge.engines.ocrmac import OcrmacParams, RecognitionLevel
+    from ocrbridge.engines.ocrmac import OcrmacParams, RecognitionLevel  # type: ignore
 
     # Test with fast recognition level
     params = OcrmacParams(recognition_level=RecognitionLevel.FAST)

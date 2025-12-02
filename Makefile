@@ -5,12 +5,13 @@ help:
 	@echo "Available targets:"
 	@echo "  make install          - Install dependencies"
 	@echo "  make dev              - Run development server"
-	@echo "  make test             - Run tests excluding macOS-only and slow tests (for Linux CI)"
-	@echo "  make test-slow        - Run only slow tests"
-	@echo "  make test-coverage    - Run tests with HTML/XML coverage report (excluding slow)"
-	@echo "  make test-coverage-full - Run all tests with coverage (including slow)"
+	@echo "  make test             - Run tests excluding Ocrmac and EasyOCR tests (for Linux CI)"
+	@echo "  make test-tesseract   - Run only Tesseract tests"
+	@echo "  make test-easyocr     - Run only EasyOCR tests"
 	@echo "  make test-macos       - Run only macOS-specific tests (OCRMac)"
-	@echo "  make test-all         - Run all tests including slow and macOS tests"
+	@echo "  make test-coverage    - Run tests with HTML/XML coverage report (excluding EasyOCR)"
+	@echo "  make test-coverage-full - Run all tests with coverage (including EasyOCR)"
+	@echo "  make test-all         - Run all tests including EasyOCR and macOS tests"
 	@echo "  make lint             - Check code with ruff"
 	@echo "  make format           - Format code with ruff"
 	@echo "  make typecheck        - Run ty type checker"
@@ -44,24 +45,27 @@ run: dev
 
 # Testing
 test:
-	uv run pytest -m "not macos and not slow" -v
+	uv run pytest -m "not ocrmac and not easyocr" -v
 
-test-slow:
-	uv run pytest -m "slow" -v
+test-tesseract:
+	uv run pytest -m "tesseract" -v
+
+test-easyocr:
+	uv run pytest -m "easyocr" -v
 
 test-coverage:
-	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m "not slow"
+	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m "not easyocr"
 	@echo "Coverage report generated:"
 	@echo "  HTML: htmlcov/index.html"
 	@echo "  XML: coverage.xml"
 
 test-coverage-full:
 	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
-	@echo "Full coverage report (including slow tests):"
+	@echo "Full coverage report (including EasyOCR tests):"
 	@echo "  HTML: htmlcov/index.html"
 
 test-macos:
-	uv run pytest -m "macos" -v
+	uv run pytest -m "ocrmac" -v
 
 test-all:
 	uv run pytest -v

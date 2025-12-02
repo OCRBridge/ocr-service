@@ -11,6 +11,8 @@ import pytest
 # Skip all tests if Tesseract is not available
 pytest.importorskip("ocrbridge.engines.tesseract")
 
+pytestmark = pytest.mark.tesseract
+
 from ocrbridge.engines.tesseract import TesseractEngine
 
 

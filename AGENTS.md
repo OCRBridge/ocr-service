@@ -43,7 +43,7 @@ uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 ### Testing
 ```bash
-# Run standard tests (skips slow and macOS-only)
+# Run standard tests (skips EasyOCR and Ocrmac)
 make test
 
 # Run all tests
@@ -81,7 +81,7 @@ make docker-down
     *   Integration tests for API endpoints.
     *   E2E tests for full flow with engines.
     *   Contract tests for API schema validation.
-    *   Use markers (`@pytest.mark.slow`, `@pytest.mark.macos`) for conditional execution.
+    *   Use markers (`@pytest.mark.tesseract`, `@pytest.mark.easyocr`, `@pytest.mark.ocrmac`) for conditional execution.
 
 ## Directory Structure
 *   `src/`: Main application source code.

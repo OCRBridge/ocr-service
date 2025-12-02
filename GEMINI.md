@@ -79,6 +79,6 @@ make docker-compose-full-up
 ## Critical Context for AI Agent
 1.  **Modular Engines:** Do not hardcode engine logic in the main API routes. The system relies on `ocrbridge.engines` entry points.
 2.  **Unified API:** The `/v2/ocr/process` endpoint is generic. Engine-specific parameters are validated dynamically against schemas provided by the engine packages.
-3.  **macOS Specifics:** The `ocrmac` engine and its tests only run on macOS. Use markers (`@pytest.mark.macos`) when writing tests for it.
+3.  **macOS Specifics:** The `ocrmac` engine and its tests only run on macOS. Use markers (`@pytest.mark.ocrmac`) when writing tests for it.
 4.  **Environment:** Respect `.env` configuration (loaded via `pydantic-settings`).
 5.  **Dependencies:** When adding packages, remember to update `pyproject.toml` and run `uv sync`.

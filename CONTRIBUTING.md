@@ -237,7 +237,7 @@ Our test suite consists of three types of tests:
 3. **E2E Tests** (`tests/e2e/`) - Real OCR engines
    - 40 tests with actual Tesseract and EasyOCR
    - 100% pass rate for Tesseract E2E
-   - Marked with `@pytest.mark.slow` for CI flexibility
+   - Marked with `@pytest.mark.easyocr` for CI flexibility
 
 ### Running Tests
 
@@ -395,13 +395,18 @@ We provide comprehensive fixtures in `tests/conftest.py`:
 Use pytest markers to categorize tests:
 
 ```python
-# Mark slow tests (EasyOCR, large datasets)
-@pytest.mark.slow
+# Mark EasyOCR tests (deep learning)
+@pytest.mark.easyocr
 def test_easyocr_processing():
     ...
 
-# Mark macOS-only tests
-@pytest.mark.macos
+# Mark Tesseract tests
+@pytest.mark.tesseract
+def test_tesseract_processing():
+    ...
+
+# Mark Ocrmac tests
+@pytest.mark.ocrmac
 def test_ocrmac_processing():
     ...
 
