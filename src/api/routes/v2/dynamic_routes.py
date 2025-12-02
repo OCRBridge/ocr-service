@@ -6,7 +6,7 @@ engines discovered at startup via entry points.
 
 import asyncio
 import time
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, signature
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Annotated, Any
@@ -221,9 +221,7 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             return await process_document(file, registry, validated_params)
 
         # Update signature to include dynamic parameters
-        import inspect
-
-        sig = inspect.signature(handler_with_params)
+        sig = signature(handler_with_params)
         # create_signature_with_dynamic_params expects "engine_params" to be present in sig
         # to remove it and replace with dynamic params
         new_sig = create_signature_with_dynamic_params(sig, dynamic_params)

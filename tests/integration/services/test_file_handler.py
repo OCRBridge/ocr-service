@@ -20,9 +20,9 @@ def file_handler(temp_upload_dir, temp_results_dir, monkeypatch):
     # Reload config
     import importlib
 
-    import src.config
+    from src import config
 
-    importlib.reload(src.config)
+    importlib.reload(config)
 
     handler = FileHandler()
     return handler
@@ -237,9 +237,9 @@ async def test_file_handler_directory_creation(temp_upload_dir, temp_results_dir
 
     import importlib
 
-    import src.config
+    from src import config
 
-    importlib.reload(src.config)
+    importlib.reload(config)
 
     # Create handler - should create directories
     handler = FileHandler()

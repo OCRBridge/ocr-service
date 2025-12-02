@@ -23,12 +23,12 @@ def cleanup_service(temp_upload_dir, temp_results_dir, monkeypatch):
     # Reload config to pick up new env vars
     import importlib
 
-    import src.config
-    import src.services.cleanup
+    from src import config
+    from src.services import cleanup
 
-    importlib.reload(src.config)
+    importlib.reload(config)
     # Also reload cleanup module to pick up new settings reference
-    importlib.reload(src.services.cleanup)
+    importlib.reload(cleanup)
 
     from src.services.cleanup import CleanupService
 

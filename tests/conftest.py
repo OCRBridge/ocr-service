@@ -396,9 +396,9 @@ def test_settings(monkeypatch, temp_upload_dir, temp_results_dir):
     # Force reload of settings
     import importlib
 
-    import src.config
+    from src import config
 
-    importlib.reload(src.config)
+    importlib.reload(config)
 
     from src.config import settings
 

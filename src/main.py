@@ -1,9 +1,8 @@
 """FastAPI application entry point with lifecycle management."""
 
 import asyncio
-import contextlib
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import structlog
 from fastapi import FastAPI
@@ -86,7 +85,7 @@ async def lifespan(app: FastAPI):
 
     # Cancel cleanup task
     cleanup_task.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
+    with suppress(asyncio.CancelledError):
         await cleanup_task
 
     logger.info("application_shutdown_complete")

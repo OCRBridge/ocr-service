@@ -1,5 +1,6 @@
 """OCR engine registry with entry point discovery for v2 architecture."""
 
+from importlib import import_module
 from importlib.metadata import entry_points
 from typing import Any, get_type_hints
 
@@ -120,8 +121,6 @@ class EngineRegistry:
             Parameter model class or None if not found
         """
         try:
-            import importlib
-
             from ocrbridge.core.models import OCREngineParams
 
             # Get the module where the engine class is defined
@@ -138,7 +137,7 @@ class EngineRegistry:
 
             # Import parent module
             try:
-                parent_module = importlib.import_module(parent_module_name)
+                parent_module = import_module(parent_module_name)
             except ImportError:
                 return None
 

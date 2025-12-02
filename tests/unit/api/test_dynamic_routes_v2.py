@@ -1,7 +1,6 @@
 """Unit tests for dynamic route handling with complex types (v2 schemas)."""
 
-import typing
-from typing import Annotated
+from typing import Annotated, get_args, get_origin
 
 from fastapi import Form
 from pydantic import BaseModel, Field
@@ -27,16 +26,16 @@ def test_create_form_params_list_handling():
 
     # Should verify it has the correct annotation structure
     # Annotated[List[str], Form(...)]
-    assert typing.get_origin(lang_param.annotation) is Annotated
+    assert get_origin(lang_param.annotation) is Annotated
 
     # Unwrap annotation
-    args = typing.get_args(lang_param.annotation)
+    args = get_args(lang_param.annotation)
     type_arg = args[0]
     form_arg = args[1]
 
     # Verify type is List[str]
-    assert typing.get_origin(type_arg) is list
-    assert typing.get_args(type_arg)[0] is str
+    assert get_origin(type_arg) is list
+    assert get_args(type_arg)[0] is str
 
     # Verify Form info
     assert isinstance(form_arg, type(Form()))
