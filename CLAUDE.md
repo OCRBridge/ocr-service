@@ -4,429 +4,214 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RESTful OCR API service with a modular plugin architecture powered by datenzar OCR Bridge packages. The service uses Python entry points for dynamic engine discovery, allowing OCR engines to be installed independently as PyPI packages.
+RESTful OCR API service with **modular plugin architecture**. OCR engines are installed as separate PyPI packages and discovered dynamically via Python entry points. The service automatically adapts to available engines without code changes.
 
-**Key Architecture Principles:**
-- **Plugin-based engines**: OCR engines (Tesseract, EasyOCR, ocrmac) are separate PyPI packages discovered via Python entry points in the `ocrbridge.engines` group
-- **Dynamic engine routes**: Per-engine endpoints like `/v2/ocr/<engine>/process` are generated at startup
-- **Zero-code engine addition**: Installing a new engine package automatically makes it available in the API
-- **Parameter validation**: Each engine provides its own Pydantic model for parameter validation via type hints or `__param_model__` class attribute
+Core architecture:
+- **Entry Point Discovery**: Engines register via `ocrbridge.engines` entry points
+- **Dynamic Route Generation**: API routes created at runtime for each discovered engine
+- **Engine-Agnostic**: Single codebase supports any engine implementing the OCREngine protocol
+- **Package-Based**: Engines distributed as independent `ocrbridge-*` packages from datenzar
 
-## Development Commands
+## Common Commands
 
-### Package Management
-This project uses `uv` for dependency management (faster than pip):
-
+### Development
 ```bash
-# Install all dependencies including dev tools
+# Install dependencies with all engines
 uv sync --group dev --all-extras
 
-# Install with specific engine only
-uv sync --group dev --extra tesseract
-```
-
-### Running the Service
-```bash
-# Development server with auto-reload
+# Run development server
 make dev
-# or
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# Or: uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Testing
-
-**Important**: Tests are marked with engine-specific markers:
-- `@pytest.mark.tesseract` - Tesseract tests
-- `@pytest.mark.easyocr` - EasyOCR tests (slow, deep learning)
-- `@pytest.mark.ocrmac` - Ocrmac tests (macOS-only)
-
 ```bash
-# Run fast tests only (excluding EasyOCR and Ocrmac)
-make test              # Uses: pytest -m "not ocrmac and not easyocr"
+# Run tests (excludes macOS-only and slow EasyOCR tests)
+make test
+# Or: uv run pytest -m "not ocrmac and not easyocr" -v
 
-# Run specific test types
-make test-unit         # Unit tests only
-make test-integration  # Integration tests only
-make test-e2e          # E2E tests
-
-# Run specific engine tests
-make test-tesseract    # Tesseract tests
-make test-easyocr      # EasyOCR tests
-make test-macos        # Ocrmac tests (if on macOS)
-
-# Run all tests including EasyOCR and Ocrmac
-make test-all          # All tests
-
-# Coverage reports
-make test-coverage      # HTML + XML coverage (excludes EasyOCR)
-make test-coverage-full # Full coverage including EasyOCR
-
-# Run a single test file
+# Run single test file
 uv run pytest tests/unit/services/ocr/test_registry_v2.py -v
 
-# Run a single test function
-uv run pytest tests/unit/services/ocr/test_registry_v2.py::test_discover_engines -v
+# Run single test function
+uv run pytest tests/unit/services/ocr/test_registry_v2.py::test_function_name -v
 
-# Run with verbose output and stop on first failure
-uv run pytest tests/path/to/test.py -xvs
+# Run with markers
+make test-tesseract   # Tesseract tests only
+make test-easyocr     # EasyOCR tests only (slow, requires GPU)
+make test-macos       # macOS-only ocrmac tests
+make test-all         # All tests including slow ones
+
+# Coverage
+make test-coverage          # Excludes EasyOCR
+make test-coverage-full     # Includes all engines
 ```
 
 ### Code Quality
 ```bash
-make lint           # Check code with ruff
-make format         # Auto-format code with ruff
-make format-check   # Check if code is formatted (CI)
-make lint-fix       # Auto-fix linting issues
-make typecheck      # Run ty type checker
-make pre-commit     # Run all pre-commit hooks
+# Format code
+make format
+# Or: uv run ruff format
+
+# Lint
+make lint
+# Or: uv run ruff check --fix
+
+# Type check
+make typecheck
+# Or: uv run ty check
 ```
 
 ### Docker
-The project uses multi-stage Docker builds with two targets:
-- **lite**: Tesseract only (~500MB)
-- **full**: Tesseract + EasyOCR (~2.5GB, includes PyTorch)
-
 ```bash
-# Build both flavors
-make docker-build-lite   # Build lite image
-make docker-build-full   # Build full image (default)
-make docker-build-all    # Build both
+# Multi-stage builds (two flavors)
+make docker-build-lite      # Tesseract only (~500MB)
+make docker-build-full      # Tesseract + EasyOCR (~2.5GB)
+make docker-build-all       # Both images
 
-# Run with docker-compose (combines base + flavor-specific config)
-make docker-compose-lite-up    # Start lite flavor
-make docker-compose-full-up    # Start full flavor (default)
-make docker-compose-lite-down  # Stop lite
-make docker-compose-full-down  # Stop full
-
-# Standard docker commands
-make docker-up      # Start services (uses full flavor)
-make docker-down    # Stop services
-make docker-logs    # View logs
+# Run with docker-compose
+make docker-compose-full-up    # Full flavor (default)
+make docker-compose-lite-up    # Lite flavor
+make docker-up                 # Alias for full
+make docker-down
+make docker-logs
 ```
 
-## Project Structure
+## Architecture Deep Dive
 
-```
-src/
-├── api/
-│   ├── routes/
-│   │   └── v2/
-│   │       └── dynamic_routes.py   # V2 dynamic per-engine OCR endpoints
-│   └── middleware/
-│       ├── error_handler.py        # Global error handling
-│       └── logging.py              # Request/response logging
-├── services/
-│   ├── ocr/
-│   │   └── registry_v2.py          # Engine discovery via entry points
-│   ├── file_handler.py             # Temporary file management
-│   └── cleanup.py                  # Background cleanup task
-├── models/
-│   ├── responses.py                # API response models
-│   └── upload.py                   # File upload models
-├── utils/
-│   ├── hocr.py                     # HOCR validation and utilities
-│   ├── validators.py               # File size/type validation
-│   └── metrics.py                  # Prometheus metrics
-└── main.py                         # FastAPI app with lifespan management
+### Plugin Discovery System (`src/services/ocr/registry_v2.py`)
 
-tests/
-├── conftest.py                     # Shared fixtures (mock engines, file bytes)
-├── mocks/
-│   ├── mock_engines.py             # Mock engine implementations
-│   └── mock_entry_points.py        # Mock entry point factory
-├── unit/                           # Pure unit tests (no I/O)
-├── integration/                    # Integration tests (API, file I/O)
-├── e2e/                            # End-to-end tests (real engines)
-└── fixtures/                       # Sample images and expected outputs
-```
+The registry discovers engines at startup:
 
-## Core Architecture Patterns
+1. **Entry Point Scan**: Queries `entry_points(group="ocrbridge.engines")`
+2. **Class Loading**: Loads each engine class and validates it's an OCREngine subclass
+3. **Parameter Model Discovery**:
+   - Tries generic naming convention: `{EngineName}Params` from parent module
+   - Falls back to `__param_model__` class attribute
+   - Falls back to extracting from `process()` method type hints
+4. **Lazy Instantiation**: Engine classes stored; instances created on first use
 
-### 1. Engine Discovery (registry_v2.py)
+Key methods:
+- `get_engine(name)`: Returns engine instance (lazy-loaded)
+- `get_param_model(name)`: Returns Pydantic model for engine parameters
+- `validate_params(engine, params)`: Validates params against engine's model
+- `get_engine_info(name)`: Returns metadata including JSON schema
 
-The `EngineRegistry` class discovers engines via Python entry points with **zero hardcoded engine names**:
+### Dynamic Route Generation (`src/api/routes/v2/dynamic_routes.py`)
 
+Routes are generated at startup for each discovered engine:
+
+1. **Per-Engine Routers**: Creates `/v2/ocr/{engine}/process` and `/v2/ocr/{engine}/info`
+2. **Dynamic Form Parameters**: If engine has parameter model, generates FastAPI Form parameters from Pydantic fields
+3. **Signature Injection**: Modifies handler function signature to include dynamic params for OpenAPI schema
+4. **Validation**: Uses engine's parameter model for automatic validation
+
+Critical implementation details:
+- `create_form_params_from_model()`: Converts Pydantic model to Form parameters
+- `create_signature_with_dynamic_params()`: Injects params into function signature
+- Form defaults cannot be set in `Form()` (causes errors); set on Parameter object instead
+- Dynamic params placed at end of signature to avoid "keyword-only before positional" errors
+
+### Application Lifecycle (`src/main.py`)
+
+Startup sequence:
+1. Configure structured logging (structlog with JSON or console renderer)
+2. Initialize EngineRegistry (discovers engines via entry points)
+3. Register dynamic routes for each engine
+4. Start background cleanup task (hourly temp file cleanup)
+5. Mount Prometheus metrics at `/metrics`
+
+The `lifespan` context manager handles startup/shutdown orchestration.
+
+## Testing Strategy
+
+### Test Structure
+- `tests/unit/`: Pure unit tests with mocks
+- `tests/integration/`: Tests with TestClient but mocked engines
+- `tests/e2e/`: End-to-end tests with real engines (marked by engine)
+- `tests/mocks/`: Mock engines and entry points for testing
+
+### Mock System (`tests/mocks/`)
+- `mock_engines.py`: MockTesseractEngine with configurable responses
+- `mock_entry_points.py`: `mock_entry_points_factory()` patches entry point discovery
+- `conftest.py`: `mock_engine_registry` fixture patches registry initialization
+
+### Test Markers
+Defined in `pyproject.toml`:
+- `@pytest.mark.tesseract`: Tesseract-specific tests
+- `@pytest.mark.easyocr`: EasyOCR tests (slow, GPU, excluded by default)
+- `@pytest.mark.ocrmac`: macOS-only tests
+
+### Testing Dynamic Routes
+When testing routes, the `client` fixture:
+1. Bypasses lifespan (doesn't run real entry point discovery)
+2. Injects `mock_engine_registry` into `app.state.engine_registry`
+3. Calls `register_engine_routes(app, mock_engine_registry)` to create test routes
+
+## Dependencies and Packages
+
+### Core Service Dependencies
+- `ocrbridge-core>=3.1.0`: Base classes (OCREngine, OCREngineParams)
+- `fastapi>=0.123.0`: Web framework
+- `structlog>=23.2.0`: Structured logging
+- `prometheus-client>=0.19.0`: Metrics
+
+### Optional Engine Packages (installed separately)
+- `ocrbridge-tesseract>=3.0.0`: Tesseract engine (requires system `tesseract` binary)
+- `ocrbridge-easyocr>=3.1.0`: EasyOCR deep learning engine (~2GB with PyTorch)
+- `ocrbridge-ocrmac>=2.0.0`: macOS Vision framework (macOS only, incompatible with Docker)
+
+Install engines with: `pip install -e .[tesseract]` or `uv sync --extra tesseract`
+
+## Key Files Reference
+
+- `src/services/ocr/registry_v2.py`: Engine discovery and registry
+- `src/api/routes/v2/dynamic_routes.py`: Dynamic route generation
+- `src/main.py`: Application entry point and lifecycle
+- `tests/conftest.py`: Test fixtures and mocking infrastructure
+- `Dockerfile`: Multi-stage builds with `lite` and `full` targets
+- `Makefile`: Development commands
+
+## Development Patterns
+
+### Adding a New Engine
+Engines are external packages. To add support:
+1. Install the engine package (must have `ocrbridge.engines` entry point)
+2. Restart the service - routes auto-generate
+
+### Testing with Mock Engines
 ```python
-# On startup, EngineRegistry calls _discover_engines()
-# which loads all entry points from group "ocrbridge.engines"
-discovered = entry_points(group="ocrbridge.engines")
+from tests.mocks.mock_engines import MockTesseractEngine
+from tests.mocks.mock_entry_points import mock_entry_points_factory
 
-# Each entry point provides an OCREngine subclass
-engine_class = entry_point.load()  # e.g., TesseractEngine
+engines = {"tesseract": MockTesseractEngine}
+mock_ep = mock_entry_points_factory(engines)
 
-# Parameter models discovered via GENERIC naming convention:
-# 1. Get engine's module (e.g., ocrbridge.engines.tesseract.engine)
-# 2. Import parent module (e.g., ocrbridge.engines.tesseract)
-# 3. Look for {EngineName}Params (e.g., TesseractEngine → TesseractParams)
-# 4. Verify it's a subclass of OCREngineParams
-# 5. Fallback to __param_model__ class attribute
-# 6. Fallback to type hints on process() method
-
-# This works for ANY new engine without code changes!
+with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
+    registry = EngineRegistry()
 ```
 
-**Key methods:**
-- `get_engine(name)` - Lazy loads engine instance
-- `list_engines()` - Returns available engine names
-- `validate_params(engine, params)` - Validates using engine's Pydantic model
-- `get_param_model(engine)` - Returns parameter model class or None
+### Debugging Engine Discovery
+Check logs at startup for:
+- `discovering_engines`: Initial scan
+- `engine_discovered`: Each engine loaded
+- `engine_discovery_complete`: Final count
+- `route_registered`: Dynamic routes created
 
-**Architecture Principle**: The registry never imports or checks for specific engine names. All discovery is generic and works for any conforming engine package.
-
-### 2. Dynamic OCR Endpoints (api/routes/v2/dynamic_routes.py)
-
-Per-engine endpoints are generated for each discovered OCR engine, with parameters exposed directly in the OpenAPI schema:
-
-```python
-POST /v2/ocr/<engine>/process
-- file: UploadFile (required)
-- **dynamic_params**: Individual Form fields matching engine's Pydantic model
-```
-
-**Flow:**
-1. Discover engines via entry points at startup
-2. Register `/v2/ocr/<engine>/process` for each engine
-3. Use `inspect` module to dynamically generate the route handler signature
-4. Convert engine's Pydantic model fields into `Annotated[T, Form()]` parameters
-5. Validates incoming form data against the engine's model automatically via FastAPI
-6. Process in thread pool with a 30s timeout
-7. Return HOCR + metadata
-8. Cleanup temp file
-
-### 3. Testing with Mock Engines
-
-Tests use mock engines to avoid requiring actual OCR binaries:
-
-```python
-# conftest.py provides mock_engine_registry fixture
-# which patches entry_points to return MockTesseractEngine and MockEasyOCREngine
-
-@pytest.fixture
-def mock_engine_registry():
-    engines = {"tesseract": MockTesseractEngine, "easyocr": MockEasyOCREngine}
-    mock_ep = mock_entry_points_factory(engines)
-
-    with patch("src.services.ocr.registry_v2.entry_points", mock_ep):
-        yield EngineRegistry()
-
-# Usage in tests
-def test_endpoint(client, mock_engine_registry):
-    # client fixture injects mock_engine_registry into app.state
-    response = client.post("/v2/ocr/process", ...)
-```
-
-**Important**: Tests bypass the lifespan startup to inject a mock registry and explicitly call `register_engine_routes(app, registry)` to include dynamic routes.
-
-### 4. Background Cleanup Task
-
-The `CleanupService` runs hourly to remove expired temporary files:
-
-```python
-# Started in lifespan context (main.py)
-cleanup_task = asyncio.create_task(cleanup_task_runner())
-app.state.cleanup_task = cleanup_task
-
-# Cancelled gracefully on shutdown
-cleanup_task.cancel()
-```
-
-## Clean Architecture: Core vs. Engine Responsibilities
-
-### **ocrbridge-core (Base Abstractions)**
-- **Defines contracts**: `OCREngine` base class, `OCREngineParams` base model
-- **Provides generic HOCR utilities**: `parse_hocr()`, `validate_hocr()`, `extract_bbox()`
-- **NO engine-specific code**: No imports from engine packages, no engine name checks
-- **HOCR validation only**: Core validates HOCR output but doesn't generate it
-
-### **Engine Packages (Implementations)**
-- **HOCR generation**: Each engine is responsible for producing valid HOCR XML from its native output
-- **Parameter validation**: Each engine defines its own `{EngineName}Params` model
-- **Self-contained**: Engines may have internal utilities (e.g., EasyOCR's `hocr.py` for format conversion)
-
-**Example**: EasyOCR's native output is `[(bbox, text, confidence), ...]`. The EasyOCR engine package contains `hocr.to_hocr()` to convert this to HOCR. Tesseract natively outputs HOCR, so it needs no conversion.
-
-## Engine Development
-
-To add a new OCR engine:
-
-1. Create package depending on `ocrbridge-core>=2.0.0`
-2. Implement `OCREngine` from `ocrbridge.core`:
-   ```python
-   from ocrbridge.core import OCREngine, OCREngineParams
-   from pathlib import Path
-
-   class MyEngineParams(OCREngineParams):
-       """Parameters for MyEngine."""
-       param1: str
-       param2: int = 100
-
-   class MyEngine(OCREngine):
-       """MyEngine OCR implementation."""
-
-       @property
-       def name(self) -> str:
-           return "myengine"
-
-       @property
-       def supported_formats(self) -> set[str]:
-           return {".jpg", ".png", ".pdf"}
-
-       def process(self, file_path: Path, params: OCREngineParams | None = None) -> str:
-           """Process document and return HOCR XML.
-
-           This method MUST return valid HOCR XML. Use ocrbridge.core.utils
-           for validation, but conversion from native format is engine's job.
-           """
-           # Your OCR processing logic here
-           # Must return HOCR XML string
-           return hocr_xml
-   ```
-
-3. Export both classes from package's `__init__.py`:
-   ```python
-   # src/ocrbridge/engines/myengine/__init__.py
-   from .engine import MyEngine
-   from .models import MyEngineParams
-
-   __all__ = ["MyEngine", "MyEngineParams"]
-   ```
-
-4. Add entry point in `pyproject.toml`:
-   ```toml
-   [project.entry-points."ocrbridge.engines"]
-   myengine = "ocrbridge.engines.myengine:MyEngine"
-   ```
-
-5. **Naming Convention**: Export `{EngineName}Params` from package root for automatic discovery
-   - `TesseractEngine` → `TesseractParams`
-   - `EasyOCREngine` → `EasyOCRParams`
-   - `MyEngine` → `MyParams`
-
-The service will automatically discover and register the engine on startup with zero code changes!
-
-## Configuration
-
-Environment variables (see `src/config.py`):
-
+### Running Tests with Real Engines
+E2E tests require actual engine packages installed:
 ```bash
-# API
-MAX_UPLOAD_SIZE_MB=25             # Max file size for uploads
-SYNC_MAX_FILE_SIZE_MB=5           # Max file size for sync endpoints
-SYNC_TIMEOUT_SECONDS=30           # Timeout for sync OCR requests
+# Install Tesseract engine and system binary
+uv sync --extra tesseract
+# System: brew install tesseract (macOS) or apt-get install tesseract-ocr (Linux)
 
-# Logging
-LOG_LEVEL=INFO                    # DEBUG, INFO, WARNING, ERROR
-LOG_FORMAT=json                   # json or console
-
-# Storage
-JOB_EXPIRATION_HOURS=48           # How long to keep job results
+# Run Tesseract E2E tests
+uv run pytest tests/e2e/test_ocr_tesseract.py -v
 ```
 
-**Note**: Engine-specific parameters (e.g., Tesseract lang/psm) are NOT in config. They're passed per-request via the API and validated against each engine's Pydantic model.
+## Environment Variables
 
-## Important Development Notes
-
-### Testing Guidelines
-- **Mock by default**: Unit and integration tests use mock engines to avoid binary dependencies
-- **E2E for real engines**: E2E tests use real engines and are marked with engine-specific markers
-- **Mark platform-specific tests**: Use `@pytest.mark.ocrmac` for ocrmac tests
-- **File fixtures**: Use `sample_jpeg_bytes`, `sample_png_bytes`, `sample_pdf_bytes` from conftest.py
-- **Client fixture**: Automatically injects mock registry into app state
-
-### Code Quality Standards
-- **Line length**: 100 characters (ruff config)
-- **Type hints**: Required for all function signatures (ty enforces)
-- **Import order**: Ruff enforces isort-compatible ordering (E, F, I, N, W rules)
-- **Async patterns**: Use `asyncio.to_thread()` for blocking OCR operations
-- **Structured logging**: Use structlog with JSON output in production
-
-### Common Patterns
-- **Temporary files**: Always use context managers and `missing_ok=True` for cleanup
-- **Registry access**: Use `Depends(get_registry)` in route handlers
-- **Error handling**: Raise HTTPException with appropriate status codes
-- **Background tasks**: Use asyncio.create_task() and cancel gracefully in lifespan
-
-### Anti-patterns to Avoid
-- Don't access `_engine_classes`, `_engine_instances`, `_param_models` directly (use public methods)
-- Don't skip file validation in endpoints (security issue)
-- Don't block async endpoints with synchronous I/O (use thread pool)
-- **Don't hardcode engine names** anywhere outside tests (use registry.list_engines())
-- **Don't add engine-specific code to ocrbridge-core** (violates plugin architecture)
-- **Don't put engine-specific utilities in service layer** (belongs in engine packages)
-- Don't commit test output files (add to .gitignore)
-
-### Clean Architecture Checklist
-✅ Registry uses generic naming convention for param model discovery
-✅ Core package has no engine-specific imports or logic
-✅ HOCR generation is each engine's responsibility
-✅ Service layer doesn't know about specific engines
-✅ Config has no engine-specific parameters
-✅ Adding a new engine requires ZERO service code changes
-
-## API Endpoints
-
-```bash
-# Health check
-GET /health
-
-# Prometheus metrics
-GET /metrics
-
-# List available engines
-GET /v2/ocr/engines
-# Returns: {"engines": ["tesseract", "easyocr"], "count": 2, "details": [...]}
-
-# Get engine parameter schema
-GET /v2/ocr/engines/{engine_name}/schema
-# Returns: JSON schema for engine's Pydantic parameter model
-
-# Per-engine processing
-POST /v2/ocr/tesseract/process
-    form: file=<UploadFile>, lang="eng", psm=6
-
-POST /v2/ocr/easyocr/process
-    form: file=<UploadFile>, languages=["en"], text_threshold=0.7
-
-# Notes
-- Parameters are passed as standard `multipart/form-data` fields.
-- Validated against the engine's model (exposed in OpenAPI).
-- Response: {"hocr": "...", "processing_duration_seconds": 2.5, "engine": "tesseract", "pages": 1}
-```
-
-## Deployment
-
-### Production Considerations
-- Service is **fully stateless** - safe for horizontal scaling
-- Install only needed engines to minimize image size
-- Use GPU-enabled base image for EasyOCR performance
-- Health endpoint: `/health` (liveness/readiness probes)
-- Metrics endpoint: `/metrics` (Prometheus scraping)
-- **ocrmac not compatible with Docker** (requires native macOS, not Linux containers)
-
-### Multi-stage Docker Strategy
-- **lite target**: Production deployments with Tesseract only (minimal footprint)
-- **full target**: Deployments requiring EasyOCR (GPU-accelerated environments)
-- Base + flavor-specific docker-compose files for flexibility
-
-## Troubleshooting
-
-**No engines detected:**
-```bash
-# Check installed packages
-pip list | grep ocrbridge
-
-# Check logs for discovery errors
-# Look for: "ocr_engines_discovered" with count=0
-```
-
-**Import errors:**
-```bash
-# For Tesseract: ensure binary installed
-which tesseract
-
-# For ocrmac: only works on macOS
-uname -s  # Should return "Darwin"
-```
-
-**Protected member access warnings in tests:**
-These are expected in test files that need to verify internal state (e.g., `registry._engine_instances`). Tests are allowed to access protected members for validation.
+Defined in `src/config.py`:
+- `MAX_UPLOAD_SIZE_MB`: Max file upload size (default: 5)
+- `LOG_LEVEL`: Logging level (default: INFO)
+- `LOG_FORMAT`: "json" or "console" (default: json)
