@@ -146,7 +146,9 @@ class EngineRegistry:
                 error=str(e),
                 error_type=type(e).__name__,
             )
-            # Don't fail startup, just log the error
+            # In strict mode, we want to fail startup if discovery fails
+            if settings.strict_engine_loading:
+                raise
 
     def _discover_param_model_generic(self, engine_class: type[Any]) -> type[Any] | None:
         """Discover parameter model using generic naming convention.

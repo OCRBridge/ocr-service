@@ -1,11 +1,23 @@
 """Exception handlers to convert exceptions to JSON error responses."""
 
 import structlog
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 logger = structlog.get_logger()
+
+
+async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle HTTP exceptions (preserve status code)."""
+    assert isinstance(exc, HTTPException)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "error_code": "http_error",
+        },
+    )
 
 
 async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -43,5 +55,6 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 def add_exception_handlers(app: FastAPI) -> None:
     """Register all exception handlers to the FastAPI app."""
+    app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)

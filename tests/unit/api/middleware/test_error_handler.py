@@ -3,7 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
@@ -12,6 +12,7 @@ from starlette.requests import Request
 from src.api.middleware.error_handler import (
     add_exception_handlers,
     generic_exception_handler,
+    http_exception_handler,
     validation_exception_handler,
 )
 
@@ -222,3 +223,23 @@ async def test_validation_handler_response_structure():
     assert isinstance(content["detail"], str)
     assert isinstance(content["error_code"], str)
     assert isinstance(content["errors"], list)
+
+
+@pytest.mark.asyncio
+async def test_http_exception_handler():
+    """Test that http exception handler returns correct status and content."""
+    exc = HTTPException(status_code=418, detail="I'm a teapot")
+    request = create_mock_request()
+
+    response = await http_exception_handler(request, exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 418
+
+    import json
+
+    assert isinstance(response.body, bytes)
+    content = json.loads(response.body.decode())
+
+    assert content["detail"] == "I'm a teapot"
+    assert content["error_code"] == "http_error"

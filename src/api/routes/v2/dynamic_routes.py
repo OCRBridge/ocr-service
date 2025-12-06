@@ -266,6 +266,9 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 status_code=400,
                 detail="Invalid parameters. Please check your request.",
             )
+        except HTTPException:
+            # Re-raise HTTP exceptions (like 503 from circuit breaker) as-is
+            raise
         except Exception as e:
             logger.error(
                 "ocr_processing_failed",
