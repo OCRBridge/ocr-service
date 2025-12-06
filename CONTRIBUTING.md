@@ -245,6 +245,11 @@ Our test suite consists of three types of tests:
 # Quick test (excludes slow tests and macOS-only)
 make test
 
+# Run specific test suites
+make test-unit
+make test-integration
+make test-contract
+
 # Run slow tests (EasyOCR)
 make test-slow
 

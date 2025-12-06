@@ -66,7 +66,7 @@ test-easyocr:
 	uv run pytest -m "easyocr" -v
 
 test-coverage:
-	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m "not easyocr"
+	uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m "not easyocr and not ocrmac"
 	@echo "Coverage report generated:"
 	@echo "  HTML: htmlcov/index.html"
 	@echo "  XML: coverage.xml"
