@@ -6,6 +6,9 @@ help:
 	@echo "  make install          - Install dependencies"
 	@echo "  make dev              - Run development server"
 	@echo "  make test             - Run tests excluding Ocrmac and EasyOCR tests (for Linux CI)"
+	@echo "  make test-unit        - Run unit tests"
+	@echo "  make test-integration - Run integration tests"
+	@echo "  make test-contract    - Run contract tests"
 	@echo "  make test-tesseract   - Run only Tesseract tests"
 	@echo "  make test-easyocr     - Run only EasyOCR tests"
 	@echo "  make test-macos       - Run only macOS-specific tests (OCRMac)"
@@ -46,6 +49,15 @@ run: dev
 # Testing
 test:
 	uv run pytest -m "not ocrmac and not easyocr" -v
+
+test-unit:
+	uv run pytest tests/unit -v
+
+test-integration:
+	uv run pytest tests/integration -v
+
+test-contract:
+	uv run pytest tests/contract -v
 
 test-tesseract:
 	uv run pytest -m "tesseract" -v

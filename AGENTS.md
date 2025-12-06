@@ -74,7 +74,7 @@ make docker-down
 *   **Commits:** Follow Conventional Commits. Use `make commit` to use the Commitizen CLI.
 *   **Architecture:**
     *   **Core:** `src/` contains the API service.
-    *   **Packages:** `packages/` contains the reusable libraries (`ocrbridge-core`, etc.).
+    *   **Packages:** Managed via `uv` and `pyproject.toml`. Engines are installed as separate packages.
     *   **Entry Points:** Engines are discovered via `project.entry-points."ocrbridge.engines"` in `pyproject.toml`.
 *   **Testing:**
     *   Unit tests for logic.
@@ -88,9 +88,5 @@ make docker-down
     *   `api/`: FastAPI routes and dependencies.
     *   `models/`: Pydantic models.
     *   `services/`: Business logic (file handling, engine registry).
-*   `packages/`: Local dependencies (monorepo style).
-    *   `ocrbridge-core`: Base classes and interfaces.
-    *   `ocrbridge-tesseract`: Tesseract engine implementation.
-    *   `ocrbridge-easyocr`: EasyOCR engine implementation.
 *   `tests/`: Comprehensive test suite.
 *   `samples/`: Sample images/PDFs for testing.

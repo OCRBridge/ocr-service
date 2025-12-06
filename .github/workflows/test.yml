@@ -18,15 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: uv sync --group dev --all-extras
@@ -58,6 +59,14 @@ jobs:
           flags: unittests,integration
           name: fast-tests
 
+      - name: Upload .coverage artifact
+        if: matrix.python-version == '3.10'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-fast
+          path: .coverage
+          include-hidden-files: true
+
   test-e2e:
     name: E2E Tests (Tesseract)
     runs-on: ubuntu-latest
@@ -65,15 +74,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies (Tesseract only)
         run: uv sync --group dev --extra tesseract
@@ -93,6 +103,13 @@ jobs:
           flags: e2e
           name: e2e-tests
 
+      - name: Upload .coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-e2e
+          path: .coverage
+          include-hidden-files: true
+
   test-easyocr:
     name: EasyOCR Tests
     runs-on: ubuntu-latest
@@ -102,15 +119,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies (EasyOCR only)
         run: uv sync --group dev --extra easyocr
@@ -127,26 +145,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
       - name: Install dependencies
         run: uv sync --group dev --all-extras
 
-      - name: Install Tesseract OCR
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev
+      - name: Download fast tests coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-fast
+          path: .
 
-      - name: Generate full coverage report
-        run: uv run pytest -m "not easyocr and not ocrmac" --cov=src --cov-report=html --cov-report=term-missing
+      - name: Rename fast coverage
+        run: mv .coverage .coverage.fast
+
+      - name: Download e2e tests coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-e2e
+          path: .
+
+      - name: Rename e2e coverage
+        run: mv .coverage .coverage.e2e
+
+      - name: Combine coverage
+        run: |
+          uv run coverage combine .coverage.fast .coverage.e2e
+          uv run coverage html
+          uv run coverage xml
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4

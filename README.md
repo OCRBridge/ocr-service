@@ -240,7 +240,21 @@ Configuration via environment variables:
 
 ```bash
 # API Configuration
-MAX_UPLOAD_SIZE_MB=5
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
+
+# File Storage
+UPLOAD_DIR=/tmp/uploads
+RESULTS_DIR=/tmp/results
+MAX_UPLOAD_SIZE_MB=25
+
+# Job Configuration
+JOB_EXPIRATION_HOURS=48
+
+# Synchronous Processing
+SYNC_TIMEOUT_SECONDS=30
+SYNC_MAX_FILE_SIZE_MB=5
 
 # Logging
 LOG_LEVEL=INFO
@@ -380,9 +394,14 @@ uname -s  # Should return "Darwin"
 
 Default: 100 requests/minute per IP. Configure with `RATE_LIMIT_REQUESTS`.
 
+## Documentation
+
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
 ## License
 
-[Add your license here]
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Credits
 
