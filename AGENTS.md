@@ -1,148 +1,96 @@
-# restful-ocr Development Guidelines
+# Agents Context: OCR Service
 
-Auto-generated from all feature plans. Last updated: 2025-10-18
+## Project Overview
 
-## Active Technologies
-- Python 3.11+ (001-ocr-hocr-upload)
-- FastAPI 0.104+ (Web framework)
-- Pydantic 2.5+ (Data validation)
-- Uvicorn 0.24+ (ASGI server)
-- Tesseract 5.3+ (OCR engine via pytesseract)
-- Redis 7.0+ (Job state storage)
-- pytest 7.4+ (Testing framework)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, Tesseract 5.3+ (002-tesseract-params)
-- Redis 7.0+ (job state), filesystem (temporary uploaded files) (002-tesseract-params)
-- Redis 7.0+ (job state), filesystem (temporary uploaded files, results) (003-multi-engine-ocr)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, EasyOCR (new), PyTorch (new - EasyOCR dependency), pytesseract 0.3+, Redis 7.0+ (004-easyocr-engine)
-- Redis 7.0+ (job state), filesystem (temporary uploaded files, results), configurable persistent volume (EasyOCR models, 5GB default) (004-easyocr-engine)
-- Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+ (005-remove-generic-upload)
-- pyright 1.1+ (Type checking)
-- pre-commit 3.5+ (Git hooks for code quality)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints) (006-direct-ocr-endpoints)
-- Filesystem (temporary uploaded files - cleaned up immediately after sync processing), Redis 7.0+ (job state for async endpoints only) (006-direct-ocr-endpoints)
-- Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+ (007-ocrmac-livetext-option)
-- Redis (job state for async), filesystem (temporary uploaded files) (007-ocrmac-livetext-option)
+**Name:** RESTful OCR API
+**Description:** A high-performance, modular RESTful API service for document OCR processing. It uses a plugin-based architecture to support multiple OCR engines (Tesseract, EasyOCR, Apple Vision) via a unified API.
 
-## Project Structure
+**Key Features:**
+*   **Modular Architecture:** Engines are separate Python packages (`ocrbridge-tesseract`, `ocrbridge-easyocr`, `ocrbridge-ocrmac`) that register via entry points.
+*   **Unified API:** A single `/v2/ocr/process` endpoint works with any installed engine.
+*   **Format Support:** Handles JPEG, PNG, PDF, and TIFF.
+*   **Output:** Standard HOCR (HTML-based OCR) with bounding boxes and text hierarchy.
+*   **Observability:** JSON logging (structlog) and Prometheus metrics.
 
-```
-src/                    # Application source code
-tests/                 # Test suite (TDD)
-samples/               # Test fixtures
-```
+**Tech Stack:**
+*   **Language:** Python 3.10+
+*   **Framework:** FastAPI, Uvicorn
+*   **Dependency Management:** `uv`
+*   **Linting/Formatting:** `ruff`
+*   **Type Checking:** `ty`
+*   **Testing:** `pytest`
+*   **Containerization:** Docker
 
-For detailed project structure with explanations of each directory, see [CONTRIBUTING.md - Project Structure](CONTRIBUTING.md#project-structure).
+## Building and Running
 
-## Commands
+The project uses `make` and `uv` for most tasks.
 
-### Development
+### Installation
 ```bash
-# Install dependencies
-uv sync --group dev
+# Install dependencies (including dev and all engines)
+make install
+# OR directly with uv
+uv sync --group dev --all-extras
+```
 
-# Run development server
+### Running Locally
+```bash
+# Start development server with reload
+make dev
+# OR
 uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-# Run tests
-uv run pytest                                    # All tests
-uv run pytest tests/unit/                        # Unit tests only
-uv run pytest tests/integration/                 # Integration tests only
-uv run pytest tests/contract/                    # Contract tests only
+### Testing
+```bash
+# Run standard tests (skips EasyOCR and Ocrmac)
+make test
 
-# Run tests with coverage
-uv run pytest --cov=src --cov-report=html --cov-report=term
+# Run all tests
+make test-all
 
-# Code formatting and linting
-uv run ruff format src/ tests/                   # Format code
-uv run ruff check src/ tests/                    # Check for linting errors
-uv run ruff check src/ tests/ --fix             # Auto-fix linting errors
-
-# Type checking
-uv run pyright                                   # Run type checker
-uv run pyright --watch                           # Watch mode for continuous checking
-uv run pyright src/                              # Check only src directory
-
-# Pre-commit hooks (auto-run before commits)
-uv run pre-commit install                        # Install git hooks (one-time setup)
-uv run pre-commit run --all-files                # Run all hooks manually
-uv run pre-commit run pyright                    # Run only type checking hook
-uv run pre-commit autoupdate                     # Update hook versions
+# Run specific test types
+make test-unit
+make test-integration
+make test-e2e
+make test-contract
 ```
 
 ### Docker
 ```bash
-# Start services (API + Redis)
-docker compose up -d
+# Build specific flavors
+make docker-build-lite  # Tesseract only (~500MB)
+make docker-build-full  # Tesseract + EasyOCR (~2.5GB)
 
-# Stop services
-docker compose down
-
-# View logs
-docker compose logs -f api
+# Run with Docker Compose
+make docker-up
+make docker-down
 ```
 
-### Redis
-```bash
-# Check Redis connection
-redis-cli ping
+## Development Conventions
 
-# Monitor Redis operations
-redis-cli monitor
+*   **Code Style:** Strict adherence to `ruff` for linting and formatting. Run `make lint` and `make format` before committing.
+*   **Type Safety:** 100% type compliance required via `ty`. Run `make typecheck`.
+*   **Commits:** Follow Conventional Commits. Use `make commit` to use the Commitizen CLI.
+*   **Architecture:**
+    *   **Core:** `src/` contains the API service.
+    *   **Packages:** Managed via `uv` and `pyproject.toml`. Engines are installed as separate packages.
+    *   **Entry Points:** Engines are discovered via `project.entry-points."ocrbridge.engines"` in `pyproject.toml`.
+*   **Testing:**
+    *   Unit tests for logic.
+    *   Integration tests for API endpoints.
+    *   E2E tests for full flow with engines.
+    *   Contract tests for API schema validation.
+    *   Use markers (`@pytest.mark.tesseract`, `@pytest.mark.easyocr`, `@pytest.mark.ocrmac`) for conditional execution.
 
-# Flush test data
-redis-cli flushdb
-```
+## Directory Structure
+*   `src/`: Main application source code.
+    *   `api/`: FastAPI routes and dependencies.
+    *   `models/`: Pydantic models.
+    *   `services/`: Business logic (file handling, engine registry).
+*   `tests/`: Comprehensive test suite.
+*   `samples/`: Sample images/PDFs for testing.
 
-## Code Style
-
-**Quick Reference** - See [CONTRIBUTING.md - Code Style](CONTRIBUTING.md#code-style-guidelines) for detailed guidelines and examples.
-
-### Key Conventions
-- Python 3.11+ following PEP 8 (enforced via ruff and pyright)
-- Type hints required for all function parameters and return values
-- Pydantic models for all data validation
-- Async/await for I/O operations
-- Structured logging with structlog (JSON format)
-- Coverage targets: 80% overall, 90% for utilities
-
-### Pre-commit Hooks
-Automatically run before each commit:
-- Standard checks (whitespace, EOF, YAML/JSON/TOML validation)
-- Ruff (auto-format and fix linting)
-- Pyright (type checking - currently 80 errors, work in progress)
-
-**Bypass hooks** (use sparingly): `git commit --no-verify -m "message"`
-
-## Recent Changes
-- 007-ocrmac-livetext-option: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, ocrmac 0.1+ (with framework parameter support), Redis 7.0+
-- 006-direct-ocr-endpoints: Added Python 3.11+ + FastAPI 0.104+, Pydantic 2.5+, pytesseract 0.3+, EasyOCR (latest), PyTorch (EasyOCR dependency), Redis 7.0+ (for async jobs - NOT used by sync endpoints)
-- 005-remove-generic-upload: Added Python 3.11 + FastAPI 0.104+, Pydantic 2.5+, pytest 7.4+
-
-## Platform Limitations
-
-### ocrmac (macOS-only dependency)
-- **Limitation**: ocrmac requires Apple's Vision framework, which is **unavailable in Docker containers** (even on Mac)
-- **Reason**: Docker runs a Linux VM on all host platforms, preventing access to macOS-native frameworks
-- **Impact**:
-  - ✅ Works in local macOS development (`uv run uvicorn ...`)
-  - ❌ Not available in Docker containers
-  - ✅ Tesseract and EasyOCR remain available in all environments
-- **Workaround**: Use Tesseract or EasyOCR engines for containerized deployments
-
-### ocrmac LiveText Recognition Level
-- **Library Version**: Requires ocrmac 0.1+ with `framework` parameter support
-- **Platform Requirement**: macOS Sonoma 14.0+ (LiveText framework)
-- **Limitation**: LiveText is unavailable on macOS versions < 14.0
-- **Impact**:
-  - ✅ `fast`, `balanced`, `accurate` work on macOS 10.15+ (Vision framework)
-  - ✅ `livetext` works on macOS Sonoma 14.0+ (LiveText framework)
-  - ❌ `livetext` not available on pre-Sonoma macOS or in Docker containers
-- **Error Handling**: API returns HTTP 400 with clear message if LiveText requested on incompatible system
-- **Performance**: ~174ms per image (faster than "accurate" 207ms, slower than "fast" 131ms)
-
-### Docker base image requirements
-- **Use Debian-based images** (`python:3.11-slim`) for ML/AI dependencies (PyTorch, EasyOCR)
-- **Do NOT use Alpine** - Alpine uses musl libc, incompatible with PyTorch's manylinux wheels
-
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+Always use context7 when I need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically use the Context7 MCP
+tools to resolve library id and get library docs without me having to explicitly ask.

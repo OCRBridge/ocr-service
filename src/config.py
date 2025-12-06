@@ -14,26 +14,19 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_workers: int = 4
 
-    # Redis Configuration
-    redis_url: str = "redis://localhost:6379/0"
-
     # File Storage
-    upload_dir: str = "/tmp/uploads"
-    results_dir: str = "/tmp/results"
+    upload_dir: str = Field(
+        default="./data/uploads",
+        description="Directory for temporary uploaded files",
+    )
+    results_dir: str = Field(
+        default="./data/results",
+        description="Directory for OCR results cache",
+    )
     max_upload_size_mb: int = 25
-
-    # Rate Limiting
-    rate_limit_requests: int = 100
-    rate_limit_window_seconds: int = 60
 
     # Job Configuration
     job_expiration_hours: int = 48
-
-    # OCR Configuration
-    tesseract_lang: str = "eng"
-    tesseract_psm: int = 3  # Auto page segmentation
-    tesseract_oem: int = 1  # LSTM only
-    pdf_dpi: int = 300
 
     # Synchronous Endpoint Configuration
     sync_timeout_seconds: int = Field(
@@ -56,6 +49,83 @@ class Settings(BaseSettings):
     # Development
     debug: bool = False
     reload: bool = False
+    strict_engine_loading: bool = Field(
+        default=False,
+        description="Fail startup if any engine fails to load (useful for debugging)",
+    )
+
+    # Circuit Breaker
+    circuit_breaker_enabled: bool = Field(
+        default=True,
+        description="Enable circuit breaker for failing OCR engines",
+    )
+    circuit_breaker_threshold: int = Field(
+        default=5,
+        description="Number of consecutive failures before opening circuit",
+        ge=1,
+    )
+    circuit_breaker_timeout_seconds: int = Field(
+        default=300,
+        description="Seconds to wait before attempting to close an open circuit",
+        ge=60,
+    )
+
+    # Security - Authentication
+    api_key_enabled: bool = Field(
+        default=False,
+        description="Enable API key authentication (recommended for production)",
+    )
+    api_keys: str = Field(
+        default="",
+        description="Comma-separated list of valid API keys (use env var for production)",
+    )
+    api_key_header_name: str = Field(
+        default="X-API-Key",
+        description="HTTP header name for API key",
+    )
+
+    # Security - CORS
+    cors_enabled: bool = Field(
+        default=False,
+        description="Enable CORS middleware",
+    )
+    cors_origins: str = Field(
+        default="",
+        description="Comma-separated allowed CORS origins (empty=disabled, *=all origins)",
+    )
+    cors_allow_credentials: bool = Field(
+        default=False,
+        description="Allow credentials in CORS requests",
+    )
+
+    # Security - Rate Limiting
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable rate limiting (recommended for production)",
+    )
+    testing: bool = Field(
+        default=False,
+        description="Testing mode (disables rate limiting)",
+    )
+    rate_limit_default: str = Field(
+        default="100/hour",
+        description="Default rate limit for all endpoints (e.g., '100/hour', '10/minute')",
+    )
+    rate_limit_ocr_process: str = Field(
+        default="10/minute",
+        description="Rate limit for OCR processing endpoints (expensive operations)",
+    )
+    rate_limit_ocr_info: str = Field(
+        default="100/minute",
+        description="Rate limit for OCR info/discovery endpoints (lightweight)",
+    )
+
+    @property
+    def api_keys_list(self) -> list[str]:
+        """Parse comma-separated API keys into list."""
+        if not self.api_keys:
+            return []
+        return [key.strip() for key in self.api_keys.split(",") if key.strip()]
 
     @property
     def max_upload_size_bytes(self) -> int:
