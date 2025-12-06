@@ -12,7 +12,7 @@ from tempfile import NamedTemporaryFile
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from ocrbridge.core.exceptions import OCRProcessingError
 from pydantic import BaseModel
 
@@ -23,11 +23,9 @@ from src.utils.validators import validate_sync_file_size
 logger = structlog.get_logger()
 
 
-def get_registry() -> EngineRegistry:
+def get_registry(request: Request) -> EngineRegistry:
     """Dependency to get engine registry from app state."""
-    from src.main import app
-
-    return app.state.engine_registry
+    return request.app.state.engine_registry
 
 
 def create_form_params_from_model(param_model: type[BaseModel]) -> dict[str, Parameter]:
