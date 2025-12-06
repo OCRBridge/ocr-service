@@ -96,6 +96,7 @@ async def test_validation_exception_handler_includes_error_list():
 
     import json
 
+    assert isinstance(response.body, bytes)
     content = json.loads(response.body.decode())
 
     # Should have errors for both fields
@@ -124,6 +125,7 @@ async def test_generic_exception_handler_hides_sensitive_info():
 
     import json
 
+    assert isinstance(response.body, bytes)
     content = json.loads(response.body.decode())
 
     # Should not expose the actual error message
@@ -142,6 +144,7 @@ async def test_generic_exception_handler_includes_error_code():
 
     import json
 
+    assert isinstance(response.body, bytes)
     content = json.loads(response.body.decode())
 
     assert "error_code" in content
@@ -174,6 +177,7 @@ async def test_validation_handler_with_empty_errors():
 
     import json
 
+    assert isinstance(response.body, bytes)
     content = json.loads(response.body.decode())
 
     # Should handle gracefully with empty errors
@@ -210,6 +214,7 @@ async def test_validation_handler_response_structure():
 
     import json
 
+    assert isinstance(response.body, bytes)
     content = json.loads(response.body.decode())
 
     # Verify structure
