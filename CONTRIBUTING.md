@@ -457,13 +457,13 @@ We use [Ruff](https://github.com/astral-sh/ruff) for code formatting and linting
 
 ```bash
 # Format code
-uv run ruff format src/ tests/
+uv run ruff format
 
 # Check linting
-uv run ruff check src/ tests/
+uv run ruff check
 
 # Auto-fix linting issues
-uv run ruff check --fix src/ tests/
+uv run ruff check --fix
 ```
 
 ### Code Style Guidelines
