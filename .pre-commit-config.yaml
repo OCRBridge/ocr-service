@@ -40,3 +40,9 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
+
+  # CSpell - Spell checking
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v8.17.1
+    hooks:
+      - id: cspell

@@ -18,6 +18,7 @@ help:
 	@echo "  make lint             - Check code with ruff"
 	@echo "  make format           - Format code with ruff"
 	@echo "  make typecheck        - Run ty type checker"
+	@echo "  make spell-check      - Run cspell on all files"
 	@echo "  make pre-commit       - Run pre-commit hooks on all files"
 	@echo "  make pre-commit-install - Install pre-commit git hooks"
 	@echo "  make docker-up        - Start Docker services"
@@ -92,6 +93,9 @@ lint:
 typecheck:
 	uv run ty check
 
+spell-check:
+	npx cspell "**"
+
 all: install typecheck format lint test-all
 
 
@@ -152,7 +156,7 @@ clean:
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
 # Quality check (run all checks)
-check: lint format typecheck test
+check: lint format typecheck spell-check test
 
 # Semantic Release and Conventional Commits
 commit:
