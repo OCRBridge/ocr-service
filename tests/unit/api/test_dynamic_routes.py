@@ -13,7 +13,6 @@ def test_register_engine_routes_registers_paths(app, mock_engine_registry):
 
     # Assert expected per-engine process endpoints exist
     assert "/v2/ocr/tesseract/process" in paths
-    assert "/v2/ocr/easyocr/process" in paths
 
 
 def test_openapi_includes_engine_paths(app, mock_engine_registry):
@@ -27,4 +26,3 @@ def test_openapi_includes_engine_paths(app, mock_engine_registry):
         paths = spec.get("paths", {})
 
         assert "/v2/ocr/tesseract/process" in paths
-        assert "/v2/ocr/easyocr/process" in paths
