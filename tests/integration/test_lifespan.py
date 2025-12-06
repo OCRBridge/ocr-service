@@ -119,9 +119,6 @@ async def test_lifespan_creates_routes_for_multiple_engines():
         routes = [route.path for route in app.routes if isinstance(route, APIRoute)]
 
         for engine_name in discovered_engines:
-            process_route = f"/v2/ocr/{engine_name}/process"
-            info_route = f"/v2/ocr/{engine_name}/info"
-
             # Process route might have path parameters
             process_routes = [r for r in routes if engine_name in r and "process" in r]
             info_routes = [r for r in routes if engine_name in r and "info" in r]
@@ -219,8 +216,6 @@ async def test_lifespan_metrics_endpoint_mounted():
     app = FastAPI()
 
     async with lifespan(app):
-        routes = [route.path for route in app.routes if isinstance(route, APIRoute)]
-
         # Metrics endpoint should be available
         # Note: Mounted apps show up differently in routes
         # Check via routes or mounted apps
