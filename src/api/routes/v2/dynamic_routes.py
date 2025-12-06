@@ -5,6 +5,7 @@ engines discovered at startup via entry points.
 """
 
 import asyncio
+import re
 import time
 from inspect import Parameter, Signature, signature
 from pathlib import Path
@@ -16,11 +17,52 @@ from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Requ
 from ocrbridge.core.exceptions import OCRProcessingError
 from pydantic import BaseModel
 
+from src.api.dependencies import verify_api_key
+from src.config import settings
 from src.models.responses import SyncOCRResponse
 from src.services.ocr.registry_v2 import EngineRegistry
 from src.utils.validators import validate_sync_file_size
 
 logger = structlog.get_logger()
+
+# Allowed file extensions for security
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".tiff", ".tif"}
+
+
+def get_safe_suffix(filename: str | None) -> str:
+    """Extract and validate file extension from filename.
+
+    Args:
+        filename: Original filename from upload
+
+    Returns:
+        Validated file extension
+
+    Raises:
+        HTTPException: If filename contains invalid characters or unsupported extension
+    """
+    if not filename:
+        return ""
+
+    # Get only basename to prevent path traversal
+    safe_name = Path(filename).name
+
+    # Validate: only alphanumeric + allowed chars (prevent path traversal, null bytes, etc.)
+    if not re.match(r"^[a-zA-Z0-9._-]+$", safe_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid filename: contains unsupported characters",
+        )
+
+    # Extract and validate extension
+    suffix = Path(safe_name).suffix.lower()
+    if suffix and suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file extension. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
+    return suffix
 
 
 def get_registry(request: Request) -> EngineRegistry:
@@ -127,14 +169,33 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
         """Common OCR processing logic."""
         temp_file = None
         try:
-            # Save uploaded file
-            suffix = Path(file.filename).suffix if file.filename else ""
+            # Save uploaded file with validated filename
+            suffix = get_safe_suffix(file.filename)
             contents = await file.read()
-            with NamedTemporaryFile(delete=False, suffix=suffix) as tf:
+
+            # Ensure upload directory exists
+            upload_dir = Path(settings.upload_dir)
+            upload_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create temp file in configured directory (not system /tmp)
+            with NamedTemporaryFile(delete=False, suffix=suffix, dir=upload_dir) as tf:
                 tf.write(contents)
                 tf.flush()
                 temp_file = tf
             temp_file_name = temp_file.name
+
+            # Check circuit breaker before processing
+            if not registry.is_engine_available(engine_name):
+                logger.warning(
+                    "engine_circuit_open",
+                    engine=engine_name,
+                    reason="Circuit breaker is open due to repeated failures",
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"OCR engine '{engine_name}' is temporarily unavailable due to repeated failures. "
+                    "Please try again later or use a different engine.",
+                )
 
             # Get engine and process
             start_time = time.time()
@@ -149,7 +210,7 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
 
             hocr = await asyncio.wait_for(
                 asyncio.to_thread(ocr_engine.process, Path(temp_file_name), validated_params),
-                timeout=30.0,
+                timeout=float(settings.sync_timeout_seconds),
             )
 
             duration = time.time() - start_time
@@ -162,6 +223,9 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 pages=pages,
             )
 
+            # Record success for circuit breaker
+            registry.record_engine_success(engine_name)
+
             return SyncOCRResponse(
                 hocr=hocr,
                 processing_duration_seconds=duration,
@@ -169,21 +233,39 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 pages=pages,
             )
 
-        except TimeoutError:
-            logger.error("ocr_timeout", engine=engine_name)
+        except asyncio.TimeoutError:
+            logger.error(
+                "ocr_timeout",
+                engine=engine_name,
+                timeout_seconds=settings.sync_timeout_seconds,
+            )
+            # Record failure for circuit breaker
+            registry.record_engine_failure(engine_name)
             raise HTTPException(
                 status_code=504,
-                detail=f"OCR processing timeout after 30 seconds for {engine_name}",
+                detail=f"OCR processing timeout after {settings.sync_timeout_seconds} seconds. "
+                "Try reducing image size or complexity.",
             )
         except OCRProcessingError as e:
-            logger.error("ocr_engine_processing_failed", engine=engine_name, error=str(e))
+            logger.error(
+                "ocr_engine_processing_failed",
+                engine=engine_name,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            # Record failure for circuit breaker
+            registry.record_engine_failure(engine_name)
             raise HTTPException(
                 status_code=500,
-                detail=f"OCR engine failed to process document: {str(e)}",
+                detail="OCR processing failed. Please check your document and try again.",
             )
         except ValueError as e:
-            logger.error("engine_error", engine=engine_name, error=str(e))
-            raise HTTPException(status_code=400, detail=str(e))
+            logger.error("parameter_validation_error", engine=engine_name, error=str(e))
+            # Don't record parameter validation as engine failure
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid parameters. Please check your request.",
+            )
         except Exception as e:
             logger.error(
                 "ocr_processing_failed",
@@ -191,9 +273,11 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 error=str(e),
                 error_type=type(e).__name__,
             )
+            # Record failure for circuit breaker
+            registry.record_engine_failure(engine_name)
             raise HTTPException(
                 status_code=500,
-                detail=f"OCR processing failed for {engine_name}: {str(e)}",
+                detail="An unexpected error occurred during OCR processing.",
             )
         finally:
             if temp_file:
@@ -205,16 +289,28 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
         dynamic_params = create_form_params_from_model(param_model)
 
         async def handler_with_params(
+            request: Request,
             file: Annotated[UploadFile, File(description="Document to process")],
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
+            _api_key: Annotated[str, Depends(verify_api_key)],
             **engine_params: Any,
         ) -> SyncOCRResponse:
             """Process document with OCR engine (dynamic params)."""
             try:
                 validated_params = registry.validate_params(engine_name, engine_params)
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Parameter validation failed: {e}")
+                # Log detailed validation error internally
+                logger.error(
+                    "parameter_validation_failed",
+                    engine=engine_name,
+                    error=str(e),
+                )
+                # Return generic message (security: don't expose validation internals)
+                raise HTTPException(
+                    status_code=400,
+                    detail="Parameter validation failed. Please check engine parameter requirements.",
+                )
 
             return await process_document(file, registry, validated_params)
 
@@ -231,9 +327,11 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
     else:
         # Engine without parameters
         async def handler_no_params(
+            request: Request,
             file: Annotated[UploadFile, File(description="Document to process")],
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
+            _api_key: Annotated[str, Depends(verify_api_key)],
         ) -> SyncOCRResponse:
             """Process document with OCR engine."""
             return await process_document(file, registry, None)
@@ -243,7 +341,10 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
 
 
 def create_engine_router(
-    engine_name: str, param_model: type[BaseModel] | None, registry: EngineRegistry
+    engine_name: str,
+    param_model: type[BaseModel] | None,
+    registry: EngineRegistry,
+    app: FastAPI | None = None,
 ) -> APIRouter:
     """Create a dedicated router for a specific engine.
 
@@ -251,6 +352,7 @@ def create_engine_router(
         engine_name: Name of the OCR engine
         param_model: Optional Pydantic model for parameter validation
         registry: Engine registry instance
+        app: FastAPI application instance (for rate limiter access)
 
     Returns:
         APIRouter configured for the engine
@@ -259,6 +361,12 @@ def create_engine_router(
 
     # Create and register the process endpoint
     handler = create_process_handler(engine_name, param_model)
+
+    # Apply rate limiting if enabled
+    if app and settings.rate_limit_enabled and hasattr(app.state, "limiter"):
+        limiter = app.state.limiter
+        # Apply rate limit decorator for expensive OCR processing
+        handler = limiter.limit(settings.rate_limit_ocr_process)(handler)
 
     router.post(
         "/process",
@@ -272,7 +380,19 @@ def create_engine_router(
     )(handler)
 
     # Add an info endpoint to expose engine capabilities and params schema
-    @router.get(
+    async def engine_info_handler(
+        request: Request,
+        _registry: Annotated[EngineRegistry, Depends(get_registry)],
+        _api_key: Annotated[str, Depends(verify_api_key)],
+    ) -> dict[str, Any]:
+        return registry.get_engine_info(engine_name)
+
+    # Apply rate limiting if enabled (lighter limit for info endpoints)
+    if app and settings.rate_limit_enabled and hasattr(app.state, "limiter"):
+        limiter = app.state.limiter
+        engine_info_handler = limiter.limit(settings.rate_limit_ocr_info)(engine_info_handler)
+
+    router.get(
         "/info",
         summary=f"Get {engine_name} engine info",
         description=(
@@ -280,14 +400,7 @@ def create_engine_router(
             "schema for parameters when available."
         ),
         operation_id=f"ocr_engine_info_{engine_name}_v2",
-    )
-    async def engine_info(
-        _registry: Annotated[EngineRegistry, Depends(get_registry)],
-    ) -> dict[str, Any]:
-        return registry.get_engine_info(engine_name)
-
-    # Remove local name to avoid unused-function warnings while keeping route registered
-    del engine_info
+    )(engine_info_handler)
 
     return router
 
@@ -310,8 +423,8 @@ def register_engine_routes(app: FastAPI, registry: EngineRegistry) -> None:
             # Get parameter model (might be None)
             param_model = registry.get_param_model(engine_name)
 
-            # Create engine-specific router
-            engine_router = create_engine_router(engine_name, param_model, registry)
+            # Create engine-specific router with rate limiting
+            engine_router = create_engine_router(engine_name, param_model, registry, app)
 
             # Avoid duplicate registration (e.g., tests calling register twice)
             existing_paths = {getattr(r, "path", None) for r in app.router.routes}
@@ -351,37 +464,57 @@ def register_engine_routes(app: FastAPI, registry: EngineRegistry) -> None:
     # Add a global listing endpoint if not already present
     api_router = APIRouter(prefix="/v2/ocr", tags=["OCR"])
 
-    @api_router.get(
+    # List all engines endpoint
+    async def list_engines_handler(
+        request: Request,
+        _api_key: Annotated[str, Depends(verify_api_key)],
+    ) -> list[dict[str, Any]]:
+        engines = registry.list_engines()
+        return [registry.get_engine_info(name) for name in engines]
+
+    # Apply rate limiting if enabled
+    if settings.rate_limit_enabled and hasattr(app.state, "limiter"):
+        limiter = app.state.limiter
+        list_engines_handler = limiter.limit(settings.rate_limit_ocr_info)(list_engines_handler)
+
+    api_router.get(
         "/engines",
         summary="List available OCR engines",
         description=("Lists all discovered OCR engines with metadata and parameter schemas."),
         operation_id="ocr_engines_list_v2",
-    )
-    async def list_engines_endpoint() -> list[dict[str, Any]]:
-        engines = registry.list_engines()
-        return [registry.get_engine_info(name) for name in engines]
-
-    # Remove local name to avoid unused-function warnings while keeping route registered
-    del list_engines_endpoint
+    )(list_engines_handler)
 
     # New endpoint: GET /v2/ocr/engines/{engine_name}
-    @api_router.get(
-        "/engines/{engine_name}",
-        summary="Get details for a specific OCR engine",
-        description=("Returns metadata and parameter schema for a given OCR engine."),
-        operation_id="ocr_engine_details_v2",
-    )
-    async def get_engine_details_endpoint(
+    async def get_engine_details_handler(
+        request: Request,
         engine_name: str,
         registry: Annotated[EngineRegistry, Depends(get_registry)],
+        _api_key: Annotated[str, Depends(verify_api_key)],
     ) -> dict[str, Any]:
         try:
             return registry.get_engine_info(engine_name)
         except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            # Log detailed error internally
+            logger.error("engine_not_found", engine=engine_name, error=str(e))
+            # Return generic message (security: don't list available engines)
+            raise HTTPException(
+                status_code=404,
+                detail=f"Engine '{engine_name}' not found. Check /v2/ocr/engines for available engines.",
+            )
 
-    # Remove local name to avoid unused-function warnings while keeping route registered
-    del get_engine_details_endpoint
+    # Apply rate limiting if enabled
+    if settings.rate_limit_enabled and hasattr(app.state, "limiter"):
+        limiter = app.state.limiter
+        get_engine_details_handler = limiter.limit(settings.rate_limit_ocr_info)(
+            get_engine_details_handler
+        )
+
+    api_router.get(
+        "/engines/{engine_name}",
+        summary="Get details for a specific OCR engine",
+        description=("Returns metadata and parameter schema for a given OCR engine."),
+        operation_id="ocr_engine_details_v2",
+    )(get_engine_details_handler)
 
     # Avoid duplicate include: check if base path exists
     existing_paths = {getattr(r, "path", None) for r in app.router.routes}

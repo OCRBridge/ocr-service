@@ -6,7 +6,11 @@ from contextlib import asynccontextmanager, suppress
 
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
@@ -33,6 +37,13 @@ structlog.configure(
 )
 
 logger = structlog.get_logger()
+
+# Initialize rate limiter (conditionally used based on settings)
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[settings.rate_limit_default] if settings.rate_limit_enabled else [],
+    storage_uri="memory://",  # In-memory storage (use Redis for multi-process deployments)
+)
 
 
 async def cleanup_task_runner():
@@ -101,6 +112,50 @@ app = FastAPI(
 
 # Add middleware
 app.add_middleware(LoggingMiddleware)  # type: ignore[reportInvalidArgumentType]
+
+# Add rate limiting (disabled in test mode)
+if settings.rate_limit_enabled and not settings.testing:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+    logger.info(
+        "rate_limiting_enabled",
+        default_limit=settings.rate_limit_default,
+        ocr_process_limit=settings.rate_limit_ocr_process,
+        ocr_info_limit=settings.rate_limit_ocr_info,
+    )
+elif settings.testing:
+    logger.info("rate_limiting_disabled_testing_mode")
+else:
+    logger.warning(
+        "rate_limiting_disabled",
+        message="Rate limiting is disabled - not recommended for production",
+    )
+
+# Add CORS middleware if enabled
+if settings.cors_enabled:
+    origins = []
+    if settings.cors_origins:
+        if settings.cors_origins == "*":
+            origins = ["*"]
+        else:
+            origins = [
+                origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()
+            ]
+
+    logger.info(
+        "cors_enabled",
+        origins=origins if origins != ["*"] else ["* (all origins)"],
+        allow_credentials=settings.cors_allow_credentials,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,  # type: ignore[reportInvalidArgumentType]
+        allow_origins=origins,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=["GET", "POST"],  # Only allow needed methods
+        allow_headers=["Content-Type", settings.api_key_header_name],  # Explicit headers
+        max_age=3600,  # Cache preflight for 1 hour
+    )
 
 # Add exception handlers
 add_exception_handlers(app)

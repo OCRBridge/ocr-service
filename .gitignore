@@ -52,8 +52,8 @@ coverage.xml
 .pytype/
 
 # Temporary upload/result directories
-/tmp/uploads/
-/tmp/results/
+data/
 
 # Sample PDFs for local testing
 samples.local/
+

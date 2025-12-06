@@ -20,8 +20,8 @@ def test_settings_defaults():
     assert settings.api_workers == 4
 
     # File Storage
-    assert settings.upload_dir == "/tmp/uploads"
-    assert settings.results_dir == "/tmp/results"
+    assert settings.upload_dir == "./data/uploads"
+    assert settings.results_dir == "./data/results"
     assert settings.max_upload_size_mb == 25
 
     # Job Configuration

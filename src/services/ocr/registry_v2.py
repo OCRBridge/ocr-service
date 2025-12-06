@@ -1,12 +1,26 @@
 """OCR engine registry with entry point discovery for v2 architecture."""
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from importlib import import_module
 from importlib.metadata import entry_points
 from typing import Any, get_type_hints
 
 import structlog
 
+from src.config import settings
+
 logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class EngineHealth:
+    """Track health status for circuit breaker pattern."""
+
+    failure_count: int = 0
+    last_failure: datetime | None = None
+    circuit_open: bool = False
+    consecutive_successes: int = 0
 
 
 class EngineRegistry:
@@ -22,6 +36,7 @@ class EngineRegistry:
         self._engine_classes: dict[str, type[Any]] = {}
         self._engine_instances: dict[str, Any] = {}
         self._param_models: dict[str, type[Any]] = {}
+        self._engine_health: dict[str, EngineHealth] = {}
         self._discover_engines()
 
     def _discover_engines(self) -> None:
@@ -81,13 +96,43 @@ class EngineRegistry:
                         param_model_name=param_model.__name__ if param_model else None,
                     )
 
+                except ImportError as e:
+                    logger.error(
+                        "engine_import_failed",
+                        name=ep.name,
+                        error=str(e),
+                        module=ep.value,
+                        error_type="ImportError",
+                    )
+                    if settings.strict_engine_loading:
+                        raise
+                except AttributeError as e:
+                    logger.error(
+                        "engine_missing_required_attributes",
+                        name=ep.name,
+                        error=str(e),
+                        error_type="AttributeError",
+                    )
+                    if settings.strict_engine_loading:
+                        raise
+                except TypeError as e:
+                    logger.error(
+                        "engine_invalid_type",
+                        name=ep.name,
+                        error=str(e),
+                        error_type="TypeError",
+                    )
+                    if settings.strict_engine_loading:
+                        raise
                 except Exception as e:
                     logger.warning(
-                        "failed_to_load_engine",
+                        "unexpected_engine_load_error",
                         name=ep.name,
                         error=str(e),
                         error_type=type(e).__name__,
                     )
+                    if settings.strict_engine_loading:
+                        raise
 
             logger.info(
                 "engine_discovery_complete",
@@ -409,12 +454,80 @@ class EngineRegistry:
         return validated_params
 
     def is_engine_available(self, name: str) -> bool:
-        """Check if an engine is available.
+        """Check if an engine is available and healthy (circuit breaker check).
 
         Args:
             name: Engine name
 
         Returns:
-            True if engine is available, False otherwise
+            True if engine is available and not circuit-broken, False otherwise
         """
-        return name in self._engine_classes
+        # First check if engine exists
+        if name not in self._engine_classes:
+            return False
+
+        # If circuit breaker disabled, engine is available
+        if not settings.circuit_breaker_enabled:
+            return True
+
+        # Check circuit breaker status
+        health = self._engine_health.get(name, EngineHealth())
+
+        if not health.circuit_open:
+            return True
+
+        # Try to close circuit after timeout
+        if health.last_failure and datetime.now() - health.last_failure > timedelta(
+            seconds=settings.circuit_breaker_timeout_seconds
+        ):
+            health.circuit_open = False
+            health.failure_count = 0
+            logger.info("circuit_breaker_closed", engine=name)
+            return True
+
+        return False
+
+    def record_engine_failure(self, name: str) -> None:
+        """Record an engine failure for circuit breaker pattern.
+
+        Args:
+            name: Engine name
+        """
+        if not settings.circuit_breaker_enabled:
+            return
+
+        health = self._engine_health.setdefault(name, EngineHealth())
+        health.failure_count += 1
+        health.last_failure = datetime.now()
+        health.consecutive_successes = 0
+
+        if health.failure_count >= settings.circuit_breaker_threshold:
+            health.circuit_open = True
+            logger.warning(
+                "circuit_breaker_opened",
+                engine=name,
+                failure_count=health.failure_count,
+                threshold=settings.circuit_breaker_threshold,
+            )
+
+    def record_engine_success(self, name: str) -> None:
+        """Record an engine success for circuit breaker pattern.
+
+        Args:
+            name: Engine name
+        """
+        if not settings.circuit_breaker_enabled:
+            return
+
+        health = self._engine_health.setdefault(name, EngineHealth())
+        health.consecutive_successes += 1
+
+        # Reset circuit after consecutive successes
+        if health.consecutive_successes >= 3:
+            health.failure_count = 0
+            health.circuit_open = False
+            logger.info(
+                "circuit_breaker_reset",
+                engine=name,
+                consecutive_successes=health.consecutive_successes,
+            )

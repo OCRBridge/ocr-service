@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Always use context7 when I need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically use the Context7 MCP
+tools to resolve library id and get library docs without me having to explicitly ask.
+
 ## Project Overview
 
 RESTful OCR API service with **modular plugin architecture**. OCR engines are installed as separate PyPI packages and discovered dynamically via Python entry points. The service automatically adapts to available engines without code changes.

@@ -87,26 +87,22 @@ def validate_upload_file(file: IO[bytes]) -> tuple[str, int]:
         UnsupportedFormatError: If format not supported
         FileTooLargeError: If file too large
     """
-    # Read header for magic detection (2KB is usually sufficient)
-    header = file.read(2048)
-    mime_type = validate_file_format(header)
-
-    # Reset file pointer
-    file.seek(0)
-
-    # Get file size
+    # Get file size first (cheap operation)
     file.seek(0, 2)  # Seek to end
     file_size = file.tell()
     file.seek(0)  # Reset to beginning
 
-    # Validate size
+    # Validate size early (fail fast before reading content)
     validate_file_size(file_size)
 
+    # Read header for magic detection (2KB is usually sufficient)
+    header = file.read(min(2048, file_size))
+    mime_type = validate_file_format(header)
+
+    # Single final reset
+    file.seek(0)
+
     return mime_type, file_size
-
-
-# Synchronous endpoint file size validation
-SYNC_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
 
 
 async def validate_sync_file_size(file: UploadFile) -> UploadFile:

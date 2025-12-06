@@ -15,6 +15,7 @@ dependencies = [
     "aiofiles>=23.2.0",
     "python-multipart>=0.0.18",
     "python-magic>=0.4.27",
+    "slowapi>=0.1.9",
     "ocrbridge-core>=3.1.0",
 ]
 
