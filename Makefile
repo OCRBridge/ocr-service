@@ -82,15 +82,6 @@ typecheck:
 
 all: install typecheck format lint test-all
 
-# Pre-commit
-pre-commit:
-	uv run pre-commit run --all-files
-
-pre-commit-install:
-	uv run pre-commit install
-
-pre-commit-update:
-	uv run pre-commit autoupdate
 
 # Docker (uses full flavor by default)
 docker-up:
@@ -150,12 +141,6 @@ clean:
 
 # Quality check (run all checks)
 check: lint format typecheck test
-
-# Quality check for CI (skip macOS-only tests)
-check-ci: lint format typecheck test
-
-# CI simulation (what runs in CI)
-ci: install check-ci
 
 # Semantic Release and Conventional Commits
 commit:
