@@ -1,46 +1,32 @@
-services:
-  redis:
-    image: redis:7-alpine
-    container_name: ocr-redis
-    ports:
-      - "7879:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+# Docker Compose configuration for FULL flavor (Tesseract + EasyOCR)
+# This extends docker-compose.base.yml and adds full-specific configuration
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
+#   OR use the shortcut: make docker-compose-full-up
+#
+# For GPU support: Uncomment the GPU section below (requires nvidia-docker)
 
+services:
   api:
     build:
-      context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile}
-    container_name: ocr-api
-    ports:
-      - "8080:8000"
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - API_WORKERS=4
-      - LOG_LEVEL=INFO
-      - LOG_FORMAT=json
-    volumes:
-      - ./src:/app/src
-      - upload-tmp:/tmp/uploads
-      - results-tmp:/tmp/results
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-volumes:
-  redis-data:
-  upload-tmp:
-  results-tmp:
+      target: full  # Build the 'full' stage from multi-stage Dockerfile
+    image: ocr-service:full
+    # Optional: Enable GPU support (requires nvidia-docker)
+    # Uncomment the following lines to enable GPU acceleration for EasyOCR
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    # Resource limits for full flavor (higher than lite due to ML libraries)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G

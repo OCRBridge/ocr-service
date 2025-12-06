@@ -6,11 +6,13 @@ Thank you for your interest in contributing to RESTful OCR API! This document pr
 
 - [Getting Started](#getting-started)
 - [Development Environment Setup](#development-environment-setup)
+  - [Makefile Commands Reference](#makefile-commands-reference)
 - [Project Structure](#project-structure)
 - [Development Workflow](#development-workflow)
 - [Testing](#testing)
 - [Code Quality](#code-quality)
 - [Submitting Changes](#submitting-changes)
+  - [CI/CD Build Strategy](#cicd-build-strategy)
 - [Bug Reports](#bug-reports)
 - [Feature Requests](#feature-requests)
 
@@ -26,10 +28,10 @@ Before you begin contributing, please:
 
 ### Prerequisites
 
-- Python 3.11+
-- Redis 7.0+
+- Python 3.10+
 - Tesseract OCR 5.3+
 - Poppler utils (for PDF processing)
+- libmagic (for file type detection)
 - uv (Python package manager)
 - Git
 
@@ -37,20 +39,30 @@ Before you begin contributing, please:
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/restful-ocr.git
-cd restful-ocr
+git clone https://github.com/YOUR_USERNAME/ocr-service.git
+cd ocr-service
 
 # Add upstream remote
-git remote add upstream https://github.com/ORIGINAL_OWNER/restful-ocr.git
+git remote add upstream https://github.com/ORIGINAL_OWNER/ocr-service.git
 
 # Install system dependencies (Ubuntu/Debian)
 sudo apt-get update
-sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils redis-server
+sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils libmagic1
 
 # Create virtual environment and install dependencies
 uv venv
 source .venv/bin/activate
+
+# Install base dependencies (Tesseract only - fastest)
 uv sync --group dev
+
+# OR install with EasyOCR support (if you need to test deep learning OCR)
+uv sync --group dev --all-extras
+
+# OR install specific extras
+# uv pip install -e .[easyocr]  # EasyOCR only
+# uv pip install -e .[ocrmac]   # macOS Vision framework (macOS only)
+# uv pip install -e .[full]     # All OCR engines
 
 # Create required directories
 mkdir -p /tmp/uploads /tmp/results
@@ -58,24 +70,57 @@ chmod 700 /tmp/uploads /tmp/results
 
 # Copy environment configuration
 cp .env.example .env
-
-# Start Redis
-sudo systemctl start redis
 ```
 
 ### Running the Development Server
 
+**Option 1: Local Development** (fastest iteration)
 ```bash
 # Development mode with auto-reload
 uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+**Option 2: Docker Development** (matches production environment)
+```bash
+# Lite flavor (fastest Docker builds, Tesseract only)
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
+# Or use: make docker-compose-lite-up
+
+# Full flavor (includes EasyOCR, slower builds)
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
+# Or use: make docker-compose-full-up
+
+# View logs
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml logs -f api
+
+# Rebuild after code changes
+docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d --build
+```
+
+**Building Docker Images Locally**:
+```bash
+# Build lite image (fast, ~2-3 min)
+docker build --target lite -t ocr-service:lite .
+# Or: make docker-build-lite
+
+# Build full image (slow, ~10-15 min due to PyTorch)
+docker build --target full -t ocr-service:full .
+# Or: make docker-build-full
+
+# Build both flavors
+make docker-build-all
+```
+
+### Makefile Commands Reference
+
+The project includes a comprehensive Makefile for common development tasks. Run `make help` to see all available commands.
 
 ## Project Structure
 
 Understanding the project structure will help you navigate the codebase:
 
 ```
-restful-ocr/
+ocr-service/
 ├── src/                    # Application source code
 │   ├── main.py            # FastAPI app entry point
 │   ├── config.py          # Pydantic settings
@@ -92,8 +137,10 @@ restful-ocr/
 │   └── performance/       # Performance benchmarks
 ├── samples/               # Test fixtures and sample documents
 ├── pyproject.toml         # Project metadata and dependencies
-├── docker-compose.yml     # Docker stack configuration
-└── Dockerfile             # API container image
+├── Dockerfile             # Multi-stage build (lite & full targets)
+├── docker-compose.base.yml    # Shared Docker config (common API)
+├── docker-compose.yml         # Full flavor (Tesseract + EasyOCR)
+└── docker-compose.lite.yml    # Lite flavor (Tesseract only)
 ```
 
 ### Key Directories
@@ -102,7 +149,7 @@ restful-ocr/
 - **src/api/routes/**: Implement API endpoints
 - **src/services/**: Implement business logic, OCR processing, and external integrations
 - **tests/unit/**: Write unit tests with mocks/stubs for isolated testing
-- **tests/integration/**: Write integration tests that use real services (Redis, Tesseract)
+- **tests/integration/**: Write integration tests that use real services (Tesseract)
 
 ## Development Workflow
 
@@ -138,46 +185,26 @@ Use descriptive branch names that indicate the type of change:
 
 ### Commit Message Guidelines
 
-This project follows the **[Conventional Commits](https://www.conventionalcommits.org/)** specification for commit messages. This enables automatic version bumping and changelog generation through semantic-release.
-
-#### Commit Message Format
+Write clear, descriptive commit messages:
 
 ```
-<type>[optional scope]: <description>
+<type>: <short summary>
 
-[optional body]
+<optional detailed description>
 
-[optional footer(s)]
+<optional footer>
 ```
 
-#### Commit Types
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `docs`: Documentation changes
+- `chore`: Maintenance tasks
 
-- **`feat`**: A new feature (triggers a MINOR version bump)
-- **`fix`**: A bug fix (triggers a PATCH version bump)
-- **`docs`**: Documentation only changes
-- **`style`**: Changes that don't affect code meaning (formatting, missing semicolons, etc.)
-- **`refactor`**: Code change that neither fixes a bug nor adds a feature
-- **`perf`**: Performance improvements (triggers a PATCH version bump)
-- **`test`**: Adding or updating tests
-- **`build`**: Changes to build system or dependencies
-- **`ci`**: Changes to CI configuration files
-- **`chore`**: Other changes that don't modify src or test files
-
-#### Breaking Changes
-
-To trigger a MAJOR version bump, add `BREAKING CHANGE:` in the commit body or append `!` after the type/scope:
-
+Example:
 ```
-feat!: remove deprecated OCR engine support
-
-BREAKING CHANGE: The legacy OCR engine has been removed.
-Use Tesseract or EasyOCR instead.
-```
-
-#### Examples
-
-```bash
-# Feature commit (MINOR version bump: 1.1.0 -> 1.2.0)
 feat: add support for TIFF multi-page documents
 
 Implemented TIFF processing using PIL to extract and process
@@ -185,119 +212,245 @@ multiple pages from TIFF files. Each page is converted to JPEG
 before OCR processing.
 
 Closes #123
-
-# Bug fix commit (PATCH version bump: 1.1.0 -> 1.1.1)
-fix: resolve rate limiting bypass vulnerability
-
-Fixed race condition in rate limiter that allowed requests
-to bypass rate limits under high concurrency.
-
-Fixes #456
-
-# Breaking change (MAJOR version bump: 1.1.0 -> 2.0.0)
-feat!: redesign API response format
-
-BREAKING CHANGE: API responses now use a standardized envelope format.
-All clients must be updated to parse the new response structure.
 ```
-
-#### Using Commitizen
-
-To ensure your commits follow the conventional format, use the provided commitizen tool:
-
-```bash
-# Interactive commit helper
-make commit
-
-# Or directly with commitizen
-uv run cz commit
-```
-
-This will guide you through creating a properly formatted commit message.
-
-#### Commit Validation
-
-Pre-commit hooks automatically validate commit messages. If your commit message doesn't follow the conventional format, the commit will be rejected with a helpful error message.
 
 ## Testing
 
-Testing is a critical part of our development process. All contributions must include appropriate tests.
+Testing is a critical part of our development process. All contributions must include appropriate tests. We follow a comprehensive testing strategy with **296 tests** covering unit, integration, and E2E scenarios.
 
 > **Quick Command Reference**: For a quick reference of all development commands (testing, formatting, type checking, Docker, etc.), see [AGENTS.md](AGENTS.md).
+
+### Test Suite Overview
+
+Our test suite consists of three types of tests:
+
+1. **Unit Tests** (`tests/unit/`) - Fast, isolated tests with mocks
+   - 127 tests covering validators, config, security, HOCR, registry
+   - ~87% pass rate, targeting 90%+ coverage
+   - Uses mock OCR engines for speed
+
+2. **Integration Tests** (`tests/integration/`) - Real I/O, FastAPI client
+   - 111 tests covering API endpoints, health checks, file handling
+   - ~87% pass rate, targeting 80%+ coverage
+   - Uses TestClient for API testing
+
+3. **E2E Tests** (`tests/e2e/`) - Real OCR engines
+   - 40 tests with actual Tesseract and EasyOCR
+   - 100% pass rate for Tesseract E2E
+   - Marked with `@pytest.mark.easyocr` for CI flexibility
 
 ### Running Tests
 
 ```bash
+# Quick test (excludes slow tests and macOS-only)
+make test
+
+# Run specific test suites
+make test-unit
+make test-integration
+make test-contract
+
+# Run slow tests (EasyOCR)
+make test-slow
+
+# Run macOS-specific tests
+make test-macos
+
 # Run all tests
-uv run pytest
+make test-all
 
-# Run with coverage report
-uv run pytest --cov=src --cov-report=html --cov-report=term
+# Run with coverage report (excludes slow)
+make test-coverage
 
-# Run specific test module
-uv run pytest tests/unit/test_models.py -v
+# Run full coverage report (includes slow)
+make test-coverage-full
 
-# Run integration tests
-uv run pytest tests/integration/ -v
+# Run specific test file
+uv run pytest tests/unit/test_validators.py -v
 
 # Run tests matching a pattern
 uv run pytest -k "test_upload" -v
 ```
 
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared fixtures (20+ fixtures)
+├── mocks/                   # Mock OCR engines for unit tests
+│   ├── mock_engines.py      # MockTesseractEngine, MockEasyOCREngine
+│   └── mock_entry_points.py # Entry point mocking
+├── unit/                    # Fast isolated tests with mocks
+│   ├── test_validators.py   # File format/size validation (45 tests)
+│   ├── test_config.py       # Settings validation (17 tests)
+│   ├── test_hocr.py         # HOCR parsing/conversion (29 tests)
+│   ├── test_security.py     # Job ID generation (7 tests)
+│   ├── test_platform.py     # OS detection (11 tests)
+│   ├── test_metrics.py      # Prometheus metrics (31 tests)
+│   └── services/
+│       ├── ocr/test_registry_v2.py  # Engine registry (29 tests)
+│       └── test_cleanup.py          # File cleanup (18 tests)
+├── integration/             # API and I/O integration tests
+│   ├── services/
+│   │   └── test_file_handler.py # Async file operations
+│   └── api/
+│       ├── test_health.py   # Health endpoint (11 tests)
+│       └── v2/
+│           ├── test_discovery.py     # Engine discovery
+│           └── test_dynamic_process.py # OCR processing
+└── e2e/                     # Real OCR engine tests
+    ├── test_ocr_tesseract.py # Tesseract E2E (25 tests)
+    └── test_ocr_easyocr.py   # EasyOCR E2E (15 tests, slow)
+```
+
 ### Coverage Requirements
 
-- **Unit tests**: Aim for 90%+ coverage
-- **Integration tests**: Aim for 80%+ coverage
+- **Overall**: Targeting 80-90% code coverage
+- **Unit tests**: 90%+ for critical paths
+- **Integration tests**: 80%+ for API endpoints
+- **Current coverage**: 89%+
 - New code should maintain or improve existing coverage
 
 ### Writing Tests
 
-#### Unit Tests
+#### Unit Tests with Mock Engines
 
-Unit tests should be fast, isolated, and test a single unit of functionality:
-
-```python
-# tests/unit/test_job_service.py
-import pytest
-from unittest.mock import Mock, patch
-from src.services.job_service import JobService
-
-@patch('src.services.job_service.redis_client')
-def test_create_job_generates_unique_id(mock_redis):
-    """Test that job creation generates a unique job ID."""
-    service = JobService()
-    job_id = service.create_job("test.jpg")
-
-    assert len(job_id) == 48
-    assert job_id.isalnum()
-    mock_redis.set.assert_called_once()
-```
-
-#### Integration Tests
-
-Integration tests verify that components work together correctly:
+Unit tests should be fast, isolated, and use mock OCR engines:
 
 ```python
-# tests/integration/test_ocr_processing.py
+# tests/unit/test_validators.py
 import pytest
-from src.services.ocr_service import OCRService
+from src.utils.validators import validate_file_format
 
-def test_ocr_processes_sample_image():
-    """Test OCR processing with a real sample image."""
-    service = OCRService()
-    result = service.process_image("samples/numbers_gs150.jpg")
+def test_validate_jpeg_format():
+    """Test JPEG format validation with magic bytes."""
+    # Valid JPEG magic bytes
+    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF"
 
-    assert result.text is not None
-    assert len(result.text) > 0
-    assert "hocr" in result.format
+    # Should not raise exception
+    validate_file_format(jpeg_bytes, "image.jpg")
 ```
 
-### Test Organization
+#### Integration Tests with TestClient
 
-- Group related tests in classes
-- Use descriptive test names that explain what is being tested
-- Follow the Arrange-Act-Assert pattern
-- Use fixtures for common setup
+Integration tests use FastAPI's TestClient and mock engines:
+
+```python
+# tests/integration/api/test_ocr_endpoints.py
+def test_process_document_success_tesseract(client, sample_jpeg_bytes):
+    """Test successful document processing with tesseract."""
+    files = {"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")}
+    data = {"engine": "tesseract"}
+
+    response = client.post("/v2/ocr/process", files=files, data=data)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["engine"] == "tesseract"
+    assert result["hocr"].startswith("<?xml")
+```
+
+#### E2E Tests with Real Engines
+
+E2E tests use actual OCR engines and PIL-generated test images:
+
+```python
+# tests/e2e/test_ocr_tesseract.py
+import pytest
+
+# Skip if Tesseract not installed
+pytestmark = pytest.mark.skipif(
+    not TESSERACT_AVAILABLE, reason="Tesseract engine not installed"
+)
+
+def test_tesseract_detects_text(tesseract_engine, test_image_simple_text):
+    """Test that Tesseract actually detects text from image."""
+    result = tesseract_engine.process(test_image_simple_text)
+
+    # Should contain the word "TESTING"
+    result_lower = result.lower()
+    assert "test" in result_lower or "testing" in result_lower
+```
+
+### Test Fixtures
+
+We provide comprehensive fixtures in `tests/conftest.py`:
+
+**Mock Fixtures:**
+- `mock_engine_registry` - Registry with mock Tesseract/EasyOCR
+- `mock_tesseract_engine` - Individual mock engine instance
+- `app` - FastAPI app with mock engine registry injected
+- `client` - TestClient with mocked engines
+
+**File Fixtures:**
+- `sample_jpeg_bytes` - Valid JPEG magic bytes
+- `sample_png_bytes` - Valid PNG magic bytes
+- `sample_pdf_bytes` - Valid PDF magic bytes
+- `test_image_with_text` - PIL-generated image with multi-line text
+- `test_image_simple_text` - PIL-generated image with "TESTING"
+- `test_image_multiline` - PIL-generated image with 3 lines
+
+**HOCR Fixtures:**
+- `sample_hocr` - Valid HOCR XML with proper DOCTYPE
+- `sample_hocr_multipage` - Multi-page HOCR document
+- `sample_easyocr_output` - Raw EasyOCR detection output
+
+### Test Markers
+
+Use pytest markers to categorize tests:
+
+```python
+# Mark EasyOCR tests (deep learning)
+@pytest.mark.easyocr
+def test_easyocr_processing():
+    ...
+
+# Mark Tesseract tests
+@pytest.mark.tesseract
+def test_tesseract_processing():
+    ...
+
+# Mark Ocrmac tests
+@pytest.mark.ocrmac
+def test_ocrmac_processing():
+    ...
+
+# Skip if dependency not available
+@pytest.mark.skipif(not TESSERACT_AVAILABLE, reason="Tesseract not installed")
+def test_tesseract_processing():
+    ...
+```
+
+### Test Organization Best Practices
+
+- **One assertion concept per test** - Test one thing at a time
+- **Descriptive names** - `test_validate_jpeg_with_valid_magic_bytes()`
+- **Arrange-Act-Assert** - Clear structure in every test
+- **Use fixtures** - Avoid code duplication
+- **Fast by default** - Unit tests should run in milliseconds
+- **Mock external dependencies** - Keep tests isolated
+- **Test error paths** - Don't just test happy paths
+
+### CI/CD Testing
+
+Our GitHub Actions workflow runs tests automatically:
+
+- **Fast Tests Job**: Unit + Integration tests (~5 min)
+  - Runs on every push and PR
+  - Includes linting, formatting, type checking
+  - Uploads coverage to Codecov
+
+- **E2E Tests Job**: Tesseract E2E tests (~2 min)
+  - Validates real OCR functionality
+  - Runs on every push and PR
+
+- **Slow Tests Job**: EasyOCR E2E tests (~30 min)
+  - Runs only on main branch or manual trigger
+  - Deep learning model initialization is slow
+
+- **Coverage Report Job**: Generates HTML coverage report
+  - Uploads as GitHub artifact
+  - 30-day retention
 
 ## Code Quality
 
@@ -309,13 +462,13 @@ We use [Ruff](https://github.com/astral-sh/ruff) for code formatting and linting
 
 ```bash
 # Format code
-uv run ruff format src/ tests/
+uv run ruff format
 
 # Check linting
-uv run ruff check src/ tests/
+uv run ruff check
 
 # Auto-fix linting issues
-uv run ruff check --fix src/ tests/
+uv run ruff check --fix
 ```
 
 ### Code Style Guidelines
@@ -358,17 +511,14 @@ class JobStatus(BaseModel):
 
 ### Type Checking
 
-This project uses [Pyright](https://github.com/microsoft/pyright) for static type checking. All code should include type hints:
+This project uses [ty](https://docs.astral.sh/ty) for static type checking. All code should include type hints:
 
 ```bash
 # Run type checker
-uv run pyright
+uv run ty check
 
 # Check specific directory
-uv run pyright src/
-
-# Watch mode for continuous checking
-uv run pyright --watch
+uv run ty check src/
 ```
 
 **Note**: Type checking is automatically run via pre-commit hooks. See [AGENTS.md](AGENTS.md) for pre-commit hook configuration and commands.
@@ -411,6 +561,41 @@ uv run pyright --watch
    - Select your branch
    - Fill out the PR template
 
+### CI/CD Build Strategy
+
+Understanding our CI/CD workflow helps you know what to expect when submitting PRs:
+
+**Automatic Builds on Your PR**:
+- ✅ **Lite flavor**: Builds automatically on every PR (~2-3 min)
+  - Validates core functionality with Tesseract OCR
+  - Fast feedback for most code changes
+- ⏭️ **Full flavor**: Skipped on PRs to save CI resources
+  - Large PyTorch/EasyOCR dependencies (~10-15 min build)
+  - Not needed for most PRs
+
+**When Full Flavor Builds Run**:
+- 🏷️ **Release tags** (`v*.*.*`) - Automatic on version releases
+- 🔀 **Main branch** pushes - Automatic after PR merge
+- 🖱️ **Manual dispatch** - Maintainers can trigger via GitHub Actions UI
+
+**Why This Strategy?**
+- Faster PR feedback (3 min vs 15 min)
+- Reduced CI costs and resource usage
+- Most code changes don't require GPU dependencies
+- Full validation happens before releases
+
+**For Maintainers**: To manually build the full flavor for a specific PR:
+1. Go to Actions → Docker Image CI → Run workflow
+2. Select the PR branch
+3. Check "Build full flavor"
+4. Run workflow
+
+**What This Means for Contributors**:
+- Your PR will show a passing check if lite builds successfully
+- If your changes specifically affect EasyOCR functionality, mention it in the PR
+- Maintainers may trigger a full build if needed
+- All flavors are validated before merging to main
+
 ### Pull Request Checklist
 
 Before submitting a PR, ensure:
@@ -426,70 +611,14 @@ Before submitting a PR, ensure:
 
 ### PR Review Process
 
-1. Automated checks will run (tests, linting, coverage)
-2. Maintainers will review your code
-3. Address any feedback or requested changes
-4. Once approved, your PR will be merged
-
-## Semantic Versioning and Releases
-
-This project uses **[Semantic Versioning](https://semver.org/)** (SemVer) and automated release management through **[Python Semantic Release](https://python-semantic-release.readthedocs.io/)**.
-
-### Version Format
-
-Versions follow the format: `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
-
-- **MAJOR**: Incremented for breaking changes (incompatible API changes)
-- **MINOR**: Incremented for new features (backward-compatible)
-- **PATCH**: Incremented for bug fixes (backward-compatible)
-
-### Automatic Releases
-
-When commits are merged to the `main` branch:
-
-1. **Semantic Release analyzes commits** to determine the next version
-2. **Version is bumped** in `pyproject.toml`
-3. **CHANGELOG.md is updated** with new changes
-4. **Git tag is created** (e.g., `v1.2.0`)
-5. **GitHub Release is published** with release notes
-
-### Triggering Version Bumps
-
-Your commit messages directly control version bumps:
-
-| Commit Type | Version Bump | Example |
-|-------------|--------------|---------|
-| `feat:` | MINOR (1.1.0 → 1.2.0) | `feat: add TIFF support` |
-| `fix:` | PATCH (1.1.0 → 1.1.1) | `fix: resolve memory leak` |
-| `perf:` | PATCH (1.1.0 → 1.1.1) | `perf: optimize image processing` |
-| `feat!:` or `BREAKING CHANGE:` | MAJOR (1.1.0 → 2.0.0) | `feat!: remove deprecated API` |
-| `docs:`, `chore:`, etc. | No bump | `docs: update README` |
-
-### Testing Releases Locally
-
-Before merging, you can test what version would be released:
-
-```bash
-# Preview the next version without making changes
-make release-dry-run
-
-# View current version
-make version
-
-# Generate changelog preview
-make changelog
-```
-
-### Release Workflow (Maintainers)
-
-Releases are fully automated via GitHub Actions. When a PR is merged to `main`:
-
-1. The `release.yml` workflow triggers automatically
-2. Semantic Release analyzes commits since the last release
-3. If releasable commits exist, a new version is published
-4. GitHub Release is created with auto-generated release notes
-
-No manual intervention is required for releases.
+1. **Automated checks will run**:
+   - Lite Docker image build (~2-3 min)
+   - Tests, linting, and coverage checks
+2. **Maintainers will review your code**
+3. **Address any feedback or requested changes**
+4. **Once approved, your PR will be merged**
+   - Full flavor build will run automatically on main branch
+   - All flavors validated before release tags
 
 ## Bug Reports
 
@@ -515,8 +644,7 @@ What actually happened.
 
 **Environment:**
 - OS: [e.g., Ubuntu 22.04]
-- Python version: [e.g., 3.11.5]
-- Redis version: [e.g., 7.0.12]
+- Python version: [e.g., 3.10.12]
 - Tesseract version: [e.g., 5.3.0]
 
 **Logs**

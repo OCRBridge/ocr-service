@@ -1,0 +1,23 @@
+# Docker Compose configuration for LITE flavor (Tesseract only)
+# This extends docker-compose.base.yml and adds lite-specific configuration
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
+#
+# This flavor uses minimal resources and only includes Tesseract OCR
+
+services:
+  api:
+    build:
+      target: lite  # Build the 'lite' stage from multi-stage Dockerfile
+    image: ocr-service:lite
+    container_name: ocr-api-lite
+    # Resource limits for lite flavor (lower than full)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
