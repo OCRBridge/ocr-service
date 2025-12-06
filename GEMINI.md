@@ -2,6 +2,10 @@
 
 This `GEMINI.md` provides context for the AI agent interacting with the `ocr-service` project.
 
+Always use context7 when I need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically use the Context7 MCP
+tools to resolve library id and get library docs without me having to explicitly ask.
+
 ## Project Overview
 **OCR Bridge Service** is a high-performance, RESTful API for document OCR processing. It features a modular architecture where OCR engines (Tesseract, EasyOCR, OCRMac) are loaded as plugins via Python entry points.
 
