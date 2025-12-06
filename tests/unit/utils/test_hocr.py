@@ -7,7 +7,7 @@ and EasyOCR to HOCR conversion with line grouping.
 import pytest
 
 # Generic HOCR utilities from ocrbridge-core
-from ocrbridge.core.utils import (
+from ocrbridge.core.utils.hocr import (
     HOCRInfo,
     HOCRParseError,
     HOCRValidationError,

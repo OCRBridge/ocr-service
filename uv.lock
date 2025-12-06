@@ -900,11 +900,6 @@ dependencies = [
 easyocr = [
     { name = "ocrbridge-easyocr" },
 ]
-full = [
-    { name = "ocrbridge-easyocr" },
-    { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin'" },
-    { name = "ocrbridge-tesseract" },
-]
 ocrmac = [
     { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin'" },
 ]
@@ -927,13 +922,10 @@ dev = [
 requires-dist = [
     { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "fastapi", specifier = ">=0.123.0" },
-    { name = "ocrbridge-core", specifier = ">=3.0.0" },
-    { name = "ocrbridge-easyocr", marker = "extra == 'easyocr'", specifier = ">=3.0.0" },
-    { name = "ocrbridge-easyocr", marker = "extra == 'full'", specifier = ">=3.0.0" },
-    { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin' and extra == 'full'", specifier = ">=2.0.0" },
+    { name = "ocrbridge-core", specifier = ">=3.1.0" },
+    { name = "ocrbridge-easyocr", marker = "extra == 'easyocr'", specifier = ">=3.1.0" },
     { name = "ocrbridge-ocrmac", marker = "sys_platform == 'darwin' and extra == 'ocrmac'", specifier = ">=2.0.0" },
-    { name = "ocrbridge-tesseract", marker = "extra == 'full'", specifier = ">=2.0.0" },
-    { name = "ocrbridge-tesseract", marker = "extra == 'tesseract'", specifier = ">=2.0.0" },
+    { name = "ocrbridge-tesseract", marker = "extra == 'tesseract'", specifier = ">=3.0.0" },
     { name = "prometheus-client", specifier = ">=0.19.0" },
     { name = "pydantic", specifier = ">=2.5.0" },
     { name = "pydantic-settings", specifier = ">=2.1.0" },
@@ -942,7 +934,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=23.2.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
 ]
-provides-extras = ["tesseract", "easyocr", "ocrmac", "full"]
+provides-extras = ["tesseract", "easyocr", "ocrmac"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -957,32 +949,33 @@ dev = [
 
 [[package]]
 name = "ocrbridge-core"
-version = "3.0.0"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "pdf2image" },
+    { name = "pillow" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/c0/bb6b91d357a83cd1ddb6d6022c780a5a23e2e0c7d0fde9e4860b6e34db57/ocrbridge_core-3.0.0.tar.gz", hash = "sha256:465529828116305b4bbb40dbe175cb1d3ccdacead37f2dbbe03991c9eafac3d7", size = 92473, upload-time = "2025-12-01T00:11:41.353Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/40/f1/ecf0ad67943cfdc34b18f57b287630dbed00c85f1f4a513d9d89b53e2846/ocrbridge_core-3.1.0.tar.gz", hash = "sha256:dabf79f1b6320db660b049a9dbbc97c5260936074a69f6ddddb96a330e2266db", size = 103718, upload-time = "2025-12-05T08:00:17.466Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/56/0fa2815585049a33e8161cd8a373bc4db2d8900a7f55e4c393b4df8110e2/ocrbridge_core-3.0.0-py3-none-any.whl", hash = "sha256:7052f5ff30597c56a849a22121225a7f499b8f18bb14701b3110a4cc4e115441", size = 10471, upload-time = "2025-12-01T00:11:40.046Z" },
+    { url = "https://files.pythonhosted.org/packages/83/d4/e23fc25c4002e003b681b69504c8a3217882f354539d31bc4fa8b6b2be61/ocrbridge_core-3.1.0-py3-none-any.whl", hash = "sha256:3b363c3a0718218da762fc7928f57f509fa177161ee236bedace4fc6e3fcf4aa", size = 11490, upload-time = "2025-12-05T08:00:16.109Z" },
 ]
 
 [[package]]
 name = "ocrbridge-easyocr"
-version = "3.0.0"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "easyocr" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "ocrbridge-core" },
-    { name = "pdf2image" },
     { name = "pillow" },
     { name = "torch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/dc/d8660e4e331f590c3db1b0aa7d289d9bc766bd98a176ec22678d39981d63/ocrbridge_easyocr-3.0.0.tar.gz", hash = "sha256:cb2b15b8dbe1683778cba16e62999e6abc02eab2d1d611ea4983ab15c7796c35", size = 2181398, upload-time = "2025-12-01T06:59:29.458Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/1e/0df67ac65ff4f27f9ec4d184a115df2f69e5286bceb11f62d48812147fc4/ocrbridge_easyocr-3.1.0.tar.gz", hash = "sha256:87798b58bd830f1289d6fef4dda9b5fd74fa712504a7e923b1cd3c6b731287ba", size = 2182151, upload-time = "2025-12-06T12:37:26.213Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/f7/be1e83281e772cc8e9e627c5f21803adc18db2552fc0d1d3d01af4fc4c82/ocrbridge_easyocr-3.0.0-py3-none-any.whl", hash = "sha256:9ba49ad40a7af3067ea86e69dad5a1448f3b7b2b3097e82571c25bbb65add2cc", size = 10911, upload-time = "2025-12-01T06:59:27.566Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/32/ba31916fd3ad91d3e45a4bc2c26b0a8735c4601e0d3d9dfeaf5d16fdf5e8/ocrbridge_easyocr-3.1.0-py3-none-any.whl", hash = "sha256:ce7b54ff1a62fd128f1e8496f687da2d49542efe583063f3f8a50f565c584745", size = 10371, upload-time = "2025-12-06T12:37:25.013Z" },
 ]
 
 [[package]]
@@ -1002,18 +995,17 @@ wheels = [
 
 [[package]]
 name = "ocrbridge-tesseract"
-version = "2.0.1"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ocrbridge-core" },
-    { name = "pdf2image" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pytesseract" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/09/0217f0077f7fe7f9d71b082750ed39f1ba73b2fb7c4b76a13f461a52a7a4/ocrbridge_tesseract-2.0.1.tar.gz", hash = "sha256:e1a3909db62f9cd77f321124c037abe340f29d09e6942c3f9ae22acaf099b14b", size = 2112696, upload-time = "2025-12-01T01:39:01.529Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/e8/3fbe6ee550109506d7ec19d3ff2fe76462985c7f234c995515e3063a7de5/ocrbridge_tesseract-3.0.0.tar.gz", hash = "sha256:d61770f7d1f2c7538ae9db98970f119ea90aa02643cde42d57644b06b4ad0e8c", size = 2112905, upload-time = "2025-12-05T08:30:10.468Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/aa/2eaa4897ac1d60c871449d88046aa72873e5aaf5b143eae6b1cec5feb221/ocrbridge_tesseract-2.0.1-py3-none-any.whl", hash = "sha256:6f290069b43dccbab9472d953a0d1b36ccc399809a90e7cad25af531423393c7", size = 7566, upload-time = "2025-12-01T01:39:00.075Z" },
+    { url = "https://files.pythonhosted.org/packages/51/48/b59a8d104f2ef53acad06ba02576b3c91b9d9d32f157ee9460631ce65664/ocrbridge_tesseract-3.0.0-py3-none-any.whl", hash = "sha256:8a73f178439952909f1ee40afe8776e8d5715b63d5eaee8a8b4141f804c356c2", size = 7093, upload-time = "2025-12-05T08:30:08.702Z" },
 ]
 
 [[package]]

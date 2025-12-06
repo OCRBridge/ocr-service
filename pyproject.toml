@@ -15,36 +15,30 @@ dependencies = [
     "aiofiles>=23.2.0",
     "python-multipart>=0.0.18",
     "python-magic>=0.4.27",
-    "ocrbridge-core>=3.0.0",
+    "ocrbridge-core>=3.1.0",
 ]
 
+# Use optional-dependencies for optional features that end-users might want,
+# and use dependency-groups for everything related to development, testing, 
+# and maintenance workflows
 [project.optional-dependencies]
 # Individual engines (install as needed)
 # Install: pip install -e .[tesseract]
 tesseract = [
-    "ocrbridge-tesseract>=2.0.0",
+    "ocrbridge-tesseract>=3.0.0",
 ]
 
 # EasyOCR: Deep learning OCR with GPU support
 # Install: pip install -e .[easyocr]
 # Docker: Use full image (not lite)
 easyocr = [
-    "ocrbridge-easyocr>=3.0.0",
+    "ocrbridge-easyocr>=3.1.0",
 ]
 
 # ocrmac: macOS-only Vision framework OCR
 # Install: pip install -e .[ocrmac]  (macOS only)
 # Docker: Not compatible (Docker uses Linux even on Mac)
 ocrmac = [
-    "ocrbridge-ocrmac>=2.0.0; platform_system == 'Darwin'",
-]
-
-# Full: All OCR engines
-# Install: pip install -e .[full]
-# Docker: Use full image
-full = [
-    "ocrbridge-tesseract>=2.0.0",
-    "ocrbridge-easyocr>=3.0.0",
     "ocrbridge-ocrmac>=2.0.0; platform_system == 'Darwin'",
 ]
 

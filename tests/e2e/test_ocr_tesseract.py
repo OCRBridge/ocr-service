@@ -7,13 +7,12 @@ end-to-end OCR functionality. Tests are skipped if Tesseract is not installed.
 from pathlib import Path
 
 import pytest
+from ocrbridge.engines.tesseract import TesseractEngine
 
 # Skip all tests if Tesseract is not available
 pytest.importorskip("ocrbridge.engines.tesseract")
 
 pytestmark = pytest.mark.tesseract
-
-from ocrbridge.engines.tesseract import TesseractEngine
 
 
 @pytest.fixture
