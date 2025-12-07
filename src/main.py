@@ -1,21 +1,24 @@
 """FastAPI application entry point with lifecycle management."""
 
 import asyncio
-import contextlib
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
-from redis import asyncio as aioredis
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src.api.middleware.error_handler import add_exception_handlers
 from src.api.middleware.logging import LoggingMiddleware
+from src.api.routes import health
+from src.api.routes.v2.dynamic_routes import register_engine_routes
 from src.config import settings
-from src.models.job import EngineType
 from src.services.cleanup import CleanupService
-from src.services.ocr.registry import EngineRegistry
+from src.services.ocr.registry_v2 import EngineRegistry
 
 # Configure structured logging
 structlog.configure(
@@ -34,6 +37,13 @@ structlog.configure(
 )
 
 logger = structlog.get_logger()
+
+# Initialize rate limiter (conditionally used based on settings)
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[settings.rate_limit_default] if settings.rate_limit_enabled else [],
+    storage_uri="memory://",  # In-memory storage (use Redis for multi-process deployments)
+)
 
 
 async def cleanup_task_runner():
@@ -56,30 +66,24 @@ async def cleanup_task_runner():
 async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
     # Startup
-    logger.info("application_starting", version="1.1.0")
+    logger.info("application_starting", version="2.0.0")
 
-    # Initialize EngineRegistry (detect OCR engines at startup)
+    # Initialize EngineRegistry with entry point discovery
     registry = EngineRegistry()
     app.state.engine_registry = registry
+
+    # Log discovered engines
+    discovered_engines = registry.list_engines()
     logger.info(
-        "engine_registry_initialized",
-        tesseract_available=registry.is_available(EngineType.TESSERACT),
-        ocrmac_available=registry.is_available(EngineType.OCRMAC),
+        "ocr_engines_discovered",
+        discovered_engines=discovered_engines,
+        count=len(discovered_engines),
     )
 
-    # Initialize Redis connection
-    redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
-    app.state.redis = redis_client
+    # Dynamically register engine routes
+    register_engine_routes(app, registry)
 
-    # Verify Redis connection
-    try:
-        await redis_client.ping()  # type: ignore[misc]
-        logger.info("redis_connected", url=settings.redis_url)
-    except Exception as e:
-        logger.error("redis_connection_failed", error=str(e))
-        raise
-
-    # Start cleanup background task (US3 - T096)
+    # Start cleanup background task
     cleanup_task = asyncio.create_task(cleanup_task_runner())
     app.state.cleanup_task = cleanup_task
 
@@ -92,23 +96,66 @@ async def lifespan(app: FastAPI):
 
     # Cancel cleanup task
     cleanup_task.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
+    with suppress(asyncio.CancelledError):
         await cleanup_task
 
-    await redis_client.close()
     logger.info("application_shutdown_complete")
 
 
 # Create FastAPI application
 app = FastAPI(
     title="RESTful OCR API",
-    description="OCR document processing service with HOCR output",
-    version="1.1.0",
+    description="OCR document processing service with modular engine architecture",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
 # Add middleware
-app.add_middleware(LoggingMiddleware)
+app.add_middleware(LoggingMiddleware)  # type: ignore[reportInvalidArgumentType]
+
+# Add rate limiting (disabled in test mode)
+if settings.rate_limit_enabled and not settings.testing:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+    logger.info(
+        "rate_limiting_enabled",
+        default_limit=settings.rate_limit_default,
+        ocr_process_limit=settings.rate_limit_ocr_process,
+        ocr_info_limit=settings.rate_limit_ocr_info,
+    )
+elif settings.testing:
+    logger.info("rate_limiting_disabled_testing_mode")
+else:
+    logger.warning(
+        "rate_limiting_disabled",
+        message="Rate limiting is disabled - not recommended for production",
+    )
+
+# Add CORS middleware if enabled
+if settings.cors_enabled:
+    origins = []
+    if settings.cors_origins:
+        if settings.cors_origins == "*":
+            origins = ["*"]
+        else:
+            origins = [
+                origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()
+            ]
+
+    logger.info(
+        "cors_enabled",
+        origins=origins if origins != ["*"] else ["* (all origins)"],
+        allow_credentials=settings.cors_allow_credentials,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,  # type: ignore[reportInvalidArgumentType]
+        allow_origins=origins,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=["GET", "POST"],  # Only allow needed methods
+        allow_headers=["Content-Type", settings.api_key_header_name],  # Explicit headers
+        max_age=3600,  # Cache preflight for 1 hour
+    )
 
 # Add exception handlers
 add_exception_handlers(app)
@@ -117,11 +164,5 @@ add_exception_handlers(app)
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
-
-# Import and register routes
-from src.api.routes import health, jobs, sync, upload  # noqa: E402
-
-app.include_router(upload.router, tags=["upload"])
-app.include_router(jobs.router, tags=["jobs"])
-app.include_router(sync.router, prefix="/sync", tags=["sync"])
+# Register health routes
 app.include_router(health.router, tags=["health"])

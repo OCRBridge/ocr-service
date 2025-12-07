@@ -135,10 +135,8 @@ class FileHandler:
 
     def _get_extension(self, mime_type: str) -> str:
         """Get file extension from MIME type."""
-        extensions = {
-            "image/jpeg": ".jpg",
-            "image/png": ".png",
-            "application/pdf": ".pdf",
-            "image/tiff": ".tiff",
-        }
-        return extensions.get(mime_type, ".bin")
+        try:
+            return FileFormat(mime_type).extension
+        except ValueError:
+            # Fallback for unknown/unsupported types if they somehow bypass validation
+            return ".bin"

@@ -1,0 +1,33 @@
+# Base Docker Compose configuration shared by all flavors
+# This file contains common configuration for the API service
+# Do not use this file directly - use docker-compose.yml or docker-compose.lite.yml
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # target: will be overridden by flavor-specific compose files
+    container_name: ocr-api
+    ports:
+      - "8080:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=4
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+    volumes:
+      - ./src:/app/src  # Development: hot-reload source code
+      - upload-tmp:/tmp/uploads
+      - results-tmp:/tmp/results
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  upload-tmp:
+  results-tmp:

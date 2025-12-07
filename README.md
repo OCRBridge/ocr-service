@@ -1,337 +1,440 @@
 # RESTful OCR API
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
-[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/)
-[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
-[![CI](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/ci.yml)
-[![Tests](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/tests.yml)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
-[![Docker Publish](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/OCRBridge/ocr-service/actions/workflows/docker-publish.yml)
-[![codecov](https://codecov.io/gh/OCRBridge/ocr-service/branch/main/graph/badge.svg)](https://codecov.io/gh/OCRBridge/ocr-service)
-[![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Type Checker: Pyright](https://img.shields.io/badge/type%20checker-pyright-blue.svg)](https://github.com/microsoft/pyright)
-
-A high-performance RESTful API service for document OCR processing with HOCR (HTML-based OCR) output format.
+A high-performance RESTful API service for document OCR processing with modular engine architecture using datenzar OCR Bridge packages.
 
 ## Features
 
+- **Modular Engine Architecture**: Plugin-based OCR engines via PyPI packages
 - **Multi-format Support**: Process JPEG, PNG, PDF, and TIFF documents
 - **HOCR Output**: Industry-standard HTML-based OCR with bounding boxes and text hierarchy
-- **Async Processing**: Job-based async processing with status polling
-- **Rate Limiting**: 100 requests/minute per IP address
-- **Auto-expiration**: Results auto-delete after 48 hours
+- **Multiple OCR Engines**: Tesseract, EasyOCR, and ocrmac (macOS only)
+- **Dynamic Engine Discovery**: Automatically detects installed engine packages
+- **Engine-agnostic API**: Unified endpoint works with any installed engine
 - **No Authentication**: Public API for easy integration
-- **High Performance**: <30s processing time for typical documents
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph Client
-        A[User/Application]
-    end
+This service uses a **modular plugin architecture** powered by the [datenzar OCR Bridge packages](https://pypi.org/user/datenzar/):
 
-    subgraph "OCR Service"
-        B[FastAPI API]
-        C[Rate Limiter]
-        D[Job Manager]
-        E[OCR Processor]
-        F[File Handler]
-    end
+- **Core Framework**: FastAPI with async/await
+- **Base Package**: `ocrbridge-core` - Base classes and utilities
+- **Engine Packages** (optional, installed separately):
+  - `ocrbridge-tesseract` - Tesseract OCR (100+ languages)
+  - `ocrbridge-easyocr` - EasyOCR deep learning (80+ languages, GPU support)
+  - `ocrbridge-ocrmac` - Apple Vision framework (macOS only)
+- **Engine Discovery**: Python entry points for automatic detection
+- **Logging**: structlog (JSON format)
+- **Metrics**: Prometheus client
 
-    subgraph "OCR Engines"
-        G[Tesseract]
-        H[EasyOCR]
-        I[ocrmac<br/>macOS only]
-    end
+### How It Works
 
-    subgraph Storage
-        J[(Redis)]
-        K[File System<br/>Uploads/Results]
-    end
+1. OCR engine packages register themselves via Python entry points (`ocrbridge.engines`)
+2. On startup, the service discovers all installed engines dynamically
+3. API endpoints work with any engine - no code changes needed
+4. Add new engines by installing packages, no service modification required
 
-    subgraph Monitoring
-        L[Prometheus<br/>Metrics]
-        M[Structured<br/>Logs]
-    end
+## Installation
 
-    A -->|Upload File| B
-    B --> C
-    C --> D
-    D --> F
-    F --> K
-    D --> E
-    E -.->|Select Engine| G
-    E -.->|Select Engine| H
-    E -.->|Select Engine| I
-    E -->|Store HOCR| K
-    D -->|Job Status| J
-    B --> L
-    B --> M
+### Prerequisites
 
-    style G fill:#90EE90
-    style H fill:#87CEEB
-    style I fill:#FFB6C1
-    style J fill:#FFE4B5
-    style K fill:#FFE4B5
+- Python 3.10+
+
+### Base Installation
+
+Install the core service (no engines):
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd ocr-service
+
+# Install base dependencies
+pip install -e .
 ```
 
-### Request Flow
+### Install OCR Engines
 
-1. **Upload**: Client sends document via HTTP POST
-2. **Validation**: File type, size, and format validation
-3. **Rate Limiting**: Check IP-based rate limits (100 req/min)
-4. **Job Creation**: Generate unique job ID, store in Redis
-5. **Processing**: Convert to image(s), run OCR engine, generate HOCR
-6. **Storage**: Save HOCR result to filesystem with 48h TTL
-7. **Polling**: Client checks status via job ID
-8. **Download**: Client retrieves HOCR result when complete
+Choose which engines to install:
+
+```bash
+# Option 1: Install Tesseract engine
+pip install -e .[tesseract]
+# System requirement: tesseract binary must be installed
+# Ubuntu/Debian: sudo apt-get install tesseract-ocr
+# macOS: brew install tesseract
+
+# Option 2: Install EasyOCR engine (includes PyTorch, ~2GB)
+pip install -e .[easyocr]
+
+# Option 3: Install ocrmac engine (macOS only)
+pip install -e .[ocrmac]
+
+# Option 4: Install all engines
+pip install -e .[full]
+```
+
+### Engine Comparison
+
+| Engine | Package | Accuracy | Speed | GPU Support | Languages | Size Impact |
+|--------|---------|----------|-------|-------------|-----------|-------------|
+| **Tesseract** | `ocrbridge-tesseract` | Good | Fast | No | 100+ | ~500MB |
+| **EasyOCR** | `ocrbridge-easyocr` | Excellent | Medium | Yes | 80+ | +2GB (PyTorch) |
+| **ocrmac** | `ocrbridge-ocrmac` | Excellent | Very Fast | Yes (Apple Neural Engine) | 30+ | +10MB (macOS only) |
 
 ## Quick Start
 
-### Using Pre-built Docker Images
+### 1. Install an OCR Engine
 
-Pre-built Docker images are automatically published to GitHub Container Registry and Docker Hub on every release:
-
-**GitHub Container Registry (GHCR):**
 ```bash
-docker pull ghcr.io/ocrbridge/ocr-service:latest
+# Install Tesseract engine (lightest option)
+pip install -e .[tesseract]
+
+# Make sure tesseract binary is installed
+# macOS: brew install tesseract
+# Ubuntu: sudo apt-get install tesseract-ocr
 ```
 
-**Docker Hub:**
+### 3. Run the Service
+
 ```bash
-docker pull datenzar/restful-ocr:latest
+uvicorn src.main:app --reload
 ```
 
-Available tags:
-- `latest` - Latest stable release from main branch (combined flavor)
-- `tesseract` - Tesseract-only flavor (~500MB, lightweight)
-- `easyocr` - EasyOCR-only flavor (~2.5GB, deep learning)
-- `v1.1.0` - Specific version tags
-- `1.1` - Major.minor version
-- `1` - Major version
+The API will be available at `http://localhost:8000`.
 
-### Docker Image Flavors
+### 4. Verify Installation
 
-The service provides three Docker image flavors optimized for different use cases:
-
-| Flavor | Size | OCR Engines | Use Case |
-|--------|------|-------------|----------|
-| **Combined** (default) | ~2.6GB | Tesseract + EasyOCR | Maximum flexibility, production |
-| **Tesseract** | ~500MB | Tesseract only | Lightweight, traditional OCR |
-| **EasyOCR** | ~2.5GB | EasyOCR only | Deep learning, multi-language |
-
-**Pull specific flavors:**
 ```bash
-# Tesseract-only (lightweight)
-docker pull ghcr.io/ocrbridge/ocr-service:tesseract
-
-# EasyOCR-only (deep learning)
-docker pull ghcr.io/ocrbridge/ocr-service:easyocr
-
-# Combined (default)
-docker pull ghcr.io/ocrbridge/ocr-service:latest
-```
-
-For detailed information about flavors, building custom images, and GPU support, see [DOCKER.md](DOCKER.md).
-
-**Quick run with Docker:**
-```bash
-# Pull and run (requires Redis)
-docker run -d --name redis redis:7-alpine
-docker run -d -p 8000:8000 \
-  -e REDIS_URL=redis://redis:6379/0 \
-  --link redis:redis \
-  ghcr.io/ocrbridge/ocr-service:latest
-```
-
-### Running with Docker Compose (Recommended)
-
-**Option 1: Production (pre-built image):**
-```bash
-# Uses pre-built image from GHCR
-docker compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker compose -f docker-compose.prod.yml logs -f api
-
-# Stop services
-docker compose -f docker-compose.prod.yml down
-```
-
-**Option 2: Development (local build):**
-```bash
-# Builds combined image (default) locally from source
-docker compose up -d
-
-# Or build specific flavor:
-# Tesseract-only
-docker compose -f docker-compose.yml -f docker-compose.tesseract.yml up -d
-
-# EasyOCR-only
-docker compose -f docker-compose.yml -f docker-compose.easyocr.yml up -d
-
-# View logs
-docker compose logs -f api
-
-# Stop services
-docker compose down
-```
-
-The API will be available at `http://localhost:8000`. Check the health endpoint to verify:
-```bash
+# Health check
 curl http://localhost:8000/health
+
+# List available engines
+curl http://localhost:8000/v2/ocr/engines
+
+# Check engine parameter schema
+curl http://localhost:8000/v2/ocr/engines/tesseract/schema
 ```
-
-### Development Setup
-
-For local development without Docker, or to contribute to the project, see the [Contributing Guide](CONTRIBUTING.md) for detailed setup instructions including:
-- Installing dependencies (Python, Redis, Tesseract, etc.)
-- Setting up your development environment
-- Running tests and code quality tools
-
-## API Documentation
-
-FastAPI automatically generates interactive API documentation:
-
-- **Swagger UI**: http://localhost:8000/docs - Interactive API explorer with "Try it out" functionality
-- **ReDoc**: http://localhost:8000/redoc - Alternative documentation with a cleaner layout
-- **OpenAPI Schema**: http://localhost:8000/openapi.json - Machine-readable API specification
-
-The interactive documentation allows you to test all endpoints directly from your browser without using curl or Postman.
 
 ## API Usage
 
-### 1. Upload Document
+### Process a Document
+
+The unified `/v2/ocr/process` endpoint works with any installed engine:
 
 ```bash
-curl -X POST http://localhost:8000/upload \
-  -F "file=@samples/numbers_gs150.jpg"
+# Process with Tesseract
+curl -X POST http://localhost:8000/v2/ocr/process \
+  -F "file=@document.pdf" \
+  -F "engine=tesseract"
+
+# Process with custom parameters (Individual form fields)
+curl -X POST http://localhost:8000/v2/ocr/process \
+  -F "file=@document.pdf" \
+  -F "engine=tesseract" \
+  -F "lang=eng+fra" \
+  -F "psm=3" \
+  -F "dpi=300"
+
+# Process with EasyOCR (if installed)
+# List parameters can be passed by repeating the field
+curl -X POST http://localhost:8000/v2/ocr/process \
+  -F "file=@document.pdf" \
+  -F "engine=easyocr" \
+  -F "languages=en" \
+  -F "languages=ch_sim" \
+  -F "text_threshold=0.7"
+
+# Process with ocrmac (macOS only, if installed)
+curl -X POST http://localhost:8000/v2/ocr/process \
+  -F "file=@document.pdf" \
+  -F "engine=ocrmac" \
+  -F "languages=en-US" \
+  -F "recognition_level=accurate"
 ```
 
-Response:
+**Response**:
 ```json
 {
-  "job_id": "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1",
-  "status": "pending",
-  "message": "Upload successful, processing started"
+  "hocr": "<?xml version='1.0' encoding='UTF-8'?>...",
+  "processing_duration_seconds": 2.456,
+  "engine": "tesseract",
+  "pages": 1
 }
 ```
 
-### 2. Check Status
+### List Available Engines
 
 ```bash
-curl -X GET "http://localhost:8000/jobs/{job_id}/status"
+curl http://localhost:8000/v2/ocr/engines
 ```
 
-Response:
+**Response**:
 ```json
 {
-  "job_id": "Kj4TY...",
-  "status": "completed",
-  "upload_time": "2025-10-18T10:00:00Z",
-  "start_time": "2025-10-18T10:00:05Z",
-  "completion_time": "2025-10-18T10:00:12Z",
-  "expiration_time": "2025-10-20T10:00:12Z",
-  "error_message": null,
-  "error_code": null
+  "engines": ["tesseract", "easyocr"],
+  "count": 2,
+  "details": [
+    {
+      "name": "tesseract",
+      "class": "TesseractEngine",
+      "supported_formats": [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".pdf"],
+      "has_param_model": true
+    }
+  ]
 }
 ```
 
-### 3. Download HOCR Result
+### Get Engine Parameter Schema
 
 ```bash
-curl -X GET "http://localhost:8000/jobs/{job_id}/result" -o result.hocr
+curl http://localhost:8000/v2/ocr/engines/tesseract/schema
 ```
 
-### 4. Health Check
-
-```bash
-curl -X GET http://localhost:8000/health
+**Response**:
+```json
+{
+  "engine": "tesseract",
+  "schema": {
+    "properties": {
+      "lang": {
+        "type": "string",
+        "description": "Language code(s): 'eng', 'fra', 'eng+fra' (max 5)",
+        "pattern": "^[a-z_]{3,7}(\\+[a-z_]{3,7})*$"
+      },
+      "psm": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 13,
+        "description": "Page segmentation mode (0-13)"
+      },
+      "oem": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3,
+        "description": "OCR Engine mode: 0=Legacy, 1=LSTM, 2=Both, 3=Default"
+      },
+      "dpi": {
+        "type": "integer",
+        "minimum": 70,
+        "maximum": 2400,
+        "description": "Image DPI (70-2400, typical: 300)"
+      }
+    }
+  }
+}
 ```
 
-### 5. Metrics (Prometheus)
+### Other Endpoints
 
 ```bash
-curl -X GET http://localhost:8000/metrics
+# Health check
+curl http://localhost:8000/health
+
+# Prometheus metrics
+curl http://localhost:8000/metrics
 ```
 
 ## Configuration
 
-All configuration is via environment variables (see `.env.example`):
+Configuration via environment variables:
 
-- `REDIS_URL`: Redis connection string
-- `UPLOAD_DIR`: Temporary upload directory
-- `RESULTS_DIR`: HOCR results directory
-- `MAX_UPLOAD_SIZE_MB`: Maximum file size (default: 25MB)
-- `RATE_LIMIT_REQUESTS`: Requests per minute per IP (default: 100)
-- `JOB_EXPIRATION_HOURS`: Auto-delete results after (default: 48)
-- `TESSERACT_LANG`: OCR language (default: eng)
+```bash
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
 
-## Performance
+# File Storage
+UPLOAD_DIR=/tmp/uploads
+RESULTS_DIR=/tmp/results
+MAX_UPLOAD_SIZE_MB=25
 
-- **OCR Processing**: <30 seconds for single-page documents <5MB
-- **Status Endpoint**: <800ms p95 latency
-- **Result Endpoint**: <800ms p95 latency
-- **Throughput**: 100 requests/min per IP
-- **Concurrency**: 10+ simultaneous users
-- **Memory**: <512MB per request
+# Job Configuration
+JOB_EXPIRATION_HOURS=48
 
-## Architecture
+# Synchronous Processing
+SYNC_TIMEOUT_SECONDS=30
+SYNC_MAX_FILE_SIZE_MB=5
 
-- **Web Framework**: FastAPI with async/await
-- **OCR Engine**: Tesseract 5.3+ via pytesseract
-- **Job Store**: Redis with 48h TTL
-- **PDF Processing**: pdf2image (poppler wrapper)
-- **Rate Limiting**: slowapi with Redis backend
-- **Logging**: structlog (JSON format)
-- **Metrics**: Prometheus client
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
 
-## Platform Notes
+## Engine-Specific Parameters
 
-### macOS OCR Engine
+### Tesseract Parameters
 
-This API includes support for macOS's native Vision and LiveText OCR frameworks when running natively on macOS. However, these features are **not available in Docker containers** due to macOS framework limitations.
+From `ocrbridge-tesseract`:
 
-- When running in Docker (recommended): Tesseract and EasyOCR engines are available
-- When running natively on macOS: All engines including ocrmac (Vision/LiveText) are available
+- `lang` (string): Language codes, e.g., "eng", "eng+fra" (max 5 languages)
+- `psm` (integer 0-13): Page segmentation mode
+- `oem` (integer 0-3): OCR engine mode (0=Legacy, 1=LSTM, 2=Both, 3=Default)
+- `dpi` (integer 70-2400): DPI for PDF conversion (default: 300)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for more details on platform-specific limitations.
+### EasyOCR Parameters
+
+From `ocrbridge-easyocr`:
+
+- `languages` (list of strings): Language codes, e.g., ["en", "ch_sim"] (max 5)
+- `text_threshold` (float 0.0-1.0): Confidence threshold for text detection (default: 0.7)
+- `link_threshold` (float 0.0-1.0): Threshold for linking text regions (default: 0.7)
+
+### ocrmac Parameters
+
+From `ocrbridge-ocrmac` (macOS only):
+
+- `languages` (list of strings): IETF BCP 47 codes, e.g., ["en-US", "fr-FR"] (max 5)
+- `recognition_level` (string): "fast", "balanced" (default), "accurate", or "livetext"
+
+## Adding Custom Engines
+
+To create a custom OCR engine:
+
+1. Create a Python package that depends on `ocrbridge-core>=1.0.0`
+2. Implement `OCREngine` base class from `ocrbridge.core`
+3. Register via entry point in `pyproject.toml`:
+
+```toml
+[project.entry-points."ocrbridge.engines"]
+my_engine = "my_package:MyEngine"
+```
+
+4. Install your package - the service will automatically discover it!
+
+No code changes to the service required.
+
+## Development
+
+### Install Development Dependencies
+
+```bash
+# Install with uv (recommended)
+pip install uv
+uv sync --group dev
+
+# Or with pip
+pip install -e .[tesseract]
+```
+
+### Run Linting and Type Checking
+
+```bash
+# Using uv
+uv run ruff check
+uv run ty check
+
+# Using make
+make lint
+make typecheck
+```
+
+### Project Structure
+
+```
+ocr-service/
+├── src/
+│   ├── api/
+│   │   └── routes/
+│   │       └── v2/
+│   │           └── dynamic_routes.py # V2 unified OCR endpoints
+│   ├── services/
+│   │   └── ocr/
+│   │       └── registry_v2.py      # Entry point discovery registry
+│   ├── models/
+│   │   └── responses.py            # API response models
+│   └── main.py                      # FastAPI application
+├── pyproject.toml                   # Dependencies and entry points
+└── README.md
+```
 
 ## Deployment
 
-### Quick Production Deploy
-
-Using pre-built Docker images:
+### Docker Deployment
 
 ```bash
-# Pull latest image
-docker pull ghcr.io/ocrbridge/ocr-service:latest
+# Build image
+docker build -t ocr-service:latest .
 
-# Run with Docker Compose
-docker compose -f docker-compose.prod.yml up -d
-
-# Check health
-curl http://localhost:8000/health
+# Run
+docker run -d -p 8000:8000 ocr-service:latest
 ```
 
-### Resource Requirements
+### Production Considerations
 
-**Minimum per instance:**
-- CPU: 1 core (2+ recommended)
-- Memory: 2GB RAM (4GB+ recommended)
-- Storage: 10GB for temp files + results
-- Redis: 512MB RAM minimum
+- **Horizontal Scaling**: Service is fully stateless
+- **Engine Installation**: Install only needed engines to minimize image size
+- **GPU Support**: Use GPU-enabled base image for EasyOCR
+- **Health Monitoring**: Use `/health` endpoint for liveness/readiness probes
+- **Metrics**: Scrape `/metrics` with Prometheus
 
-## Contributing
+## Troubleshooting
 
-Interested in contributing? Check out our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-- Setting up your development environment
-- Running tests and code quality checks
-- Following our Test-Driven Development workflow
-- Submitting bug fixes and features
+### No Engines Detected
+
+```bash
+# Check if engine packages are installed
+pip list | grep ocrbridge
+
+# Check logs for engine discovery
+# Look for: "ocr_engines_discovered"
+```
+
+### Engine Import Errors
+
+```bash
+# For Tesseract: Ensure tesseract binary is installed
+which tesseract
+
+# For ocrmac: Only works on macOS, not in Docker
+uname -s  # Should return "Darwin"
+```
+
+### Rate Limiting
+
+Default: 100 requests/minute per IP. Configure with `RATE_LIMIT_REQUESTS`.
+
+## Documentation
+
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
+
+## Credits
+
+Built with:
+- [FastAPI](https://fastapi.tiangolo.com/) - Web framework
+- [datenzar OCR Bridge](https://pypi.org/user/datenzar/) - Modular OCR engines
+- [structlog](https://www.structlog.org/) - Structured logging
+
+### V2 Engine Discovery and Params
+
+- `GET /v2/ocr/engines`: Lists discovered engines with metadata.
+  - Includes `name`, `class`, `supported_formats`, `has_param_model`, and `params_schema` (JSON Schema for engine params when available).
+- `GET /v2/ocr/{engine}/info`: Returns metadata for a specific engine, including `params_schema`.
+- `POST /v2/ocr/{engine}/process`:
+  - `multipart/form-data` with `file` and engine-specific parameters as individual form fields.
+  - Parameters are dynamically registered in the OpenAPI schema and validated against the engine's Pydantic model.
+
+Example:
+
+```json
+{
+  "name": "tesseract",
+  "class": "TesseractEngine",
+  "supported_formats": ["image/png", "image/jpeg", "application/pdf"],
+  "has_param_model": true,
+  "params_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TesseractParams",
+    "type": "object",
+    "properties": {
+      "psm": {"type": "integer"},
+      "oem": {"type": "integer"}
+    }
+  }
+}
+```

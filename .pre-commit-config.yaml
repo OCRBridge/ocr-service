@@ -23,12 +23,12 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  # Pyright - type checking
+  # ty - type checking
   - repo: local
     hooks:
-      - id: pyright
-        name: pyright
-        entry: uv run pyright
+      - id: ty
+        name: ty
+        entry: uv run ty check
         language: system
         types: [python]
         pass_filenames: false
@@ -36,7 +36,13 @@ repos:
 
   # Commitizen - validate commit messages
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.32.0
+    rev: v4.1.0
     hooks:
       - id: commitizen
         stages: [commit-msg]
+
+  # CSpell - Spell checking
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v8.17.1
+    hooks:
+      - id: cspell
