@@ -47,6 +47,13 @@ def get_safe_suffix(filename: str | None) -> str:
     # Get only basename to prevent path traversal
     safe_name = Path(filename).name
 
+    # Validate filename length to prevent excessively long paths
+    if len(safe_name) > 255:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid filename: exceeds maximum length of 255 characters",
+        )
+
     # Validate: only alphanumeric + allowed chars (prevent path traversal, null bytes, etc.)
     if not re.match(r"^[a-zA-Z0-9._-]+$", safe_name):
         raise HTTPException(

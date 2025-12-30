@@ -1,5 +1,6 @@
 """OCR engine registry with entry point discovery for v2 architecture."""
 
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -37,6 +38,7 @@ class EngineRegistry:
         self._engine_instances: dict[str, Any] = {}
         self._param_models: dict[str, type[Any]] = {}
         self._engine_health: dict[str, EngineHealth] = {}
+        self._lock = threading.Lock()  # Thread safety for lazy engine instantiation
         self._discover_engines()
 
     def _discover_engines(self) -> None:
@@ -69,6 +71,16 @@ class EngineRegistry:
                             reason="Not a subclass of OCREngine",
                         )
                         continue
+
+                    # Warn about engine name collision
+                    if ep.name in self._engine_classes:
+                        logger.warning(
+                            "engine_name_collision",
+                            name=ep.name,
+                            existing_class=self._engine_classes[ep.name].__name__,
+                            new_class=engine_class.__name__,
+                            message="New engine will override existing one",
+                        )
 
                     self._engine_classes[ep.name] = engine_class
 
@@ -333,11 +345,14 @@ class EngineRegistry:
             available = ", ".join(self._engine_classes.keys()) if self._engine_classes else "none"
             raise ValueError(f"Engine '{name}' not found. Available engines: {available}")
 
-        # Lazy load engine instance
+        # Lazy load engine instance with thread-safe double-checked locking
         if name not in self._engine_instances:
-            engine_class = self._engine_classes[name]
-            self._engine_instances[name] = engine_class()
-            logger.debug("engine_instantiated", name=name)
+            with self._lock:
+                # Double-check after acquiring lock to avoid race condition
+                if name not in self._engine_instances:
+                    engine_class = self._engine_classes[name]
+                    self._engine_instances[name] = engine_class()
+                    logger.debug("engine_instantiated", name=name)
 
         return self._engine_instances[name]
 
@@ -525,11 +540,12 @@ class EngineRegistry:
         health.consecutive_successes += 1
 
         # Reset circuit after consecutive successes
-        if health.consecutive_successes >= 3:
+        if health.consecutive_successes >= settings.circuit_breaker_success_threshold:
             health.failure_count = 0
             health.circuit_open = False
             logger.info(
                 "circuit_breaker_reset",
                 engine=name,
                 consecutive_successes=health.consecutive_successes,
+                threshold=settings.circuit_breaker_success_threshold,
             )

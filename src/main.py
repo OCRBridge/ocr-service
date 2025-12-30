@@ -42,8 +42,21 @@ logger = structlog.get_logger()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[settings.rate_limit_default] if settings.rate_limit_enabled else [],
-    storage_uri="memory://",  # In-memory storage (use Redis for multi-process deployments)
+    storage_uri=settings.rate_limit_storage_uri,
 )
+
+# Warn about multi-worker deployments with in-memory rate limiting
+if (
+    settings.rate_limit_enabled
+    and settings.api_workers > 1
+    and settings.rate_limit_storage_uri == "memory://"
+):
+    logger.warning(
+        "rate_limiter_multi_worker_warning",
+        workers=settings.api_workers,
+        storage_uri=settings.rate_limit_storage_uri,
+        message="In-memory rate limiting is not shared across workers. Use Redis for accurate limiting.",
+    )
 
 
 async def cleanup_task_runner():

@@ -55,13 +55,14 @@ async def verify_api_key(api_key: str | None = Security(api_key_header_scheme)) 
         )
 
     if api_key not in valid_keys:
-        logger.warning("api_key_invalid", key_prefix=api_key[:8] if len(api_key) >= 8 else "short")
+        # Don't log any key info to avoid information disclosure
+        logger.warning("api_key_invalid")
         raise HTTPException(
             status_code=401,
             detail="Invalid API key.",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    # Log successful authentication
-    logger.debug("api_key_validated", key_prefix=api_key[:8])
+    # Log successful authentication without exposing key
+    logger.debug("api_key_validated")
     return api_key

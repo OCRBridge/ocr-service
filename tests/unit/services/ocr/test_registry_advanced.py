@@ -172,6 +172,7 @@ def test_circuit_breaker_logic():
         mock_settings.circuit_breaker_enabled = True
         mock_settings.circuit_breaker_threshold = 2
         mock_settings.circuit_breaker_timeout_seconds = 10
+        mock_settings.circuit_breaker_success_threshold = 3
 
         registry = EngineRegistry()
 

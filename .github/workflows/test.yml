@@ -80,10 +80,10 @@ jobs:
           version: "latest"
           enable-cache: true
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       - name: Install dependencies (Tesseract only)
         run: uv sync --group dev --extra tesseract
@@ -125,10 +125,10 @@ jobs:
           version: "latest"
           enable-cache: true
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       - name: Install dependencies (EasyOCR only)
         run: uv sync --group dev --extra easyocr
@@ -151,10 +151,10 @@ jobs:
           version: "latest"
           enable-cache: true
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: uv sync --group dev --all-extras
