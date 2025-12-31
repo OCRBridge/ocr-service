@@ -69,6 +69,11 @@ class Settings(BaseSettings):
         description="Seconds to wait before attempting to close an open circuit",
         ge=60,
     )
+    circuit_breaker_success_threshold: int = Field(
+        default=3,
+        description="Number of consecutive successes required to reset failure count",
+        ge=1,
+    )
 
     # Security - Authentication
     api_key_enabled: bool = Field(
@@ -102,6 +107,10 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = Field(
         default=True,
         description="Enable rate limiting (recommended for production)",
+    )
+    rate_limit_storage_uri: str = Field(
+        default="memory://",
+        description="Storage backend for rate limiting. Use 'redis://host:port' for multi-worker deployments",
     )
     testing: bool = Field(
         default=False,

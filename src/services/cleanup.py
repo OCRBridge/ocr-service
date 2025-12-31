@@ -26,6 +26,10 @@ class CleanupService:
 
         # Clean upload directory
         for file_path in self.upload_dir.glob("*"):
+            # Skip symlinks to prevent symlink attacks
+            if file_path.is_symlink():
+                logger.warning("cleanup_skipped_symlink", path=str(file_path))
+                continue
             if file_path.is_file():
                 age = current_time - file_path.stat().st_mtime
                 if age > self.expiration_seconds:
@@ -37,6 +41,10 @@ class CleanupService:
 
         # Clean results directory
         for file_path in self.results_dir.glob("*.hocr"):
+            # Skip symlinks to prevent symlink attacks
+            if file_path.is_symlink():
+                logger.warning("cleanup_skipped_symlink", path=str(file_path))
+                continue
             if file_path.is_file():
                 age = current_time - file_path.stat().st_mtime
                 if age > self.expiration_seconds:

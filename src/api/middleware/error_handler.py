@@ -10,7 +10,9 @@ logger = structlog.get_logger()
 
 async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle HTTP exceptions (preserve status code)."""
-    assert isinstance(exc, HTTPException)
+    # Type guard instead of assert (asserts are disabled with -O flag)
+    if not isinstance(exc, HTTPException):
+        return await generic_exception_handler(request, exc)
     return JSONResponse(
         status_code=exc.status_code,
         content={
