@@ -67,6 +67,7 @@ class SyncOCRResponse(BaseModel):
         except ET.ParseError as e:
             raise ValueError(f"HOCR content is not valid XML: {e}") from e
         return v
+
     processing_duration_seconds: float = Field(
         ...,
         description="Processing time in seconds",

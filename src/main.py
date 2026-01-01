@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
@@ -115,7 +115,9 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         logger.debug("cleanup_task_cancelled_successfully")
     except asyncio.TimeoutError:
-        logger.warning("cleanup_task_shutdown_timeout", message="Cleanup task did not finish within 5 seconds")
+        logger.warning(
+            "cleanup_task_shutdown_timeout", message="Cleanup task did not finish within 5 seconds"
+        )
 
     logger.info("application_shutdown_complete")
 
