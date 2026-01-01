@@ -1,6 +1,10 @@
 """Application configuration using Pydantic Settings."""
 
-from pydantic import Field
+import os
+import warnings
+from pathlib import Path
+
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -145,6 +149,66 @@ class Settings(BaseSettings):
     def sync_max_file_size_bytes(self) -> int:
         """Convert sync max file size from MB to bytes."""
         return self.sync_max_file_size_mb * 1024 * 1024
+
+    @model_validator(mode="after")
+    def validate_configuration(self) -> "Settings":
+        """Validate configuration after all fields are set."""
+        # Skip validation in testing mode
+        if self.testing:
+            return self
+
+        # Validate upload directory
+        upload_path = Path(self.upload_dir)
+        if not upload_path.is_absolute():
+            # Convert relative path to absolute based on cwd
+            upload_path = Path.cwd() / upload_path
+
+        # Create directory if it doesn't exist
+        try:
+            upload_path.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise ValueError(f"Cannot create upload directory '{self.upload_dir}': {e}") from e
+
+        # Check if directory is writable
+        if not os.access(upload_path, os.W_OK):
+            raise ValueError(f"Upload directory '{self.upload_dir}' is not writable")
+
+        # Validate results directory
+        results_path = Path(self.results_dir)
+        if not results_path.is_absolute():
+            results_path = Path.cwd() / results_path
+
+        try:
+            results_path.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise ValueError(f"Cannot create results directory '{self.results_dir}': {e}") from e
+
+        if not os.access(results_path, os.W_OK):
+            raise ValueError(f"Results directory '{self.results_dir}' is not writable")
+
+        # Validate sync_max_file_size_mb <= max_upload_size_mb
+        if self.sync_max_file_size_mb > self.max_upload_size_mb:
+            raise ValueError(
+                f"sync_max_file_size_mb ({self.sync_max_file_size_mb}) cannot exceed "
+                f"max_upload_size_mb ({self.max_upload_size_mb})"
+            )
+
+        # Warn about multi-worker rate limiting with memory storage
+        if (
+            self.api_workers > 1
+            and self.rate_limit_enabled
+            and self.rate_limit_storage_uri == "memory://"
+        ):
+            warnings.warn(
+                f"Rate limiting with memory storage is unsafe for multi-worker deployment "
+                f"(api_workers={self.api_workers}). Each worker has a separate rate limit bucket. "
+                f"Set RATE_LIMIT_STORAGE_URI to 'redis://host:port' for production, "
+                f"or set API_WORKERS=1 for single-worker mode.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        return self
 
 
 # Global settings instance

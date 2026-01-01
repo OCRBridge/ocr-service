@@ -19,8 +19,14 @@ from pydantic import BaseModel
 
 from src.api.dependencies import verify_api_key
 from src.config import settings
-from src.models.responses import SyncOCRResponse
+from src.models.responses import ErrorResponse, SyncOCRResponse
 from src.services.ocr.registry_v2 import EngineRegistry
+from src.utils.metrics import (
+    sync_ocr_duration_seconds,
+    sync_ocr_file_size_bytes,
+    sync_ocr_requests_total,
+    sync_ocr_timeouts_total,
+)
 from src.utils.validators import validate_sync_file_size
 
 logger = structlog.get_logger()
@@ -191,6 +197,9 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 temp_file = tf
             temp_file_name = temp_file.name
 
+            # Record file size metric
+            sync_ocr_file_size_bytes.labels(engine=engine_name).observe(len(contents))
+
             # Check circuit breaker before processing
             if not registry.is_engine_available(engine_name):
                 logger.warning(
@@ -233,6 +242,10 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             # Record success for circuit breaker
             registry.record_engine_success(engine_name)
 
+            # Record success metrics
+            sync_ocr_requests_total.labels(engine=engine_name, status="success").inc()
+            sync_ocr_duration_seconds.labels(engine=engine_name).observe(duration)
+
             return SyncOCRResponse(
                 hocr=hocr,
                 processing_duration_seconds=duration,
@@ -248,6 +261,9 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             )
             # Record failure for circuit breaker
             registry.record_engine_failure(engine_name)
+            # Record timeout metrics
+            sync_ocr_requests_total.labels(engine=engine_name, status="timeout").inc()
+            sync_ocr_timeouts_total.labels(engine=engine_name).inc()
             raise HTTPException(
                 status_code=504,
                 detail=f"OCR processing timeout after {settings.sync_timeout_seconds} seconds. "
@@ -262,6 +278,8 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             )
             # Record failure for circuit breaker
             registry.record_engine_failure(engine_name)
+            # Record error metric
+            sync_ocr_requests_total.labels(engine=engine_name, status="error").inc()
             raise HTTPException(
                 status_code=500,
                 detail="OCR processing failed. Please check your document and try again.",
@@ -269,6 +287,8 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
         except ValueError as e:
             logger.error("parameter_validation_error", engine=engine_name, error=str(e))
             # Don't record parameter validation as engine failure
+            # Record rejected metric
+            sync_ocr_requests_total.labels(engine=engine_name, status="rejected").inc()
             raise HTTPException(
                 status_code=400,
                 detail="Invalid parameters. Please check your request.",
@@ -285,6 +305,8 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             )
             # Record failure for circuit breaker
             registry.record_engine_failure(engine_name)
+            # Record error metric
+            sync_ocr_requests_total.labels(engine=engine_name, status="error").inc()
             raise HTTPException(
                 status_code=500,
                 detail="An unexpected error occurred during OCR processing.",
@@ -387,6 +409,36 @@ def create_engine_router(
             "Provide engine-specific parameters as individual form fields."
         ),
         operation_id=f"ocr_process_{engine_name}_v2",
+        responses={
+            400: {
+                "model": ErrorResponse,
+                "description": "Invalid request - bad parameters, unsupported file format, or file too large",
+            },
+            401: {
+                "model": ErrorResponse,
+                "description": "Unauthorized - missing or invalid API key",
+            },
+            404: {
+                "model": ErrorResponse,
+                "description": "Engine not found",
+            },
+            413: {
+                "model": ErrorResponse,
+                "description": "File too large for synchronous processing",
+            },
+            500: {
+                "model": ErrorResponse,
+                "description": "Internal server error during OCR processing",
+            },
+            503: {
+                "model": ErrorResponse,
+                "description": "Engine temporarily unavailable (circuit breaker open)",
+            },
+            504: {
+                "model": ErrorResponse,
+                "description": "OCR processing timeout",
+            },
+        },
     )(handler)
 
     # Add an info endpoint to expose engine capabilities and params schema

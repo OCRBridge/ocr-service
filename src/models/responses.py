@@ -1,6 +1,47 @@
 """API response models."""
 
-from pydantic import BaseModel, Field
+import xml.etree.ElementTree as ET
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response model for API errors.
+
+    Used in OpenAPI documentation to describe error responses.
+    """
+
+    detail: str = Field(
+        ...,
+        description="Human-readable error message",
+    )
+    error_code: str | None = Field(
+        default=None,
+        description="Machine-readable error code for programmatic handling",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "detail": "Invalid parameters. Please check your request.",
+                    "error_code": "validation_error",
+                },
+                {
+                    "detail": "Engine 'unknown' not found. Check /v2/ocr/engines for available engines.",
+                    "error_code": "not_found",
+                },
+                {
+                    "detail": "OCR engine 'tesseract' is temporarily unavailable due to repeated failures.",
+                    "error_code": "service_unavailable",
+                },
+                {
+                    "detail": "OCR processing timeout after 30 seconds.",
+                    "error_code": "timeout",
+                },
+            ]
+        }
+    }
 
 
 class SyncOCRResponse(BaseModel):
@@ -15,6 +56,18 @@ class SyncOCRResponse(BaseModel):
         description="hOCR XML output as escaped string",
         min_length=1,
     )
+
+    @field_validator("hocr")
+    @classmethod
+    def validate_hocr_xml(cls, v: str) -> str:
+        """Validate that HOCR content is well-formed XML."""
+        try:
+            # Basic XML well-formedness check
+            ET.fromstring(v)
+        except ET.ParseError as e:
+            raise ValueError(f"HOCR content is not valid XML: {e}") from e
+        return v
+
     processing_duration_seconds: float = Field(
         ...,
         description="Processing time in seconds",
