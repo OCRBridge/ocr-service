@@ -33,6 +33,18 @@ jobs:
             always_build: false  # Full is conditional
 
     steps:
+      - name: Free Disk Space
+        if: matrix.flavor == 'full'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true           # ~11GB
+          android: true              # ~8.5GB
+          dotnet: true               # ~2.5GB
+          haskell: true              # ~5.5GB
+          large-packages: false      # Keep docker, buildx
+          docker-images: false       # Keep base images for caching
+          swap-storage: true         # ~4GB
+
       - name: Checkout code
         uses: actions/checkout@v6
 
