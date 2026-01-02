@@ -41,7 +41,7 @@ COPY src ./src
 # ============================================================================
 # Stage 3: Lite Runtime - Tesseract only (minimal runtime)
 # ============================================================================
-FROM python:3.11-slim-bookworm AS lite
+FROM python:3.14-slim-bookworm AS lite
 
 # Install minimal system dependencies (Tesseract and PDF processing only)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -96,7 +96,7 @@ COPY src ./src
 # ============================================================================
 # Stage 5: Full Runtime - Tesseract + EasyOCR (minimal runtime)
 # ============================================================================
-FROM python:3.11-slim-bookworm AS full
+FROM python:3.14-slim-bookworm AS full
 
 # Install system dependencies for Tesseract, PDF processing, and ML libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
