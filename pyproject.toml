@@ -5,6 +5,7 @@ description = "RESTful OCR API service with modular engine architecture (v2)"
 readme = "README.md"
 requires-python = ">=3.10"
 # Base dependencies: Core API service (engines installed separately)
+# NOTE: Requires system library 'libmagic' (run: make check-deps to verify)
 dependencies = [
     "fastapi>=0.123.0",
     "pydantic>=2.5.0",
@@ -14,7 +15,7 @@ dependencies = [
     "prometheus-client>=0.19.0",
     "aiofiles>=23.2.0",
     "python-multipart>=0.0.18",
-    "python-magic>=0.4.27",
+    "python-magic>=0.4.27",  # Requires system libmagic library
     "slowapi>=0.1.9",
     "ocrbridge-core>=3.1.0",
 ]

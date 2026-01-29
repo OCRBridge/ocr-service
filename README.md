@@ -37,7 +37,59 @@ This service uses a **modular plugin architecture** powered by the [datenzar OCR
 
 ### Prerequisites
 
-- Python 3.10+
+#### Required Software
+
+- **Python 3.10+**
+- **libmagic** - File type detection library
+
+#### System Dependencies
+
+The service requires `libmagic` for file format validation. Install it for your OS:
+
+**macOS:**
+```bash
+brew install libmagic
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install libmagic1
+```
+
+**Fedora/RHEL/CentOS:**
+```bash
+# Fedora
+sudo dnf install file-libs
+
+# Or on older systems
+sudo yum install file-libs
+```
+
+**Windows:**
+```bash
+# Option 1: Use python-magic-bin (recommended)
+pip install python-magic-bin
+
+# Option 2: Install via MSYS2
+# See: https://www.msys2.org/
+# Then: pacman -S mingw-w64-x86_64-file
+```
+
+**Note:** Docker images include all system dependencies pre-installed.
+
+#### Verify Dependencies
+
+Check that all system requirements are met:
+
+```bash
+make check-deps
+```
+
+This will verify:
+- Python version (>= 3.10)
+- libmagic availability
+- Display OS-specific installation instructions if anything is missing
 
 ### Base Installation
 

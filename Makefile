@@ -1,8 +1,9 @@
-.PHONY: help install dev test test-coverage test-slow test-macos test-all lint format typecheck pre-commit docker-up docker-down docker-logs docker-build-lite docker-build-full docker-build-all docker-compose-lite-up docker-compose-lite-down docker-compose-full-up docker-compose-full-down clean run setup-test-env check check-ci ci commit release release-dry-run changelog version
+.PHONY: help install dev test test-coverage test-slow test-macos test-all lint format typecheck pre-commit docker-up docker-down docker-logs docker-build-lite docker-build-full docker-build-all docker-compose-lite-up docker-compose-lite-down docker-compose-full-up docker-compose-full-down clean run setup-test-env check check-ci ci commit release release-dry-run changelog version check-deps
 
 # Default target
 help:
 	@echo "Available targets:"
+	@echo "  make check-deps       - Check system dependencies (libmagic, Python version)"
 	@echo "  make install          - Install dependencies"
 	@echo "  make dev              - Run development server"
 	@echo "  make test             - Run tests excluding Ocrmac and EasyOCR tests (for Linux CI)"
@@ -38,9 +39,16 @@ help:
 	@echo "  make changelog        - Generate/update changelog"
 	@echo "  make version          - Display current version"
 
+# System dependencies check
+check-deps:
+	@python scripts/check_deps.py
+
 # Development
 install:
 	uv sync --group dev --all-extras
+	@echo ""
+	@echo "Running system dependency checks..."
+	@make check-deps
 
 dev:
 	uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
