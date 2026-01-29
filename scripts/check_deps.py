@@ -110,7 +110,7 @@ def check_libmagic() -> bool:
         import magic
 
         # Try to create a Magic instance - this will fail if libmagic isn't available
-        m = magic.Magic()
+        magic.Magic()
         print_success("libmagic is accessible via python-magic")
         return True
     except (ImportError, OSError):
