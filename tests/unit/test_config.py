@@ -10,8 +10,27 @@ from pydantic import ValidationError
 from src.config import Settings
 
 
-def test_settings_defaults():
+def test_settings_defaults(monkeypatch, tmp_path):
     """Test that settings have correct default values."""
+    # Ensure defaults are not affected by process env or local .env files.
+    for key in (
+        "API_HOST",
+        "API_PORT",
+        "API_WORKERS",
+        "UPLOAD_DIR",
+        "RESULTS_DIR",
+        "MAX_UPLOAD_SIZE_MB",
+        "JOB_EXPIRATION_HOURS",
+        "SYNC_TIMEOUT_SECONDS",
+        "SYNC_MAX_FILE_SIZE_MB",
+        "LOG_LEVEL",
+        "LOG_FORMAT",
+        "DEBUG",
+        "RELOAD",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.chdir(tmp_path)
     settings = Settings()
 
     # API Configuration

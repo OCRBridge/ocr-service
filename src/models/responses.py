@@ -62,7 +62,7 @@ class SyncOCRResponse(BaseModel):
     def validate_hocr_xml(cls, v: str) -> str:
         """Validate that HOCR content is well-formed XML."""
         try:
-            # Basic XML well-formedness check
+            # Basic XML well-formed check
             ET.fromstring(v)
         except ET.ParseError as e:
             raise ValueError(f"HOCR content is not valid XML: {e}") from e
