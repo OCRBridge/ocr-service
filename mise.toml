@@ -104,14 +104,17 @@ run = "uv run uvicorn src.main:app --reload --host ${usage_host?} --port ${usage
 
 [tasks."test:all"]
 description = "Run all tests"
+depends = ["install:all"]
 run = "uv run pytest -v"
 
 [tasks."test:contract"]
 description = "Run contract tests"
+depends = ["install:base"]
 run = "uv run pytest tests/contract -v"
 
 [tasks."test:coverage"]
 description = "Run coverage excluding easyocr and ocrmac"
+depends = ["install:base"]
 run = [
   "uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m \"not easyocr and not ocrmac\"",
   "echo \"Coverage report generated:\"",
@@ -121,6 +124,7 @@ run = [
 
 [tasks."test:coverage:full"]
 description = "Run coverage including all engines"
+depends = ["install:all"]
 run = [
   "uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml",
   "echo \"Full coverage report (including EasyOCR tests):\"",
@@ -129,24 +133,30 @@ run = [
 
 [tasks."test:e2e"]
 description = "Run end-to-end tests"
+depends = ["install:base"]
 run = "uv run pytest tests/e2e -v"
 
 [tasks."test:easyocr"]
 description = "Run EasyOCR tests"
+depends = ["install:easyocr"]
 run = "uv run pytest -m \"easyocr\" -v"
 
 [tasks."test:integration"]
 description = "Run integration tests"
+depends = ["install:base"]
 run = "uv run pytest tests/integration -v"
 
 [tasks."test:macos"]
 description = "Run macOS-only ocrmac tests"
+depends = ["install:ocrmac"]
 run = "uv run pytest -m \"ocrmac\" -v"
 
 [tasks."test:tesseract"]
 description = "Run Tesseract tests"
+depends = ["install:tesseract"]
 run = "uv run pytest -m \"tesseract\" -v"
 
 [tasks."test:unit"]
 description = "Run unit tests"
+depends = ["install:base"]
 run = "uv run pytest tests/unit -v"
