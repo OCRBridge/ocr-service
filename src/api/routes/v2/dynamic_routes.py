@@ -6,14 +6,17 @@ engines discovered at startup via entry points.
 
 import asyncio
 import re
+import subprocess
 import time
 from inspect import Parameter, Signature, signature
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
+import pytesseract
 import structlog
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import Response
 from ocrbridge.core.exceptions import OCRProcessingError
 from pydantic import BaseModel
 
@@ -178,7 +181,8 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
         file: UploadFile,
         registry: EngineRegistry,
         validated_params: Any,
-    ) -> SyncOCRResponse:
+        output_format: Literal["hocr", "pdf"],
+    ) -> SyncOCRResponse | Response:
         """Common OCR processing logic."""
         temp_file = None
         try:
@@ -245,6 +249,119 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             # Record success metrics
             sync_ocr_requests_total.labels(engine=engine_name, status="success").inc()
             sync_ocr_duration_seconds.labels(engine=engine_name).observe(duration)
+
+            if output_format == "pdf":
+                if suffix == ".pdf":
+                    hocr_temp_path: Path | None = None
+                    output_pdf_path: Path | None = None
+
+                    try:
+                        with NamedTemporaryFile(
+                            delete=False,
+                            suffix=".hocr",
+                            dir=upload_dir,
+                            mode="w",
+                            encoding="utf-8",
+                        ) as hocr_temp_file:
+                            hocr_temp_file.write(hocr)
+                            hocr_temp_file.flush()
+                            hocr_temp_path = Path(hocr_temp_file.name)
+
+                        with NamedTemporaryFile(
+                            delete=False,
+                            suffix=".pdf",
+                            dir=upload_dir,
+                        ) as output_pdf_temp_file:
+                            output_pdf_path = Path(output_pdf_temp_file.name)
+
+                        cmd = [
+                            settings.pdfocr_command,
+                            "-hocr",
+                            str(hocr_temp_path),
+                            "-pdf",
+                            str(temp_file_name),
+                            "-output",
+                            str(output_pdf_path),
+                            "-overwrite",
+                            "-force",
+                        ]
+
+                        def run_pdfocr(command: list[str]) -> subprocess.CompletedProcess[str]:
+                            return subprocess.run(
+                                command,
+                                capture_output=True,
+                                text=True,
+                                check=False,
+                            )
+
+                        process_result = await asyncio.to_thread(run_pdfocr, cmd)
+
+                        if process_result.returncode not in {0, 2}:
+                            logger.error(
+                                "pdfocr_failed",
+                                engine=engine_name,
+                                returncode=process_result.returncode,
+                                stdout=process_result.stdout,
+                                stderr=process_result.stderr,
+                            )
+                            raise OCRProcessingError("Searchable PDF generation failed")
+
+                        if not output_pdf_path.exists() or output_pdf_path.stat().st_size == 0:
+                            logger.error(
+                                "pdfocr_output_missing",
+                                engine=engine_name,
+                                output_path=str(output_pdf_path),
+                            )
+                            raise OCRProcessingError("Searchable PDF output was not created")
+
+                        pdf_bytes = output_pdf_path.read_bytes()
+                    except FileNotFoundError as e:
+                        logger.error(
+                            "pdfocr_command_not_found",
+                            engine=engine_name,
+                            command=settings.pdfocr_command,
+                            error=str(e),
+                        )
+                        raise OCRProcessingError(
+                            "Searchable PDF generation tool is not installed"
+                        ) from e
+                    finally:
+                        if hocr_temp_path:
+                            hocr_temp_path.unlink(missing_ok=True)
+                        if output_pdf_path:
+                            output_pdf_path.unlink(missing_ok=True)
+                else:
+                    lang = getattr(validated_params, "lang", "eng") if validated_params else "eng"
+                    dpi = getattr(validated_params, "dpi", None) if validated_params else None
+                    psm = getattr(validated_params, "psm", None) if validated_params else None
+                    oem = getattr(validated_params, "oem", None) if validated_params else None
+
+                    config_parts: list[str] = []
+                    if psm is not None:
+                        config_parts.append(f"--psm {psm}")
+                    if oem is not None:
+                        config_parts.append(f"--oem {oem}")
+                    if dpi is not None:
+                        config_parts.append(f"--dpi {dpi}")
+
+                    config_string = " ".join(config_parts)
+
+                    pdf_output = pytesseract.image_to_pdf_or_hocr(
+                        str(temp_file_name),
+                        lang=lang,
+                        config=config_string,
+                        extension="pdf",
+                    )
+                    pdf_bytes = (
+                        pdf_output if isinstance(pdf_output, bytes) else pdf_output.encode("utf-8")
+                    )
+
+                output_name = f"{Path(file.filename or 'ocr_result').stem}.pdf"
+                return Response(
+                    content=pdf_bytes,
+                    media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{output_name}"'},
+                )
 
             return SyncOCRResponse(
                 hocr=hocr,
@@ -326,8 +443,14 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
             _api_key: Annotated[str, Depends(verify_api_key)],
+            output_format: Annotated[
+                Literal["hocr", "pdf"],
+                Form(
+                    description="Response format: hocr (JSON) or pdf (downloadable PDF with OCR layer)."
+                ),
+            ] = "hocr",
             **engine_params: Any,
-        ) -> SyncOCRResponse:
+        ) -> SyncOCRResponse | Response:
             """Process document with OCR engine (dynamic params)."""
             try:
                 validated_params = registry.validate_params(engine_name, engine_params)
@@ -344,7 +467,7 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                     detail="Parameter validation failed. Please check engine parameter requirements.",
                 )
 
-            return await process_document(file, registry, validated_params)
+            return await process_document(file, registry, validated_params, output_format)
 
         # Update signature to include dynamic parameters
         sig = signature(handler_with_params)
@@ -364,9 +487,15 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
             _api_key: Annotated[str, Depends(verify_api_key)],
-        ) -> SyncOCRResponse:
+            output_format: Annotated[
+                Literal["hocr", "pdf"],
+                Form(
+                    description="Response format: hocr (JSON) or pdf (downloadable PDF with OCR layer)."
+                ),
+            ] = "hocr",
+        ) -> SyncOCRResponse | Response:
             """Process document with OCR engine."""
-            return await process_document(file, registry, None)
+            return await process_document(file, registry, None, output_format)
 
         handler_no_params.__doc__ = f"Process document with {engine_name} OCR engine."
         return handler_no_params

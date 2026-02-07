@@ -59,6 +59,7 @@
         "def",
         "dejavu",
         "del",
+        "delenv",
         "delattr",
         "deleter",
         "dict",
