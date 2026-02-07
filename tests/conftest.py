@@ -65,10 +65,18 @@ def mock_engine_registry():
     Patches entry_points in the registry module to return mock engines.
     Returns EngineRegistry instance with mock Tesseract engine.
     """
-    from tests.mocks.mock_engines import MockTesseractEngine
+    from tests.mocks.mock_engines import (
+        MockEasyOCREngine,
+        MockOcrmacEngine,
+        MockTesseractEngine,
+    )
     from tests.mocks.mock_entry_points import mock_entry_points_factory
 
-    engines = {"tesseract": MockTesseractEngine}
+    engines = {
+        "tesseract": MockTesseractEngine,
+        "easyocr": MockEasyOCREngine,
+        "ocrmac": MockOcrmacEngine,
+    }
     mock_ep = mock_entry_points_factory(engines)
 
     # Patch entry_points where it's used in the registry module

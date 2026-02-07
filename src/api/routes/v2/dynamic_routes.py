@@ -250,12 +250,6 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             sync_ocr_duration_seconds.labels(engine=engine_name).observe(duration)
 
             if output_format == "pdf":
-                if engine_name != "tesseract":
-                    raise HTTPException(
-                        status_code=400,
-                        detail="PDF output is currently supported only for the tesseract engine.",
-                    )
-
                 lang = getattr(validated_params, "lang", "eng") if validated_params else "eng"
                 dpi = getattr(validated_params, "dpi", None) if validated_params else None
                 psm = getattr(validated_params, "psm", None) if validated_params else None

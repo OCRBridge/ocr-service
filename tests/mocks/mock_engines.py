@@ -69,6 +69,22 @@ class MockEngineWithoutParams(OCREngine):
 </html>"""
 
 
+class MockEasyOCREngine(MockTesseractEngine):
+    """Mock EasyOCR engine for testing dynamic route registration."""
+
+    @property
+    def name(self) -> str:
+        return "easyocr"
+
+
+class MockOcrmacEngine(MockTesseractEngine):
+    """Mock ocrmac engine for testing dynamic route registration."""
+
+    @property
+    def name(self) -> str:
+        return "ocrmac"
+
+
 class InvalidEngine:
     """Invalid engine class (doesn't subclass OCREngine) for testing validation."""
 
