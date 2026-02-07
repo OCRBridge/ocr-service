@@ -70,6 +70,39 @@ def test_ocrmac_process_pdf_download_success(client, sample_jpeg_bytes, monkeypa
     assert resp.content.startswith(b"%PDF")
 
 
+def test_pdf_upload_uses_pdfocr_for_searchable_pdf(client, sample_pdf_bytes, monkeypatch):
+    class FakeCompletedProcess:
+        def __init__(self):
+            self.returncode = 0
+            self.stdout = ""
+            self.stderr = ""
+
+    def fake_pdfocr_run(command, capture_output, text, check):
+        output_path = command[command.index("-output") + 1]
+        with open(output_path, "wb") as f:
+            f.write(b"%PDF-1.7\nsearchable\n")
+        return FakeCompletedProcess()
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError(
+            "pytesseract.image_to_pdf_or_hocr should not be called for PDF uploads"
+        )
+
+    monkeypatch.setattr("src.api.routes.v2.dynamic_routes.subprocess.run", fake_pdfocr_run)
+    monkeypatch.setattr(
+        "src.api.routes.v2.dynamic_routes.pytesseract.image_to_pdf_or_hocr",
+        fail_if_called,
+    )
+
+    files = {"file": ("test.pdf", io.BytesIO(sample_pdf_bytes), "application/pdf")}
+    data = {"output_format": "pdf"}
+
+    resp = client.post("/v2/ocr/ocrmac/process", files=files, data=data)
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type", "").startswith("application/pdf")
+    assert resp.content.startswith(b"%PDF")
+
+
 def test_tesseract_invalid_param_returns_400(client, sample_jpeg_bytes):
     files = {"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")}
     # psm must be <= 13
