@@ -38,7 +38,7 @@ mise run install:all
 ### Running Locally
 ```bash
 # Start development server with reload
-mise run run
+mise run dev
 ```
 
 ### Testing

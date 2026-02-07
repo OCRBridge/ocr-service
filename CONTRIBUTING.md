@@ -73,7 +73,7 @@ cp .env.example .env
 **Option 1: Local Development** (fastest iteration)
 ```bash
 # Development mode with auto-reload
-mise run run
+mise run dev
 ```
 
 **Option 2: Docker Development** (matches production environment)

@@ -98,7 +98,7 @@ mise run install:tesseract
 ### 3. Run the Service
 
 ```bash
-mise run run
+mise run dev
 ```
 
 The API will be available at `http://localhost:8000`.
