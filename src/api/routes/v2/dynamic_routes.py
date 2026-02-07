@@ -10,10 +10,12 @@ import time
 from inspect import Parameter, Signature, signature
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
+import pytesseract
 import structlog
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import Response
 from ocrbridge.core.exceptions import OCRProcessingError
 from pydantic import BaseModel
 
@@ -178,7 +180,8 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
         file: UploadFile,
         registry: EngineRegistry,
         validated_params: Any,
-    ) -> SyncOCRResponse:
+        output_format: Literal["hocr", "pdf"],
+    ) -> SyncOCRResponse | Response:
         """Common OCR processing logic."""
         temp_file = None
         try:
@@ -245,6 +248,45 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             # Record success metrics
             sync_ocr_requests_total.labels(engine=engine_name, status="success").inc()
             sync_ocr_duration_seconds.labels(engine=engine_name).observe(duration)
+
+            if output_format == "pdf":
+                if engine_name != "tesseract":
+                    raise HTTPException(
+                        status_code=400,
+                        detail="PDF output is currently supported only for the tesseract engine.",
+                    )
+
+                lang = getattr(validated_params, "lang", "eng") if validated_params else "eng"
+                dpi = getattr(validated_params, "dpi", None) if validated_params else None
+                psm = getattr(validated_params, "psm", None) if validated_params else None
+                oem = getattr(validated_params, "oem", None) if validated_params else None
+
+                config_parts: list[str] = []
+                if psm is not None:
+                    config_parts.append(f"--psm {psm}")
+                if oem is not None:
+                    config_parts.append(f"--oem {oem}")
+                if dpi is not None:
+                    config_parts.append(f"--dpi {dpi}")
+
+                config_string = " ".join(config_parts)
+
+                pdf_output = pytesseract.image_to_pdf_or_hocr(
+                    str(temp_file_name),
+                    lang=lang,
+                    config=config_string,
+                    extension="pdf",
+                )
+                pdf_bytes = (
+                    pdf_output if isinstance(pdf_output, bytes) else pdf_output.encode("utf-8")
+                )
+
+                output_name = f"{Path(file.filename or 'ocr_result').stem}.pdf"
+                return Response(
+                    content=pdf_bytes,
+                    media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{output_name}"'},
+                )
 
             return SyncOCRResponse(
                 hocr=hocr,
@@ -326,8 +368,14 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
             _api_key: Annotated[str, Depends(verify_api_key)],
+            output_format: Annotated[
+                Literal["hocr", "pdf"],
+                Form(
+                    description="Response format: hocr (JSON) or pdf (downloadable PDF with OCR layer)."
+                ),
+            ] = "hocr",
             **engine_params: Any,
-        ) -> SyncOCRResponse:
+        ) -> SyncOCRResponse | Response:
             """Process document with OCR engine (dynamic params)."""
             try:
                 validated_params = registry.validate_params(engine_name, engine_params)
@@ -344,7 +392,7 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                     detail="Parameter validation failed. Please check engine parameter requirements.",
                 )
 
-            return await process_document(file, registry, validated_params)
+            return await process_document(file, registry, validated_params, output_format)
 
         # Update signature to include dynamic parameters
         sig = signature(handler_with_params)
@@ -364,9 +412,15 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             registry: Annotated[EngineRegistry, Depends(get_registry)],
             _validated_file: Annotated[UploadFile, Depends(validate_sync_file_size)],
             _api_key: Annotated[str, Depends(verify_api_key)],
-        ) -> SyncOCRResponse:
+            output_format: Annotated[
+                Literal["hocr", "pdf"],
+                Form(
+                    description="Response format: hocr (JSON) or pdf (downloadable PDF with OCR layer)."
+                ),
+            ] = "hocr",
+        ) -> SyncOCRResponse | Response:
             """Process document with OCR engine."""
-            return await process_document(file, registry, None)
+            return await process_document(file, registry, None, output_format)
 
         handler_no_params.__doc__ = f"Process document with {engine_name} OCR engine."
         return handler_no_params
