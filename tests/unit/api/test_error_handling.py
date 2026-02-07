@@ -27,12 +27,14 @@ async def test_process_timeout_returns_504(app):
     # Easiest is to mock the engine's process to be slow and let the real wait_for hit.
     # But wait_for wraps a thread run.
 
-    # Let's mock the asyncio.wait_for in dynamic_routes.py directly to raise TimeoutError
-    # This is more robust than relying on sleep timing in unit tests.
+    # Mock wait_for to force timeout while cleaning up the pending coroutine
+    # to avoid unawaited-coroutine warnings during GC.
+    async def _mock_wait_for(awaitable, timeout=None):
+        if asyncio.iscoroutine(awaitable):
+            awaitable.close()
+        raise asyncio.TimeoutError
 
-    with patch(
-        "src.api.routes.v2.dynamic_routes.asyncio.wait_for", side_effect=asyncio.TimeoutError
-    ):
+    with patch("src.api.routes.v2.dynamic_routes.asyncio.wait_for", new=_mock_wait_for):
         # Setup registry
         registry = EngineRegistry()
         registry.inject_engine_instance("slow_engine", mock_engine)
