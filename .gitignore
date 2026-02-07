@@ -17,6 +17,8 @@ ENV/
 # Environment variables
 .env
 .env.local
+mise.local.toml
+.mise.local.toml
 
 # IDE
 .vscode/

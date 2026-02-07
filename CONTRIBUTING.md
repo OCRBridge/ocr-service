@@ -6,7 +6,7 @@ Thank you for your interest in contributing to RESTful OCR API! This document pr
 
 - [Getting Started](#getting-started)
 - [Development Environment Setup](#development-environment-setup)
-  - [Makefile Commands Reference](#makefile-commands-reference)
+  - [Mise Tasks Reference](#mise-tasks-reference)
 - [Project Structure](#project-structure)
 - [Development Workflow](#development-workflow)
 - [Testing](#testing)
@@ -32,7 +32,7 @@ Before you begin contributing, please:
 - Tesseract OCR 5.3+
 - Poppler utils (for PDF processing)
 - libmagic (for file type detection)
-- uv (Python package manager)
+- mise (task runner and tool manager)
 - Git
 
 ### Installation
@@ -49,20 +49,16 @@ git remote add upstream https://github.com/ORIGINAL_OWNER/ocr-service.git
 sudo apt-get update
 sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils libmagic1
 
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate
+# Install pinned tools and project dependencies
+mise install
 
-# Install base dependencies (Tesseract only - fastest)
-uv sync --group dev
+# Install all dev dependencies and OCR engines
+mise run install:all
 
-# OR install with EasyOCR support (if you need to test deep learning OCR)
-uv sync --group dev --all-extras
-
-# OR install specific extras
-# uv pip install -e .[easyocr]  # EasyOCR only
-# uv pip install -e .[ocrmac]   # macOS Vision framework (macOS only)
-# uv pip install -e .[full]     # All OCR engines
+# Optional: install specific engine sets
+# mise run install:tesseract
+# mise run install:easyocr
+# mise run install:ocrmac
 
 # Create required directories
 mkdir -p /tmp/uploads /tmp/results
@@ -77,43 +73,42 @@ cp .env.example .env
 **Option 1: Local Development** (fastest iteration)
 ```bash
 # Development mode with auto-reload
-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+mise run run
 ```
 
 **Option 2: Docker Development** (matches production environment)
 ```bash
 # Lite flavor (fastest Docker builds, Tesseract only)
 docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d
-# Or use: make docker-compose-lite-up
 
 # Full flavor (includes EasyOCR, slower builds)
 docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
-# Or use: make docker-compose-full-up
 
-# View logs
-docker compose -f docker-compose.base.yml -f docker-compose.lite.yml logs -f api
+# View logs for full flavor
+docker compose -f docker-compose.base.yml -f docker-compose.yml logs -f api
 
-# Rebuild after code changes
-docker compose -f docker-compose.base.yml -f docker-compose.lite.yml up -d --build
+# Rebuild full flavor after code changes
+docker compose -f docker-compose.base.yml -f docker-compose.yml down
+docker compose -f docker-compose.base.yml -f docker-compose.yml build
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
 ```
 
 **Building Docker Images Locally**:
 ```bash
 # Build lite image (fast, ~2-3 min)
 docker build --target lite -t ocr-service:lite .
-# Or: make docker-build-lite
 
 # Build full image (slow, ~10-15 min due to PyTorch)
-docker build --target full -t ocr-service:full .
-# Or: make docker-build-full
+docker build --target full -t ocr-service:full -t ocr-service:latest .
 
 # Build both flavors
-make docker-build-all
+docker build --target lite -t ocr-service:lite .
+docker build --target full -t ocr-service:full -t ocr-service:latest .
 ```
 
-### Makefile Commands Reference
+### Mise Tasks Reference
 
-The project includes a comprehensive Makefile for common development tasks. Run `make help` to see all available commands.
+The project includes a comprehensive set of mise tasks for common development tasks. Run `mise tasks ls` to see all available commands.
 
 ## Project Structure
 
@@ -242,28 +237,28 @@ Our test suite consists of three types of tests:
 ### Running Tests
 
 ```bash
-# Quick test (excludes slow tests and macOS-only)
-make test
+# Quick test (excludes EasyOCR and macOS-only)
+uv run pytest -m "not easyocr and not ocrmac" -v
 
 # Run specific test suites
-make test-unit
-make test-integration
-make test-contract
+mise run test:unit
+mise run test:integration
+mise run test:contract
 
 # Run slow tests (EasyOCR)
-make test-slow
+mise run test:easyocr
 
 # Run macOS-specific tests
-make test-macos
+mise run test:macos
 
 # Run all tests
-make test-all
+mise run test:all
 
 # Run with coverage report (excludes slow)
-make test-coverage
+mise run test:coverage
 
 # Run full coverage report (includes slow)
-make test-coverage-full
+mise run test:coverage:full
 
 # Run specific test file
 uv run pytest tests/unit/test_validators.py -v
@@ -462,13 +457,10 @@ We use [Ruff](https://github.com/astral-sh/ruff) for code formatting and linting
 
 ```bash
 # Format code
-uv run ruff format
-
-# Check linting
-uv run ruff check
+mise run lint:format
 
 # Auto-fix linting issues
-uv run ruff check --fix
+mise run lint:lint:fix
 ```
 
 ### Code Style Guidelines
@@ -515,13 +507,13 @@ This project uses [ty](https://docs.astral.sh/ty) for static type checking. All 
 
 ```bash
 # Run type checker
-uv run ty check
+mise run lint:typecheck
 
 # Check specific directory
 uv run ty check src/
 ```
 
-**Note**: Type checking is automatically run via pre-commit hooks. See [AGENTS.md](AGENTS.md) for pre-commit hook configuration and commands.
+**Note**: Type checking is automatically run via `mise run release:pre-commit`. See [AGENTS.md](AGENTS.md) for task configuration and usage.
 
 ## Submitting Changes
 
@@ -600,9 +592,9 @@ Understanding our CI/CD workflow helps you know what to expect when submitting P
 
 Before submitting a PR, ensure:
 
-- [ ] All tests pass (`uv run pytest`)
-- [ ] Code is formatted (`uv run ruff format`)
-- [ ] Linting passes (`uv run ruff check`)
+- [ ] All tests pass (`mise run test:all`)
+- [ ] Code is formatted (`mise run lint:format`)
+- [ ] Linting passes (`mise run lint:lint`)
 - [ ] Coverage is maintained or improved
 - [ ] Documentation is updated (if needed)
 - [ ] Commit messages follow guidelines

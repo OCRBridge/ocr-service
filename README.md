@@ -37,7 +37,7 @@ This service uses a **modular plugin architecture** powered by the [datenzar OCR
 
 ### Prerequisites
 
-- Python 3.10+
+- mise
 
 ### Base Installation
 
@@ -48,8 +48,9 @@ Install the core service (no engines):
 git clone <repository-url>
 cd ocr-service
 
-# Install base dependencies
-pip install -e .
+# Install pinned tools and base dependencies
+mise install
+mise run install:base
 ```
 
 ### Install OCR Engines
@@ -58,19 +59,19 @@ Choose which engines to install:
 
 ```bash
 # Option 1: Install Tesseract engine
-pip install -e .[tesseract]
+mise run install:tesseract
 # System requirement: tesseract binary must be installed
 # Ubuntu/Debian: sudo apt-get install tesseract-ocr
 # macOS: brew install tesseract
 
 # Option 2: Install EasyOCR engine (includes PyTorch, ~2GB)
-pip install -e .[easyocr]
+mise run install:easyocr
 
 # Option 3: Install ocrmac engine (macOS only)
-pip install -e .[ocrmac]
+mise run install:ocrmac
 
 # Option 4: Install all engines
-pip install -e .[full]
+mise run install:all
 ```
 
 ### Engine Comparison
@@ -87,7 +88,7 @@ pip install -e .[full]
 
 ```bash
 # Install Tesseract engine (lightest option)
-pip install -e .[tesseract]
+mise run install:tesseract
 
 # Make sure tesseract binary is installed
 # macOS: brew install tesseract
@@ -97,7 +98,7 @@ pip install -e .[tesseract]
 ### 3. Run the Service
 
 ```bash
-uvicorn src.main:app --reload
+mise run run
 ```
 
 The API will be available at `http://localhost:8000`.
@@ -309,24 +310,25 @@ No code changes to the service required.
 ### Install Development Dependencies
 
 ```bash
-# Install with uv (recommended)
-pip install uv
-uv sync --group dev
+# Install pinned tools
+mise install
 
-# Or with pip
-pip install -e .[tesseract]
+# Install dependencies (dev + all engines)
+mise run install:all
+
+# Or install only Tesseract for a lighter setup
+mise run install:tesseract
 ```
 
 ### Run Linting and Type Checking
 
 ```bash
-# Using uv
-uv run ruff check
-uv run ty check
+mise run lint:format
+mise run lint:lint
+mise run lint:typecheck
 
-# Using make
-make lint
-make typecheck
+# Run all quality tasks
+mise run lint:all
 ```
 
 ### Project Structure
@@ -353,11 +355,11 @@ ocr-service/
 ### Docker Deployment
 
 ```bash
-# Build image
-docker build -t ocr-service:latest .
+# Build the full runtime image
+docker build --target full -t ocr-service:full -t ocr-service:latest .
 
-# Run
-docker run -d -p 8000:8000 ocr-service:latest
+# Start the API stack
+docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
 ```
 
 ### Production Considerations
@@ -373,8 +375,8 @@ docker run -d -p 8000:8000 ocr-service:latest
 ### No Engines Detected
 
 ```bash
-# Check if engine packages are installed
-pip list | grep ocrbridge
+# Check discovered engine entry points
+uv run python -c "import importlib.metadata as m; print([ep.name for ep in m.entry_points(group='ocrbridge.engines')])"
 
 # Check logs for engine discovery
 # Look for: "ocr_engines_discovered"

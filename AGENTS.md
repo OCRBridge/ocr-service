@@ -15,7 +15,8 @@
 **Tech Stack:**
 *   **Language:** Python 3.10+
 *   **Framework:** FastAPI, Uvicorn
-*   **Dependency Management:** `uv`
+*   **Task Runner:** `mise`
+*   **Dependency Management:** `uv` (via mise tasks)
 *   **Linting/Formatting:** `ruff`
 *   **Type Checking:** `ty`
 *   **Testing:** `pytest`
@@ -23,58 +24,43 @@
 
 ## Building and Running
 
-The project uses `make` and `uv` for most tasks.
+The project uses `mise` tasks for all developer workflows.
 
 ### Installation
 ```bash
+# Install pinned tools from mise.toml
+mise install
+
 # Install dependencies (including dev and all engines)
-make install
-# OR directly with uv
-uv sync --group dev --all-extras
+mise run install:all
 ```
 
 ### Running Locally
 ```bash
 # Start development server with reload
-make dev
-# OR
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+mise run run
 ```
 
 ### Testing
 ```bash
-# Run standard tests (skips EasyOCR and Ocrmac)
-make test
-
 # Run all tests
-make test-all
+mise run test:all
 
 # Run specific test types
-make test-unit
-make test-integration
-make test-e2e
-make test-contract
-```
-
-### Docker
-```bash
-# Build specific flavors
-make docker-build-lite  # Tesseract only (~500MB)
-make docker-build-full  # Tesseract + EasyOCR (~2.5GB)
-
-# Run with Docker Compose
-make docker-up
-make docker-down
+mise run test:unit
+mise run test:integration
+mise run test:e2e
+mise run test:contract
 ```
 
 ## Development Conventions
 
-*   **Code Style:** Strict adherence to `ruff` for linting and formatting. Run `make lint` and `make format` before committing.
-*   **Type Safety:** 100% type compliance required via `ty`. Run `make typecheck`.
-*   **Commits:** Follow Conventional Commits. Use `make commit` to use the Commitizen CLI.
+*   **Code Style:** Strict adherence to `ruff` for linting and formatting. Run `mise run lint:lint` and `mise run lint:format` before committing.
+*   **Type Safety:** 100% type compliance required via `ty`. Run `mise run lint:typecheck`.
+*   **Commits:** Follow Conventional Commits. Use `mise run release:commit` to open Commitizen CLI.
 *   **Architecture:**
     *   **Core:** `src/` contains the API service.
-    *   **Packages:** Managed via `uv` and `pyproject.toml`. Engines are installed as separate packages.
+    *   **Packages:** Managed via `pyproject.toml`; dependencies are installed through mise tasks.
     *   **Entry Points:** Engines are discovered via `project.entry-points."ocrbridge.engines"` in `pyproject.toml`.
 *   **Testing:**
     *   Unit tests for logic.

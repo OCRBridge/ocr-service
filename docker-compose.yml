@@ -3,7 +3,6 @@
 #
 # Usage:
 #   docker compose -f docker-compose.base.yml -f docker-compose.yml up -d
-#   OR use the shortcut: make docker-compose-full-up
 #
 # For GPU support: Uncomment the GPU section below (requires nvidia-docker)
 
