@@ -1,0 +1,167 @@
+min_version = "2024.11.1"
+
+[tools]
+python = "3.14"
+uv = "0.10.0"
+node = "22"
+go = "1.25"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.all]
+depends = ["install:all-engines", "lint:all", "test:all"]
+
+[tasks."lint:all"]
+description = "Run all quality checks"
+depends = ["lint:format", "lint:lint", "lint:typecheck", "lint:spell"]
+
+[tasks."lint:format"]
+description = "Format code with ruff"
+run = "uv run ruff format"
+
+[tasks."lint:lint"]
+description = "Lint code with ruff"
+run = "uv run ruff check"
+
+[tasks."lint:lint:fix"]
+description = "Lint and auto-fix with ruff"
+run = "uv run ruff check --fix"
+
+[tasks."lint:spell"]
+description = "Run cspell checks"
+run = "npx cspell \"**\""
+
+[tasks."lint:typecheck"]
+description = "Run static type checks"
+run = "uv run ty check"
+
+[tasks.clean]
+description = "Remove cache and temporary artifacts"
+run = '''
+find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
+find . -type f -name ".coverage" -delete 2>/dev/null || true
+find . -type f -name "*.pyc" -delete 2>/dev/null || true
+'''
+
+[tasks."install:all"]
+description = "Install dev dependencies with all available engine extras"
+depends = ["install:all-engines", "install:pdfocr"]
+
+[tasks."install:all-engines"]
+description = "Install dev dependencies with all available engine extras"
+run = "uv sync --locked --group dev --all-extras"
+
+[tasks."install:base"]
+description = "Install dev dependencies without OCR extras"
+run = "uv sync --locked --group dev"
+
+[tasks."install:easyocr"]
+description = "Install dev dependencies with EasyOCR engine"
+run = "uv sync --locked --group dev --extra easyocr"
+
+[tasks."install:ocrmac"]
+description = "Install dev dependencies with ocrmac engine"
+run = "uv sync --locked --group dev --extra ocrmac"
+
+[tasks."install:pdfocr"]
+description = "Install pdfocr CLI for searchable PDF generation"
+run = "go install github.com/gardar/ocrchestra/cmd/pdfocr@latest"
+
+[tasks."install:pre-commit"]
+description = "Install pre-commit git hooks"
+run = "uv run pre-commit install"
+
+[tasks."install:tesseract"]
+description = "Install dev dependencies with Tesseract engine"
+run = "uv sync --locked --group dev --extra tesseract"
+
+[tasks."release:changelog"]
+description = "Generate or update changelog"
+run = "uv run semantic-release changelog"
+
+[tasks."release:commit"]
+description = "Create Conventional Commit with Commitizen"
+run = "uv run cz commit"
+
+[tasks."release:dry-run"]
+description = "Show next semantic version without releasing"
+run = "uv run semantic-release version --print"
+
+[tasks."release:pre-commit"]
+description = "Run pre-commit hooks on all files"
+run = "uv run pre-commit run --all-files"
+
+[tasks."release:run"]
+description = "Create and publish semantic release"
+run = ["uv run semantic-release version", "uv run semantic-release publish"]
+
+[tasks.dev]
+description = "Run development server with reload"
+usage = '''
+flag "--host <host>" help="Bind host" env="API_HOST" default="0.0.0.0"
+flag "--port <port>" help="Bind port" env="API_PORT" default="8000"
+'''
+run = "uv run uvicorn src.main:app --reload --host ${usage_host?} --port ${usage_port?}"
+
+[tasks."test:all"]
+description = "Run all tests"
+depends = ["install:all"]
+run = "uv run pytest -v"
+
+[tasks."test:contract"]
+description = "Run contract tests"
+depends = ["install:base"]
+run = "uv run pytest tests/contract -v"
+
+[tasks."test:coverage"]
+description = "Run coverage excluding easyocr and ocrmac"
+depends = ["install:base"]
+run = [
+  "uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml -m \"not easyocr and not ocrmac\"",
+  "echo \"Coverage report generated:\"",
+  "echo \"  HTML: htmlcov/index.html\"",
+  "echo \"  XML: coverage.xml\"",
+]
+
+[tasks."test:coverage:full"]
+description = "Run coverage including all engines"
+depends = ["install:all"]
+run = [
+  "uv run pytest --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml",
+  "echo \"Full coverage report (including EasyOCR tests):\"",
+  "echo \"  HTML: htmlcov/index.html\"",
+]
+
+[tasks."test:e2e"]
+description = "Run end-to-end tests"
+depends = ["install:base"]
+run = "uv run pytest tests/e2e -v"
+
+[tasks."test:easyocr"]
+description = "Run EasyOCR tests"
+depends = ["install:easyocr"]
+run = "uv run pytest -m \"easyocr\" -v"
+
+[tasks."test:integration"]
+description = "Run integration tests"
+depends = ["install:base"]
+run = "uv run pytest tests/integration -v"
+
+[tasks."test:macos"]
+description = "Run macOS-only ocrmac tests"
+depends = ["install:ocrmac"]
+run = "uv run pytest -m \"ocrmac\" -v"
+
+[tasks."test:tesseract"]
+description = "Run Tesseract tests"
+depends = ["install:tesseract"]
+run = "uv run pytest -m \"tesseract\" -v"
+
+[tasks."test:unit"]
+description = "Run unit tests"
+depends = ["install:base"]
+run = "uv run pytest tests/unit -v"

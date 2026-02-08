@@ -1,72 +1,45 @@
 """API response models."""
 
-from datetime import datetime
+import xml.etree.ElementTree as ET
 
-from pydantic import BaseModel, Field
-
-from src.models.job import ErrorCode, JobStatus
-
-
-class UploadResponse(BaseModel):
-    """Response for successful document upload."""
-
-    job_id: str
-    status: JobStatus
-    message: str = "Upload successful, processing started"
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "job_id": "Kj4TY2vN8xQz9wR5pL7mH3fC1sD6aB8nE0gU4tV2iX1",
-                "status": "pending",
-                "message": "Upload successful, processing started",
-            }
-        }
-    }
-
-
-class StatusResponse(BaseModel):
-    """Response for job status check."""
-
-    job_id: str
-    status: JobStatus
-    upload_time: datetime
-    start_time: datetime | None = None
-    completion_time: datetime | None = None
-    expiration_time: datetime | None = None
-    error_message: str | None = None
-    error_code: ErrorCode | None = None
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "job_id": "Kj4TY...",
-                "status": "completed",
-                "upload_time": "2025-10-18T10:00:00Z",
-                "start_time": "2025-10-18T10:00:05Z",
-                "completion_time": "2025-10-18T10:00:12Z",
-                "expiration_time": "2025-10-20T10:00:12Z",
-                "error_message": None,
-                "error_code": None,
-            }
-        }
-    }
+from pydantic import BaseModel, Field, field_validator
 
 
 class ErrorResponse(BaseModel):
-    """Standard error response format."""
+    """Standard error response model for API errors.
 
-    detail: str
-    error_code: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    Used in OpenAPI documentation to describe error responses.
+    """
+
+    detail: str = Field(
+        ...,
+        description="Human-readable error message",
+    )
+    error_code: str | None = Field(
+        default=None,
+        description="Machine-readable error code for programmatic handling",
+    )
 
     model_config = {
         "json_schema_extra": {
-            "example": {
-                "detail": "Unsupported file format. Supported formats: JPEG, PNG, PDF, TIFF",
-                "error_code": "invalid_format",
-                "timestamp": "2025-10-18T10:00:00Z",
-            }
+            "examples": [
+                {
+                    "detail": "Invalid parameters. Please check your request.",
+                    "error_code": "validation_error",
+                },
+                {
+                    "detail": "Engine 'unknown' not found. Check /v2/ocr/engines for available engines.",
+                    "error_code": "not_found",
+                },
+                {
+                    "detail": "OCR engine 'tesseract' is temporarily unavailable due to repeated failures.",
+                    "error_code": "service_unavailable",
+                },
+                {
+                    "detail": "OCR processing timeout after 30 seconds.",
+                    "error_code": "timeout",
+                },
+            ]
         }
     }
 
@@ -83,6 +56,18 @@ class SyncOCRResponse(BaseModel):
         description="hOCR XML output as escaped string",
         min_length=1,
     )
+
+    @field_validator("hocr")
+    @classmethod
+    def validate_hocr_xml(cls, v: str) -> str:
+        """Validate that HOCR content is well-formed XML."""
+        try:
+            # Basic XML well-formed check
+            ET.fromstring(v)
+        except ET.ParseError as e:
+            raise ValueError(f"HOCR content is not valid XML: {e}") from e
+        return v
+
     processing_duration_seconds: float = Field(
         ...,
         description="Processing time in seconds",
@@ -92,7 +77,6 @@ class SyncOCRResponse(BaseModel):
     engine: str = Field(
         ...,
         description="OCR engine used for processing",
-        pattern="^(tesseract|easyocr|ocrmac)$",
     )
     pages: int = Field(
         ...,
