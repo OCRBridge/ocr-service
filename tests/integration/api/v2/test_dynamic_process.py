@@ -70,25 +70,32 @@ def test_ocrmac_process_pdf_download_success(client, sample_jpeg_bytes, monkeypa
     assert resp.content.startswith(b"%PDF")
 
 
-def test_pdf_upload_uses_pdfocr_for_searchable_pdf(client, sample_pdf_bytes, monkeypatch):
-    class FakeCompletedProcess:
-        def __init__(self):
-            self.returncode = 0
-            self.stdout = ""
-            self.stderr = ""
-
-    def fake_pdfocr_run(command, capture_output, text, check):
-        output_path = command[command.index("-output") + 1]
-        with open(output_path, "wb") as f:
-            f.write(b"%PDF-1.7\nsearchable\n")
-        return FakeCompletedProcess()
+def test_pdf_upload_uses_hocr_overlay_for_searchable_pdf(client, sample_pdf_bytes, monkeypatch):
+    def fake_generate_searchable_pdf(*args, **kwargs):
+        return b"%PDF-1.7\nsearchable\n"
 
     def fail_if_called(*args, **kwargs):
         raise AssertionError(
             "pytesseract.image_to_pdf_or_hocr should not be called for PDF uploads"
         )
 
-    monkeypatch.setattr("src.api.routes.v2.dynamic_routes.subprocess.run", fake_pdfocr_run)
+    monkeypatch.setattr(
+        "src.api.routes.v2.dynamic_routes._generate_searchable_pdf_from_hocr",
+        fake_generate_searchable_pdf,
+    )
+    monkeypatch.setattr(
+        "src.api.routes.v2.dynamic_routes._is_hocr_compatible_with_pdfocr",
+        lambda _hocr: (
+            True,
+            {
+                "page_count": 1,
+                "word_count": 2,
+                "line_count": 1,
+                "paragraph_count": 1,
+                "area_count": 1,
+            },
+        ),
+    )
     monkeypatch.setattr(
         "src.api.routes.v2.dynamic_routes.pytesseract.image_to_pdf_or_hocr",
         fail_if_called,
@@ -101,6 +108,35 @@ def test_pdf_upload_uses_pdfocr_for_searchable_pdf(client, sample_pdf_bytes, mon
     assert resp.status_code == 200
     assert resp.headers.get("content-type", "").startswith("application/pdf")
     assert resp.content.startswith(b"%PDF")
+
+
+def test_pdf_upload_rejects_incompatible_hocr(client, sample_pdf_bytes, monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("searchable PDF overlay should not run when hOCR is incompatible")
+
+    monkeypatch.setattr(
+        "src.api.routes.v2.dynamic_routes._generate_searchable_pdf_from_hocr",
+        fail_if_called,
+    )
+    monkeypatch.setattr(
+        "src.api.routes.v2.dynamic_routes._is_hocr_compatible_with_pdfocr",
+        lambda _hocr: (
+            False,
+            {
+                "page_count": 1,
+                "word_count": 0,
+                "line_count": 0,
+                "paragraph_count": 0,
+                "area_count": 0,
+            },
+        ),
+    )
+
+    files = {"file": ("test.pdf", io.BytesIO(sample_pdf_bytes), "application/pdf")}
+    data = {"output_format": "pdf"}
+
+    resp = client.post("/v2/ocr/ocrmac/process", files=files, data=data)
+    assert resp.status_code == 500
 
 
 def test_tesseract_invalid_param_returns_400(client, sample_jpeg_bytes):

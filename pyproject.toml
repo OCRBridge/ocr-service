@@ -17,6 +17,8 @@ dependencies = [
     "python-magic>=0.4.27",
     "slowapi>=0.1.9",
     "ocrbridge-core>=3.1.0",
+    "pypdf>=5.2.0",
+    "reportlab>=4.2.5",
 ]
 
 # Use optional-dependencies for optional features that end-users might want,
@@ -32,7 +34,7 @@ easyocr = ["ocrbridge-easyocr>=3.1.0"]
 
 # ocrmac: macOS-only Vision framework OCR
 # Docker: Not compatible (Docker uses Linux even on Mac)
-ocrmac = ["ocrbridge-ocrmac>=2.0.0; platform_system == 'Darwin'"]
+ocrmac = ["ocrbridge-ocrmac>=2.1.0; platform_system == 'Darwin'"]
 
 [dependency-groups]
 # Development dependencies

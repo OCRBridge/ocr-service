@@ -5,9 +5,12 @@ engines discovered at startup via entry points.
 """
 
 import asyncio
+import io
+import html
+import importlib
 import re
-import subprocess
 import time
+import xml.etree.ElementTree as ET
 from inspect import Parameter, Signature, signature
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -36,6 +39,152 @@ logger = structlog.get_logger()
 
 # Allowed file extensions for security
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".tiff", ".tif"}
+HOCR_BBOX_PATTERN = re.compile(r"\bbbox\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)")
+
+
+def _is_hocr_compatible_with_pdfocr(hocr: str) -> tuple[bool, dict[str, int]]:
+    """Validate hOCR structure required for searchable PDF text-layer generation."""
+    page_count = hocr.count('class="ocr_page"')
+    word_count = hocr.count("ocrx_word")
+    line_count = hocr.count("ocr_line") + hocr.count("ocrx_line")
+    par_count = hocr.count("ocr_par")
+    area_count = hocr.count("ocr_carea")
+
+    compatible = page_count > 0 and word_count > 0
+    return compatible, {
+        "page_count": page_count,
+        "word_count": word_count,
+        "line_count": line_count,
+        "paragraph_count": par_count,
+        "area_count": area_count,
+    }
+
+
+def _parse_hocr_bbox(title: str | None) -> tuple[float, float, float, float] | None:
+    """Extract bbox coordinates from hOCR title attribute."""
+    if not title:
+        return None
+    match = HOCR_BBOX_PATTERN.search(title)
+    if not match:
+        return None
+    left, top, right, bottom = match.groups()
+    return float(left), float(top), float(right), float(bottom)
+
+
+def _has_hocr_class(element: ET.Element, class_name: str) -> bool:
+    """Return True when element class attribute contains class_name."""
+    return class_name in element.attrib.get("class", "").split()
+
+
+def _extract_hocr_pages(hocr: str) -> list[dict[str, Any]]:
+    """Parse hOCR into page-level word boxes used for PDF text overlay."""
+    try:
+        root = ET.fromstring(hocr)
+    except ET.ParseError as exc:
+        raise OCRProcessingError(
+            "Generated hOCR is invalid and cannot build searchable PDF"
+        ) from exc
+
+    pages: list[dict[str, Any]] = []
+    for page_element in root.iter():
+        if not _has_hocr_class(page_element, "ocr_page"):
+            continue
+
+        page_bbox = _parse_hocr_bbox(page_element.attrib.get("title"))
+        if page_bbox is None:
+            continue
+
+        words: list[dict[str, Any]] = []
+        for word_element in page_element.iter():
+            if not _has_hocr_class(word_element, "ocrx_word"):
+                continue
+
+            word_bbox = _parse_hocr_bbox(word_element.attrib.get("title"))
+            if word_bbox is None:
+                continue
+
+            text = html.unescape(" ".join(word_element.itertext()).strip())
+            if not text:
+                continue
+
+            words.append({"bbox": word_bbox, "text": text})
+
+        pages.append({"bbox": page_bbox, "words": words})
+
+    return pages
+
+
+def _generate_searchable_pdf_from_hocr(input_pdf_path: Path, hocr: str) -> bytes:
+    """Build searchable PDF by overlaying hOCR word text over original PDF pages."""
+    pypdf_module = importlib.import_module("pypdf")
+    PdfReader = getattr(pypdf_module, "PdfReader")
+    PdfWriter = getattr(pypdf_module, "PdfWriter")
+    canvas_module = importlib.import_module("reportlab.pdfgen.canvas")
+    canvas_cls = getattr(canvas_module, "Canvas")
+
+    hocr_pages = _extract_hocr_pages(hocr)
+    input_reader = PdfReader(str(input_pdf_path))
+    input_pages = list(input_reader.pages)
+
+    if len(hocr_pages) != len(input_pages):
+        raise OCRProcessingError("Generated hOCR page count does not match input PDF page count")
+
+    overlay_stream = io.BytesIO()
+    overlay_canvas = canvas_cls(overlay_stream)
+    font_name = "Helvetica"
+
+    for pdf_page, hocr_page in zip(input_pages, hocr_pages, strict=True):
+        page_width = float(pdf_page.mediabox.width)
+        page_height = float(pdf_page.mediabox.height)
+        overlay_canvas.setPageSize((page_width, page_height))
+
+        page_left, page_top, page_right, page_bottom = hocr_page["bbox"]
+        hocr_page_width = max(1.0, page_right - page_left)
+        hocr_page_height = max(1.0, page_bottom - page_top)
+        scale_x = page_width / hocr_page_width
+        scale_y = page_height / hocr_page_height
+
+        for word in hocr_page["words"]:
+            word_left, word_top, word_right, word_bottom = word["bbox"]
+            text = word["text"]
+
+            word_width = max(1.0, (word_right - word_left) * scale_x)
+            word_height = max(1.0, (word_bottom - word_top) * scale_y)
+            origin_x = (word_left - page_left) * scale_x
+            origin_y = page_height - ((word_bottom - page_top) * scale_y)
+
+            font_size = max(1.0, word_height * 0.85)
+            rendered_width = overlay_canvas.stringWidth(text, font_name, font_size)
+            horiz_scale = 100.0
+            if rendered_width > 0:
+                horiz_scale = max(10.0, min(500.0, (word_width / rendered_width) * 100.0))
+
+            text_object = overlay_canvas.beginText()
+            text_object.setTextOrigin(origin_x, origin_y)
+            text_object.setFont(font_name, font_size)
+            text_object.setTextRenderMode(3)
+            text_object.setHorizScale(horiz_scale)
+            text_object.textLine(text)
+            overlay_canvas.drawText(text_object)
+
+        overlay_canvas.showPage()
+
+    overlay_canvas.save()
+    overlay_stream.seek(0)
+
+    overlay_reader = PdfReader(overlay_stream)
+    overlay_pages = list(overlay_reader.pages)
+    if len(overlay_pages) != len(input_pages):
+        raise OCRProcessingError("Searchable PDF overlay page generation failed")
+
+    output_writer = PdfWriter()
+    for input_page, overlay_page in zip(input_pages, overlay_pages, strict=True):
+        input_page.merge_page(overlay_page, over=True)
+        output_writer.add_page(input_page)
+
+    output_stream = io.BytesIO()
+    output_writer.write(output_stream)
+    return output_stream.getvalue()
 
 
 def get_safe_suffix(filename: str | None) -> str:
@@ -190,6 +339,15 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             suffix = get_safe_suffix(file.filename)
             contents = await file.read()
 
+            logger.debug(
+                "ocr_upload_received",
+                engine=engine_name,
+                filename=file.filename,
+                output_format=output_format,
+                file_size=len(contents),
+                input_suffix=suffix,
+            )
+
             # Ensure upload directory exists
             upload_dir = Path(settings.upload_dir)
             upload_dir.mkdir(parents=True, exist_ok=True)
@@ -200,6 +358,13 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 tf.flush()
                 temp_file = tf
             temp_file_name = temp_file.name
+
+            logger.debug(
+                "ocr_temp_upload_created",
+                engine=engine_name,
+                temp_path=temp_file_name,
+                input_suffix=suffix,
+            )
 
             # Record file size metric
             sync_ocr_file_size_bytes.labels(engine=engine_name).observe(len(contents))
@@ -220,12 +385,23 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             # Get engine and process
             start_time = time.time()
             ocr_engine = registry.get_engine(engine_name)
+            params_dict = (
+                validated_params.model_dump(exclude_none=True)
+                if validated_params is not None and hasattr(validated_params, "model_dump")
+                else {}
+            )
 
             logger.info(
                 "ocr_processing_started",
                 engine=engine_name,
                 file_size=len(contents),
                 has_params=validated_params is not None,
+            )
+            logger.debug(
+                "ocr_engine_invocation",
+                engine=engine_name,
+                timeout_seconds=settings.sync_timeout_seconds,
+                param_keys=sorted(params_dict.keys()),
             )
 
             hocr = await asyncio.wait_for(
@@ -242,6 +418,12 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                 duration=duration,
                 pages=pages,
             )
+            logger.debug(
+                "hocr_generated",
+                engine=engine_name,
+                hocr_chars=len(hocr),
+                pages=pages,
+            )
 
             # Record success for circuit breaker
             registry.record_engine_success(engine_name)
@@ -251,85 +433,61 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             sync_ocr_duration_seconds.labels(engine=engine_name).observe(duration)
 
             if output_format == "pdf":
+                strategy = "hocr_overlay" if suffix == ".pdf" else "pytesseract"
+                logger.info(
+                    "pdf_output_requested",
+                    engine=engine_name,
+                    input_suffix=suffix,
+                    strategy=strategy,
+                )
+
                 if suffix == ".pdf":
-                    hocr_temp_path: Path | None = None
-                    output_pdf_path: Path | None = None
-
                     try:
-                        with NamedTemporaryFile(
-                            delete=False,
-                            suffix=".hocr",
-                            dir=upload_dir,
-                            mode="w",
-                            encoding="utf-8",
-                        ) as hocr_temp_file:
-                            hocr_temp_file.write(hocr)
-                            hocr_temp_file.flush()
-                            hocr_temp_path = Path(hocr_temp_file.name)
-
-                        with NamedTemporaryFile(
-                            delete=False,
-                            suffix=".pdf",
-                            dir=upload_dir,
-                        ) as output_pdf_temp_file:
-                            output_pdf_path = Path(output_pdf_temp_file.name)
-
-                        cmd = [
-                            settings.pdfocr_command,
-                            "-hocr",
-                            str(hocr_temp_path),
-                            "-pdf",
-                            str(temp_file_name),
-                            "-output",
-                            str(output_pdf_path),
-                            "-overwrite",
-                            "-force",
-                        ]
-
-                        def run_pdfocr(command: list[str]) -> subprocess.CompletedProcess[str]:
-                            return subprocess.run(
-                                command,
-                                capture_output=True,
-                                text=True,
-                                check=False,
-                            )
-
-                        process_result = await asyncio.to_thread(run_pdfocr, cmd)
-
-                        if process_result.returncode not in {0, 2}:
-                            logger.error(
-                                "pdfocr_failed",
-                                engine=engine_name,
-                                returncode=process_result.returncode,
-                                stdout=process_result.stdout,
-                                stderr=process_result.stderr,
-                            )
-                            raise OCRProcessingError("Searchable PDF generation failed")
-
-                        if not output_pdf_path.exists() or output_pdf_path.stat().st_size == 0:
-                            logger.error(
-                                "pdfocr_output_missing",
-                                engine=engine_name,
-                                output_path=str(output_pdf_path),
-                            )
-                            raise OCRProcessingError("Searchable PDF output was not created")
-
-                        pdf_bytes = output_pdf_path.read_bytes()
-                    except FileNotFoundError as e:
-                        logger.error(
-                            "pdfocr_command_not_found",
+                        compatible_hocr, hocr_stats = _is_hocr_compatible_with_pdfocr(hocr)
+                        logger.debug(
+                            "searchable_pdf_hocr_compatibility_checked",
                             engine=engine_name,
-                            command=settings.pdfocr_command,
+                            compatible=compatible_hocr,
+                            **hocr_stats,
+                        )
+                        if not compatible_hocr:
+                            logger.error(
+                                "searchable_pdf_hocr_incompatible",
+                                engine=engine_name,
+                                reason="missing_required_hocr_word_structure",
+                                **hocr_stats,
+                            )
+                            raise OCRProcessingError(
+                                "Generated hOCR is incompatible with searchable PDF generation"
+                            )
+                        logger.debug(
+                            "searchable_pdf_overlay_generation_started",
+                            engine=engine_name,
+                            input_pdf_path=str(temp_file_name),
+                            hocr_chars=len(hocr),
+                        )
+                        pdf_bytes = await asyncio.to_thread(
+                            _generate_searchable_pdf_from_hocr,
+                            Path(temp_file_name),
+                            hocr,
+                        )
+                        if not pdf_bytes:
+                            raise OCRProcessingError("Searchable PDF output was not created")
+                        logger.info(
+                            "pdf_output_generated",
+                            engine=engine_name,
+                            strategy="hocr_overlay",
+                            output_bytes=len(pdf_bytes),
+                        )
+                    except Exception as e:
+                        logger.error(
+                            "searchable_pdf_overlay_failed",
+                            engine=engine_name,
                             error=str(e),
                         )
-                        raise OCRProcessingError(
-                            "Searchable PDF generation tool is not installed"
-                        ) from e
-                    finally:
-                        if hocr_temp_path:
-                            hocr_temp_path.unlink(missing_ok=True)
-                        if output_pdf_path:
-                            output_pdf_path.unlink(missing_ok=True)
+                        if isinstance(e, OCRProcessingError):
+                            raise
+                        raise OCRProcessingError("Searchable PDF generation failed") from e
                 else:
                     lang = getattr(validated_params, "lang", "eng") if validated_params else "eng"
                     dpi = getattr(validated_params, "dpi", None) if validated_params else None
@@ -345,6 +503,12 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                         config_parts.append(f"--dpi {dpi}")
 
                     config_string = " ".join(config_parts)
+                    logger.debug(
+                        "pytesseract_pdf_generation_started",
+                        engine=engine_name,
+                        lang=lang,
+                        config=config_string,
+                    )
 
                     pdf_output = pytesseract.image_to_pdf_or_hocr(
                         str(temp_file_name),
@@ -355,14 +519,32 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
                     pdf_bytes = (
                         pdf_output if isinstance(pdf_output, bytes) else pdf_output.encode("utf-8")
                     )
+                    logger.info(
+                        "pdf_output_generated",
+                        engine=engine_name,
+                        strategy="pytesseract",
+                        output_bytes=len(pdf_bytes),
+                    )
 
                 output_name = f"{Path(file.filename or 'ocr_result').stem}.pdf"
+                logger.debug(
+                    "pdf_response_ready",
+                    engine=engine_name,
+                    output_filename=output_name,
+                    output_bytes=len(pdf_bytes),
+                )
                 return Response(
                     content=pdf_bytes,
                     media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{output_name}"'},
                 )
 
+            logger.debug(
+                "hocr_response_ready",
+                engine=engine_name,
+                hocr_chars=len(hocr),
+                pages=pages,
+            )
             return SyncOCRResponse(
                 hocr=hocr,
                 processing_duration_seconds=duration,
@@ -430,7 +612,13 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
             )
         finally:
             if temp_file:
-                Path(temp_file.name).unlink(missing_ok=True)
+                temp_path = Path(temp_file.name)
+                temp_path.unlink(missing_ok=True)
+                logger.debug(
+                    "ocr_temp_upload_cleanup_completed",
+                    engine=engine_name,
+                    temp_path=str(temp_path),
+                )
 
     # Create handler based on whether engine has parameters
     if param_model:
