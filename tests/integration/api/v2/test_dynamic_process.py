@@ -84,7 +84,7 @@ def test_pdf_upload_uses_hocr_overlay_for_searchable_pdf(client, sample_pdf_byte
         fake_generate_searchable_pdf,
     )
     monkeypatch.setattr(
-        "src.api.routes.v2.dynamic_routes._is_hocr_compatible_with_pdfocr",
+        "src.api.routes.v2.dynamic_routes._is_hocr_compatible_for_searchable_pdf",
         lambda _hocr: (
             True,
             {
@@ -119,7 +119,7 @@ def test_pdf_upload_rejects_incompatible_hocr(client, sample_pdf_bytes, monkeypa
         fail_if_called,
     )
     monkeypatch.setattr(
-        "src.api.routes.v2.dynamic_routes._is_hocr_compatible_with_pdfocr",
+        "src.api.routes.v2.dynamic_routes._is_hocr_compatible_for_searchable_pdf",
         lambda _hocr: (
             False,
             {

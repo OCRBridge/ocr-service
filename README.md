@@ -72,13 +72,7 @@ mise run install:ocrmac
 
 # Option 4: Install all engines
 mise run install:all
-
-# Optional: Install pdfocr for searchable PDF output from PDF uploads
-# Requires Go toolchain (https://go.dev/dl/)
-go install github.com/gardar/ocrchestra/cmd/pdfocr@latest
 ```
-
-`pdfocr` is used when `output_format=pdf` and the uploaded file is a PDF. For image uploads, PDF output still uses pytesseract.
 
 ### Engine Comparison
 
@@ -263,9 +257,6 @@ JOB_EXPIRATION_HOURS=48
 SYNC_TIMEOUT_SECONDS=30
 SYNC_MAX_FILE_SIZE_MB=5
 
-# Searchable PDF tool (used for PDF uploads with output_format=pdf)
-PDFOCR_COMMAND=pdfocr
-
 # Logging
 LOG_LEVEL=INFO
 LOG_FORMAT=json
@@ -400,8 +391,6 @@ which tesseract
 # For ocrmac: Only works on macOS, not in Docker
 uname -s  # Should return "Darwin"
 
-# For searchable PDF output from PDF uploads: Ensure pdfocr is installed
-which pdfocr
 ```
 
 ### Rate Limiting

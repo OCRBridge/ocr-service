@@ -42,7 +42,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".tiff", ".tif"}
 HOCR_BBOX_PATTERN = re.compile(r"\bbbox\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)")
 
 
-def _is_hocr_compatible_with_pdfocr(hocr: str) -> tuple[bool, dict[str, int]]:
+def _is_hocr_compatible_for_searchable_pdf(hocr: str) -> tuple[bool, dict[str, int]]:
     """Validate hOCR structure required for searchable PDF text-layer generation."""
     page_count = hocr.count('class="ocr_page"')
     word_count = hocr.count("ocrx_word")
@@ -443,7 +443,7 @@ def create_process_handler(engine_name: str, param_model: type[BaseModel] | None
 
                 if suffix == ".pdf":
                     try:
-                        compatible_hocr, hocr_stats = _is_hocr_compatible_with_pdfocr(hocr)
+                        compatible_hocr, hocr_stats = _is_hocr_compatible_for_searchable_pdf(hocr)
                         logger.debug(
                             "searchable_pdf_hocr_compatibility_checked",
                             engine=engine_name,
