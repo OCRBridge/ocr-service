@@ -49,7 +49,7 @@ find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
 [tasks."install:all"]
 description = "Install dev dependencies with all available engine extras"
-depends = ["install:all-engines", "install:pdfocr"]
+depends = ["install:all-engines"]
 
 [tasks."install:all-engines"]
 description = "Install dev dependencies with all available engine extras"
@@ -66,10 +66,6 @@ run = "uv sync --locked --group dev --extra easyocr"
 [tasks."install:ocrmac"]
 description = "Install dev dependencies with ocrmac engine"
 run = "uv sync --locked --group dev --extra ocrmac"
-
-[tasks."install:pdfocr"]
-description = "Install pdfocr CLI for searchable PDF generation"
-run = "go install github.com/gardar/ocrchestra/cmd/pdfocr@latest"
 
 [tasks."install:pre-commit"]
 description = "Install pre-commit git hooks"

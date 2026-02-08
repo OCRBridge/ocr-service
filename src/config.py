@@ -45,11 +45,6 @@ class Settings(BaseSettings):
         ge=1,
         le=25,  # Must be <= max_upload_size_mb
     )
-    pdfocr_command: str = Field(
-        default="pdfocr",
-        description="Executable name/path for pdfocr searchable PDF generation",
-    )
-
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"
